@@ -1,1 +1,18 @@
+name: Deploy to Firebase Hosting on Merge
+on:
+  push:
+    branches:
+      - main  # আপনার মেইন ব্রাঞ্চের নাম অনুযায়ী পরিবর্তন করতে পারেন
 
+jobs:
+  build_and_deploy:
+    runs-with: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}'
+          channelId: live
+          projectId: paybook-cc6be  
