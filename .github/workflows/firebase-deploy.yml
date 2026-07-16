@@ -2,7 +2,7 @@ name: Deploy to Firebase Hosting on Merge
 on:
   push:
     branches:
-      - main  # আপনার মেইন ব্রাঞ্চের নাম অনুযায়ী পরিবর্তন করতে পারেন
+      - main  
 
 jobs:
   build_and_deploy:
