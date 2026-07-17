@@ -230,28 +230,63 @@ function startApprovalListener(phone) {
 
         // ৩. রেজিস্ট্রেশন ফাংশন (Firestore-এ ডাটা পাঠাবে)
         async function startRegistration() {
-            const name = document.getElementById('regName').value;
-            const phone = document.getElementById('regPhone').value;
-            const pin = document.getElementById('regPin').value;
-            const conf = document.getElementById('regPinConf').value;
+    const name = document.getElementById('regName').value.trim();
+    const phone = document.getElementById('regPhone').value.trim();
+    const pin = document.getElementById('regPin').value.trim();
+    const conf = document.getElementById('regPinConf').value.trim();
 
-            if(!name || phone.length < 10 || pin !== conf) return alert("তথ্য সঠিক দিন এবং পিন চেক করুন!");
+    // ভ্যালিডেশন চেক এবং এরর মেসেজ
+    if (!name) {
+        alert("দয়া করে আপনার নাম লিখুন");
+        return;
+    }
+    if (phone.length < 10) {
+        alert("মোবাইল নম্বরটি কমপক্ষে ১০ ডিজিটের হতে হবে");
+        return;
+    }
+    if (pin.length < 4) {
+        alert("পিন অবশ্যই ৪ ডিজিটের হতে হবে");
+        return;
+    }
+    if (pin !== conf) {
+        alert("পিন এবং কনফার্ম পিন মেলেনি! আবার চেক করুন।");
+        return;
+    }
 
-            try {
-                // সুপার অ্যাডমিন অটো-এপ্রুভড হবে
-                const status = (phone === SUPER_ADMIN) ? "approved" : "pending";
-                
-                await db_fs.collection("users").doc(phone).set({
-                    name, phone, pin, status, regDate: new Date().toISOString()
-                });
+    try {
+        // লোডিং বাটন টেক্সট পরিবর্তন
+        const btn = event.target;
+        btn.innerText = "Processing...";
+        btn.disabled = true;
 
-                appData.admin = { name, phone, pin, status };
-                saveLocal();
-                location.reload();
-            } catch (e) {
-                alert("রেজিস্ট্রেশন করতে সমস্যা হচ্ছে: " + e.message);
-            }
-        }
+        // সুপার অ্যাডমিন হলে সরাসরি এপ্রুভড হবে
+        const status = (phone === SUPER_ADMIN_PHONE) ? "approved" : "pending";
+        
+        // ফায়ারবেস ফায়ারস্টোর-এ ডাটা সেভ করা
+        await fs.collection("users").doc(phone).set({
+            name: name,
+            phone: phone,
+            pin: pin,
+            status: status,
+            regDate: new Date().toISOString()
+        });
+
+        // লোকাল স্টোরেজে ডাটা সেভ করা
+        db.admin = { name, phone, pin, status };
+        db.approved = (status === 'approved');
+        
+        saveDB(); // লোকাল স্টোরেজে সেভ করার ফাংশন
+
+        alert("রেজিস্ট্রেশন সফল হয়েছে!");
+        location.reload(); // অ্যাপ রিলোড হবে
+
+    } catch (e) {
+        console.error("Registration Error: ", e);
+        alert("রেজিস্ট্রেশন করা যায়নি। ইন্টার্নেট কানেকশন চেক করুন।");
+        event.target.innerText = "REGISTER & CONNECT DRIVE";
+        event.target.disabled = false;
+    }
+}
 
         async function syncApprovalStatus() {
             try {
