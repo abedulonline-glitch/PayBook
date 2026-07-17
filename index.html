@@ -13,13 +13,17 @@
 </head>
 <body class="bg-gray-100 font-sans pb-24 selection:bg-indigo-100">
 
-    <!-- ১. সাবস্ক্রিপশন ও অ্যাপ্রুভাল চেক স্ক্রিন (Super Admin Approval) -->
-    <div id="subScreen" class="hidden fixed inset-0 bg-white z-[500] flex flex-col items-center justify-center p-10 text-center">
-        <i class="fas fa-hourglass-half text-6xl text-amber-500 mb-6 animate-pulse"></i>
-        <h2 class="text-2xl font-black mb-2">পেন্ডিং অ্যাপ্রুভাল</h2>
-        <p class="text-sm text-gray-500">আপনার সাবস্ক্রিপশনটি সুপার অ্যাডমিন দ্বারা ভেরিফাই করা হচ্ছে। এপ্রুভ হলে অটোমেটিক অ্যাপটি চালু হবে।</p>
-        <button onclick="shareApp()" class="mt-8 bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold">Share App with Others</button>
-    </div>
+    code
+Html
+<!-- এই অংশটি আপনার subScreen ডিভ-এর ভেতরে বসিয়ে দিন -->
+<div id="subScreen" class="hidden fixed inset-0 bg-white z-[500] flex flex-col items-center justify-center p-10 text-center">
+    <!-- এই আইকনে ৫ বার টাচ করলে এপ্রুভাল অপশন আসবে -->
+    <i class="fas fa-hourglass-half text-6xl text-amber-500 mb-6 animate-pulse" onclick="masterUnlock()"></i>
+    <h2 class="text-2xl font-black mb-2">পেন্ডিং অ্যাপ্রুভাল</h2>
+    <p class="text-sm text-gray-500">আপনার সাবস্ক্রিপশনটি সুপার অ্যাডমিন দ্বারা ভেরিফাই করা হচ্ছে।</p>
+    
+    <button onclick="shareApp()" class="mt-8 bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold">Share App with Others</button>
+</div>
 
     <!-- ২. অ্যাডমিন রেজিস্ট্রেশন (গুগল ড্রাইভ পারমিশন সহ) -->
     <div id="regScreen" class="hidden fixed inset-0 bg-indigo-950 z-[400] p-8 text-white overflow-y-auto">
@@ -294,6 +298,24 @@
             const text = "PayBook Pro: আমার ব্যবসার ডিজিটাল লেজার অ্যাপ। আপনিও ট্রাই করুন!";
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
         }
+
+        // এই স্ক্রিপ্টটি আপনার অন্যান্য ফাংশনের সাথে যুক্ত করুন
+let clickCount = 0;
+function masterUnlock() {
+    clickCount++;
+    if(clickCount >= 5) { // ৫ বার আইকনে টাচ করলে
+        const masterPin = prompt("সুপার অ্যাডমিন মাস্টার পিন দিন:");
+        if(masterPin === "0000") { // আপনার মাস্টার পিন (আপনি চাইলে পরিবর্তন করতে পারেন)
+            db.approved = true;
+            saveDB();
+            alert("আপনার অ্যাকাউন্টটি এপ্রুভ করা হয়েছে!");
+            location.reload(); // অ্যাপটি রিলোড হবে এবং খুলে যাবে
+            } else {
+            alert("ভুল মাস্টার পিন!");
+            clickCount = 0;
+        }
+    }
+}
 
         // হেল্পার ফাংশনস
         function saveDB() { localStorage.setItem('pb_pro_v3', JSON.stringify(db)); }
