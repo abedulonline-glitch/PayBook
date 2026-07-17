@@ -165,18 +165,53 @@
         let longPressTimer;
 
         // ২. অ্যাপ স্টার্টআপ চেক
-        window.onload = async () => {
-            const local = localStorage.getItem('pb_v4_store');
-            if(local) {
-                appData = JSON.parse(local);
-                if(appData.admin) {
-                    await syncApprovalStatus(); // সার্ভার থেকে এপ্রুভাল চেক
-                }
+        // ১. অ্যাপ ওপেন হওয়ার সময় এই লজিকটি কাজ করবে
+window.onload = async () => {
+    const saved = localStorage.getItem('pb_vFinal'); // আপনার লেটেস্ট লোকাল স্টোরেজ কী (Key)
+    if(saved) {
+        db = JSON.parse(saved);
+        if(db.admin) {
+            // যদি ইউজার রেজিস্টার্ড থাকে কিন্তু এপ্রুভড না হয়, তবে লিসেনার চালু হবে
+            if(!db.approved) {
+                startApprovalListener(db.admin.phone);
             }
-            toggleScreens();
-            document.getElementById('loader').classList.add('hidden');
-            setupSecretGesture();
-        };
+            refreshView(); // স্ক্রিন দেখাবে (পেন্ডিং বা মেইন অ্যাপ)
+        }
+    } else {
+        document.getElementById('regScreen').classList.remove('hidden');
+    }
+    document.getElementById('loader').classList.add('hidden');
+    initSecretGesture();
+};
+
+// ২. রিয়েল-টাইম লিসেনার ফাংশন (এটি যাদুর মতো কাজ করবে!)
+function startApprovalListener(phone) {
+    console.log("Listening for approval for: " + phone);
+    
+    // Firestore-এর onSnapshot ব্যবহার করা হয়েছে যা ডাটাবেস পরিবর্তনের সাথে সাথে কাজ করে
+    fs.collection("users").doc(phone).onSnapshot((doc) => {
+        if (doc.exists()) {
+            const userData = doc.data();
+            if (userData.status === 'approved') {
+                console.log("User Approved! Unlocking app...");
+                
+                // লোকাল ডাটা আপডেট করা
+                db.approved = true;
+                if(db.admin) db.admin.status = 'approved';
+                
+                saveDB(); // লোকাল স্টোরেজে সেভ করা
+                
+                // ১ সেকেন্ড অপেক্ষা করে অ্যাপ রিলোড দেওয়া যাতে ইউজার বুঝতে পারে
+                setTimeout(() => {
+                    alert("অভিনন্দন! আপনার অ্যাকাউন্টটি এপ্রুভ করা হয়েছে।");
+                    location.reload(); 
+                }, 1000);
+            }
+        }
+    }, (error) => {
+        console.error("Listener Error: ", error);
+    });
+}
 
         function toggleScreens() {
             const { admin } = appData;
