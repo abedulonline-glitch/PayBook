@@ -157,7 +157,7 @@
         };
 
         firebase.initializeApp(firebaseConfig);
-        const db_fs = firebase.firestore();
+        const fs = firebase.firestore();
         const SUPER_ADMIN = "9851713487";
 
         let appData = { admin: null, people: [], secretMode: false, currentTab: 'CUSTOMER', activeId: null };
@@ -357,6 +357,12 @@
         // সংশোধিত অ্যাডমিন ড্যাশবোর্ড ফাংশন
 async function openAdminDashboard() {
     try {
+        // চেক করুন fs এবং SUPER_ADMIN তৈরি আছে কি না
+        if (typeof fs === "undefined") {
+            alert("Error: Firebase Firestore (fs) is not initialized!");
+            return;
+        }
+
         const modal = document.createElement('div');
         modal.className = "fixed inset-0 bg-white z-[1000] p-6 overflow-y-auto";
         modal.innerHTML = `
@@ -365,10 +371,10 @@ async function openAdminDashboard() {
                 <i class="fas fa-times text-2xl text-gray-400" onclick="this.closest('div.fixed').remove()"></i>
             </div>
             <div id="uList" class="space-y-4">Loading Users...</div>
-            <p class="text-[10px] text-gray-400 text-center mt-10 uppercase font-bold">PayBook Super Admin Panel</p>
         `;
         document.body.appendChild(modal);
 
+        // ডাটাবেস থেকে ইউজার নিয়ে আসা
         const snap = await fs.collection("users").get();
         const cont = document.getElementById('uList');
         cont.innerHTML = "";
@@ -380,7 +386,6 @@ async function openAdminDashboard() {
 
         snap.forEach(doc => {
             const u = doc.data();
-            // সুপার অ্যাডমিনকে লিস্টে দেখানোর দরকার নেই
             if (u.phone === SUPER_ADMIN) return;
 
             cont.innerHTML += `
@@ -394,7 +399,7 @@ async function openAdminDashboard() {
                     </div>
                     <div>
                         ${u.status === 'pending' ? 
-                          `<button onclick="approveUser('${u.phone}')" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-100">Approve</button>` : 
+                          `<button onclick="approveUser('${u.phone}')" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg">Approve</button>` : 
                           `<i class="fas fa-check-circle text-emerald-500 text-xl"></i>`}
                     </div>
                 </div>`;
