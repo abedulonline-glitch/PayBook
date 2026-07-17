@@ -158,6 +158,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const fs = firebase.firestore();
+        const db_fs = firebase.firestore();
         const SUPER_ADMIN = "9851713487";
 
         let appData = { admin: null, people: [], secretMode: false, currentTab: 'CUSTOMER', activeId: null };
