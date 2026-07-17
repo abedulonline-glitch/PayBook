@@ -317,6 +317,101 @@ function masterUnlock() {
     }
 }
 
+        // ১. ফায়ারবেস কনফিগ (আপনার দেওয়া তথ্য অনুযায়ী)
+const firebaseConfig = {
+  apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ",
+  authDomain: "paybook-cc6be.firebaseapp.com",
+  projectId: "paybook-cc6be",
+  storageBucket: "paybook-cc6be.firebasestorage.app",
+  messagingSenderId: "1000801647538",
+  appId: "1:1000801647538:web:648ac804d8d75a0811c2ab",
+  measurementId: "G-TFX1Y6FH29"
+};
+
+// Initialize Firebase & Firestore
+firebase.initializeApp(firebaseConfig);
+const fs = firebase.firestore();
+const SUPER_ADMIN_PHONE = "9851713487";
+
+// ২. রেজিস্ট্রেশন ফাংশন (Firestore-এ ডাটা পাঠাবে)
+async function startRegistration() {
+    const name = document.getElementById('regName').value;
+    const phone = document.getElementById('regPhone').value;
+    const pin = document.getElementById('regPin').value;
+
+    if(!name || phone.length < 10) return alert("তথ্য সঠিক দিন");
+
+    // ইউজারের ডাটা ফায়ারবেসে 'pending' অবস্থায় পাঠাবে
+    await fs.collection("users").doc(phone).set({
+        name: name,
+        phone: phone,
+        pin: pin,
+        status: (phone === SUPER_ADMIN_PHONE) ? "approved" : "pending",
+        regDate: new Date().toLocaleDateString()
+    });
+
+    db.admin = { name, phone, pin };
+    db.approved = (phone === SUPER_ADMIN_PHONE); 
+    saveDB();
+    location.reload();
+}
+
+// ৩. অটোম্যাটিক অ্যাপ্রুভাল চেক (অ্যাপ ওপেন হলে)
+async function checkApprovalStatus() {
+    if(db.admin && !db.approved) {
+        const userDoc = await fs.collection("users").doc(db.admin.phone).get();
+        if(userDoc.exists() && userDoc.data().status === "approved") {
+            db.approved = true;
+            saveDB();
+            location.reload();
+        }
+    }
+}
+
+// ৪. সুপার অ্যাডমিন প্যানেল UI (শুধুমাত্র আপনার জন্য)
+function renderAdminPanel() {
+    if(db.admin.phone !== SUPER_ADMIN_PHONE) return;
+
+    // মেইন স্ক্রিনে একটি অ্যাডমিন বাটন যোগ করবে
+    const header = document.querySelector('header');
+    header.innerHTML += `<button onclick="showUserList()" class="mt-4 w-full bg-white/20 py-2 rounded-xl text-xs font-bold uppercase tracking-widest">Open Super Admin Panel</button>`;
+}
+
+// ৫. পেন্ডিং ইউজারদের লিস্ট দেখা ও এপ্রুভ করা
+async function showUserList() {
+    const listModal = document.createElement('div');
+    listModal.className = "fixed inset-0 bg-white z-[1000] p-6 overflow-y-auto";
+    listModal.innerHTML = `<h2 class="text-2xl font-black mb-6">User Approval List</h2><div id="usersContainer">Loading...</div><button onclick="this.parentElement.remove()" class="fixed bottom-10 left-10 right-10 bg-black text-white py-4 rounded-2xl">Close</button>`;
+    document.body.appendChild(listModal);
+
+    const snapshot = await fs.collection("users").get();
+    const container = document.getElementById('usersContainer');
+    container.innerHTML = "";
+
+    snapshot.forEach(doc => {
+        const user = doc.data();
+        container.innerHTML += `
+            <div class="p-4 border-b flex justify-between items-center">
+                <div>
+                    <p class="font-bold">${user.name}</p>
+                    <p class="text-xs text-gray-400">${user.phone}</p>
+                    <span class="text-[10px] ${user.status==='approved'?'text-green-500':'text-amber-500'} font-bold uppercase">${user.status}</span>
+                </div>
+                ${user.status === 'pending' ? `<button onclick="approveUser('${user.phone}')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs">Approve</button>` : ''}
+            </div>
+        `;
+    });
+}
+
+// ৬. ইউজার এপ্রুভ করার ফাংশন
+async function approveUser(phone) {
+    if(confirm("আপনি কি এই ইউজারকে এপ্রুভ করতে চান?")) {
+        await fs.collection("users").doc(phone).update({ status: "approved" });
+        alert("ইউজার এপ্রুভ হয়েছে!");
+        showUserList(); // লিস্ট রিফ্রেশ
+    }
+}
+
         // হেল্পার ফাংশনস
         function saveDB() { localStorage.setItem('pb_pro_v3', JSON.stringify(db)); }
         function goHome() { document.getElementById('ledgerPage').classList.add('hidden'); document.getElementById('homePage').classList.remove('hidden'); }
