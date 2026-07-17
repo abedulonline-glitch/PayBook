@@ -410,27 +410,43 @@ async function openAdminDashboard() {
 }
 
 // সংশোধিত অ্যাপ্রুভ ফাংশন
-async function approveUser(ph) {
+// এই ফাংশনটি নিশ্চিত করুন যে স্ক্রিপ্টের একদম মেইন লেভেলে (বাইরে) আছে
+window.approveUser = async function(ph) {
     try {
-        console.log("Attempting to approve: " + ph);
+        console.log("Approve request for: " + ph);
         
-        // ১. ফায়ারবেস আপডেট
-        await fs.collection("users").doc(ph).update({
+        // ১. লোডিং ইন্ডিকেটর (অপশনাল কিন্তু ভালো)
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "Processing...";
+        btn.disabled = true;
+
+        // ২. ফায়ারবেস ডাটাবেসে স্ট্যাটাস আপডেট
+        // ph যেহেতু ডক আইডি, তাই সরাসরি এক্সেস করা হচ্ছে
+        await fs.collection("users").doc(ph.toString()).update({
             status: 'approved'
         });
 
-        alert(ph + " নম্বরটি সফলভাবে এপ্রুভ করা হয়েছে!");
+        alert("ইউজার " + ph + " সফলভাবে এপ্রুভ হয়েছে!");
         
-        // ২. ড্যাশবোর্ড রিফ্রেশ করা
-        const modal = document.querySelector('div.fixed.bg-white.z-\\[1000\\]');
-        if (modal) modal.remove(); // আগেরটা রিমুভ করে নতুন করে খুলবে
+        // ৩. ড্যাশবোর্ড রিফ্রেশ করা
+        // আমরা সরাসরি প্যানেলটি রিমুভ করে আবার লোড করছি
+        const currentModal = document.querySelector('div.fixed.inset-0.bg-white.z-\\[1000\\]');
+        if (currentModal) currentModal.remove();
+        
+        // পুনরায় অ্যাডমিন ড্যাশবোর্ড ওপেন করা যাতে আপডেট দেখা যায়
         openAdminDashboard();
-        
+
     } catch (error) {
-        console.error("Error in approval:", error);
-        alert("অ্যাপ্রুভ করা সম্ভব হয়নি। এরর: " + error.message);
+        console.error("Approval error:", error);
+        alert("অ্যাপ্রুভ করা যায়নি। এরর: " + error.message);
+        
+        // বাটন ঠিক করা যদি এরর হয়
+        const btn = event.target;
+        btn.innerText = "Approve";
+        btn.disabled = false;
     }
-}
+};
 
         async function approveUser(ph) {
             await db_fs.collection("users").doc(ph).update({ status: 'approved' });
