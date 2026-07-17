@@ -354,24 +354,78 @@
         }
 
         // ৮. সুপার অ্যাডমিন ড্যাশবোর্ড
-        async function openAdminDashboard() {
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 bg-white z-[1000] p-6 overflow-y-auto";
-            modal.innerHTML = `<h2 class="text-2xl font-black mb-6">Admin Panel</h2><div id="uCont">Loading...</div><button onclick="this.parentElement.remove()" class="fixed bottom-6 left-6 right-6 bg-black text-white py-4 rounded-2xl">Close</button>`;
-            document.body.appendChild(modal);
+        // সংশোধিত অ্যাডমিন ড্যাশবোর্ড ফাংশন
+async function openAdminDashboard() {
+    try {
+        const modal = document.createElement('div');
+        modal.className = "fixed inset-0 bg-white z-[1000] p-6 overflow-y-auto";
+        modal.innerHTML = `
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-black italic text-indigo-900">Approve Users</h2>
+                <i class="fas fa-times text-2xl text-gray-400" onclick="this.closest('div.fixed').remove()"></i>
+            </div>
+            <div id="uList" class="space-y-4">Loading Users...</div>
+            <p class="text-[10px] text-gray-400 text-center mt-10 uppercase font-bold">PayBook Super Admin Panel</p>
+        `;
+        document.body.appendChild(modal);
 
-            const snap = await db_fs.collection("users").get();
-            const cont = document.getElementById('uCont');
-            cont.innerHTML = "";
-            snap.forEach(doc => {
-                const u = doc.data();
-                cont.innerHTML += `
-                    <div class="p-4 border-b flex justify-between items-center">
-                        <div><p class="font-bold">${u.name}</p><p class="text-xs text-gray-400">${u.phone}</p></div>
-                        ${u.status === 'pending' ? `<button onclick="approveUser('${u.phone}')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs">Approve</button>` : '<span class="text-green-500 text-xs">Active</span>'}
-                    </div>`;
-            });
+        const snap = await fs.collection("users").get();
+        const cont = document.getElementById('uList');
+        cont.innerHTML = "";
+
+        if (snap.empty) {
+            cont.innerHTML = "<p class='text-center text-gray-400'>কোন ইউজার পাওয়া যায়নি।</p>";
+            return;
         }
+
+        snap.forEach(doc => {
+            const u = doc.data();
+            // সুপার অ্যাডমিনকে লিস্টে দেখানোর দরকার নেই
+            if (u.phone === SUPER_ADMIN) return;
+
+            cont.innerHTML += `
+                <div class="p-5 bg-gray-50 rounded-[25px] border border-gray-100 flex justify-between items-center shadow-sm">
+                    <div>
+                        <p class="font-black text-gray-800">${u.name}</p>
+                        <p class="text-xs text-gray-400">${u.phone}</p>
+                        <span class="text-[9px] font-black uppercase ${u.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}">
+                            Status: ${u.status}
+                        </span>
+                    </div>
+                    <div>
+                        ${u.status === 'pending' ? 
+                          `<button onclick="approveUser('${u.phone}')" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-100">Approve</button>` : 
+                          `<i class="fas fa-check-circle text-emerald-500 text-xl"></i>`}
+                    </div>
+                </div>`;
+        });
+    } catch (error) {
+        alert("ড্যাশবোর্ড খুলতে সমস্যা হচ্ছে: " + error.message);
+    }
+}
+
+// সংশোধিত অ্যাপ্রুভ ফাংশন
+async function approveUser(ph) {
+    try {
+        console.log("Attempting to approve: " + ph);
+        
+        // ১. ফায়ারবেস আপডেট
+        await fs.collection("users").doc(ph).update({
+            status: 'approved'
+        });
+
+        alert(ph + " নম্বরটি সফলভাবে এপ্রুভ করা হয়েছে!");
+        
+        // ২. ড্যাশবোর্ড রিফ্রেশ করা
+        const modal = document.querySelector('div.fixed.bg-white.z-\\[1000\\]');
+        if (modal) modal.remove(); // আগেরটা রিমুভ করে নতুন করে খুলবে
+        openAdminDashboard();
+        
+    } catch (error) {
+        console.error("Error in approval:", error);
+        alert("অ্যাপ্রুভ করা সম্ভব হয়নি। এরর: " + error.message);
+    }
+}
 
         async function approveUser(ph) {
             await db_fs.collection("users").doc(ph).update({ status: 'approved' });
