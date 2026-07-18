@@ -429,20 +429,22 @@ function fileToDataURL(file) {
 
 // ২. আপডেট করা preSave ফাংশন (যা ইমেজ সেভ করবে)
 async function preSave(type) {
+async function preSave(type) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value);
     
     if(!amt) return alert("Please enter an amount");
 
-    // পিন ভেরিফিকেশন
-    askPin(async () => {
-        // স্ক্রিনে একটি লোডিং মেসেজ বা বাটন ডিজেবল করতে পারেন
-        document.getElementById('pinSubmitBtn').innerText = "Uploading...";
+    // এই ফাংশনটি আসলে ডাটা সেভ এবং আপলোড করবে
+    const saveAction = async () => {
+        // লোডিং বাটন আপডেট (ঐচ্ছিক)
+        const saveBtn = document.getElementById('pinSubmitBtn');
+        if(saveBtn) saveBtn.innerText = "Processing...";
         
         const fileInput = document.getElementById('txFile');
         let onlineImgUrl = "";
 
-        // যদি ছবি থাকে তবে আপলোড হবে
+        // ছবি থাকলে আপলোড হবে
         if (fileInput.files && fileInput.files[0]) {
             onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
         }
@@ -452,23 +454,41 @@ async function preSave(type) {
             id: Date.now(),
             amount: amt,
             type: type,
-            secret: db.secret,
+            secret: db.secret, // এটি বর্তমানে কাঁচা নাকি পাকা মোডে আছে তা চেক করবে
             date: new Date().toLocaleDateString('en-GB'),
             note: document.getElementById('txNote').value,
-            imgUrl: onlineImgUrl, // এখানে এখন আসল অনলাইন লিঙ্ক সেভ হবে
+            imgUrl: onlineImgUrl,
             status: 'active'
         });
 
         saveDB();
         renderLedger();
         
-        // সব ক্লিয়ার করা
+        // ফর্ম ক্লিয়ার করা
         amtInput.value = ""; 
         document.getElementById('txNote').value = "";
         document.getElementById('txFile').value = "";
         document.getElementById('imgPreview').classList.add('hidden');
-        document.getElementById('pinSubmitBtn').innerText = "CONFIRM";
-    });
+        if(saveBtn) saveBtn.innerText = "CONFIRM";
+    };
+
+    // --- পিন লজিক চেক ---
+    let needsPin = false;
+
+    // যদি কাঁচা মোডে (Secret Mode) থাকে
+    if (db.secret === true) {
+        // শুধুমাত্র কাস্টমারের কাছ থেকে টাকা পাওয়ার (RECEIVED) সময় পিন লাগবে
+        if (db.tab === 'CUSTOMER' && type === 'RECEIVED') {
+            needsPin = true;
+        }
+    }
+
+    // পিন লাগবে কি না সেই অনুযায়ী অ্যাকশন নেওয়া
+    if (needsPin) {
+        askPin(saveAction);
+    } else {
+        saveAction(); // পিন ছাড়া সরাসরি সেভ
+    }
 }
 
         function deleteTx(tid) {
