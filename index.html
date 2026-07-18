@@ -434,15 +434,12 @@ async function preSave(type) {
     
     if(!amt) return alert("Please enter an amount");
 
-    // পিন ভেরিফিকেশন
-    askPin(async () => {
-        // স্ক্রিনে একটি লোডিং মেসেজ বা বাটন ডিজেবল করতে পারেন
-        document.getElementById('pinSubmitBtn').innerText = "Uploading...";
-        
+    // লেনদেন সেভ করার মূল প্রোসেস (ছবি আপলোড সহ)
+    const saveProcess = async () => {
         const fileInput = document.getElementById('txFile');
         let onlineImgUrl = "";
 
-        // যদি ছবি থাকে তবে আপলোড হবে
+        // ছবি থাকলে আপলোড হবে
         if (fileInput.files && fileInput.files[0]) {
             onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
         }
@@ -455,22 +452,31 @@ async function preSave(type) {
             secret: db.secret,
             date: new Date().toLocaleDateString('en-GB'),
             note: document.getElementById('txNote').value,
-            imgUrl: onlineImgUrl, // এখানে এখন আসল অনলাইন লিঙ্ক সেভ হবে
+            imgUrl: onlineImgUrl,
             status: 'active'
         });
 
         saveDB();
         renderLedger();
         
-        // সব ক্লিয়ার করা
+        // ফর্ম ক্লিয়ার করা
         amtInput.value = ""; 
         document.getElementById('txNote').value = "";
         document.getElementById('txFile').value = "";
         document.getElementById('imgPreview').classList.add('hidden');
-        document.getElementById('pinSubmitBtn').innerText = "CONFIRM";
-    });
-}
+    };
 
+    // --- পিন চাওয়ার শর্ত (Condition) ---
+    // শুধুমাত্র কাস্টমারের (CUSTOMER) কাছ থেকে টাকা পাওয়ার (RECEIVED) সময় পিন চাইবে।
+    const currentCategory = db.tab || db.currentFilter;
+    const isCustomerReceiving = (currentCategory === 'CUSTOMER' && type === 'RECEIVED');
+
+    if (isCustomerReceiving) {
+        askPin(saveProcess); // পিন মোডাল ওপেন হবে এবং সঠিক পিন দিলে saveProcess রান করবে
+    } else {
+        saveProcess(); // অন্য সব ক্ষেত্রে সরাসরি সেভ হবে, পিন চাইবে না
+    }
+}
         function deleteTx(tid) {
             if(confirm("Are you sure? This entry will be grayed out.")) {
                 const p = db.people.find(x => x.id === db.activeId);
