@@ -315,7 +315,7 @@ document.getElementById('txFile').onchange = e => {
             let netTotal = 0;
             
             db.people.filter(p => p.type === db.tab).forEach(p => {
-                const bal = calcBalance(p.transactions, false);
+                const bal = calcBalance(p.transactions, false, p.type);
                 netTotal += bal;
                 list.innerHTML += `
                     <div onclick="openLedger(${p.id})" class="bg-white p-6 rounded-[35px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all">
@@ -477,7 +477,7 @@ async function preSave(type) {
             amount: amt,
             type: type,
             secret: db.secret,
-            date: new Date().toLocaleDateString('en-GB'),
+            ate: document.getElementById('txDate').value || new Date().toISOString().split('T')[0],
             note: document.getElementById('txNote').value,
             images: onlineImgUrls, // এখানে এখন ইমেজের লিস্ট সেভ হচ্ছে (imgUrl এর পরিবর্তে)
             status: 'active'
@@ -592,14 +592,23 @@ function updateTx(txId) {
     const person = db.people.find(p => p.id === db.activeId);
     const tx = person.transactions.find(t => t.id === txId);
 
-    // ডাটা আপডেট
-    tx.amount = parseFloat(document.getElementById('editAmt').value);
-    tx.date = document.getElementById('editDate').value;
+    // সিকিউরিটি পিন চেক (পাকা মোডে না লাগলেও কাঁচা মোডে রিসিভ এন্ট্রিতে পিন চাইবে)
+    let needsPin = (db.secret && person.type === 'CUSTOMER' && tx.type === 'RECEIVED');
 
-    saveDB();
-    renderLedger();
-    closeEditModal();
-    alert("Transaction Updated Successfully!");
+    const executeUpdate = () => {
+        tx.amount = parseFloat(document.getElementById('editAmt').value);
+        tx.date = document.getElementById('editDate').value;
+        saveDB();
+        renderLedger();
+        closeEditModal();
+        alert("Updated Successfully!");
+    };
+
+    if (needsPin) {
+        askPin(executeUpdate);
+    } else {
+        executeUpdate();
+    }
 }
 
 function closeEditModal() {
