@@ -60,7 +60,7 @@
             <div class="flex justify-between items-center">
                 <h1 onclick="location.reload()" class="text-2xl font-black italic tracking-tighter">PayBook</h1>
                 <div class="flex gap-5 items-center">
-                   <i class="fas fa-file-pdf text-xl opacity-70" onclick="askPin(downloadBusinessSummaryPDF)"></i>
+                   <i class="fas fa-file-pdf text-xl opacity-70" onclick="askPin(handleSmartPdfDownload)"></i>
                     <div id="userAvatar" class="w-10 h-10 bg-indigo-800 rounded-full flex items-center justify-center border border-white/20 font-bold text-xs">AD</div>
                 </div>
             </div>
@@ -674,6 +674,70 @@ function deleteTx(tid) {
 
     // ৪. ফাইল সেভ
     doc.save(`PayBook_Summary_${new Date().toLocaleDateString()}.pdf`);
+}
+
+        // ১. স্মার্ট ডিসিশন মেকার
+function handleSmartPdfDownload() {
+    // চেক করা হচ্ছে ইউজার এখন কাস্টমার পেজে আছে নাকি হোম পেজে
+    const isLedgerPage = !document.getElementById('pageLedger').classList.contains('hidden');
+
+    if (isLedgerPage && db.activeId) {
+        // যদি কাস্টমারের এন্ট্রি পেজে থাকে, তবে তার পার্সোনাল পিডিএফ
+        downloadPersonalLedgerPDF(db.activeId);
+    } else {
+        // যদি হোম স্ক্রিনে থাকে, তবে সম্পূর্ণ বিজনেসের সামারি
+        downloadBusinessSummaryPDF();
+    }
+}
+
+// ২. পার্টিকুলার কাস্টমারের জন্য ডিটেইলস পিডিএফ
+function downloadPersonalLedgerPDF(personId) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const person = db.people.find(p => p.id === personId);
+
+    doc.setFontSize(20);
+    doc.setTextColor(79, 70, 229);
+    doc.text(`Ledger: ${person.name}`, 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Mobile: ${person.phone} | Type: ${person.type}`, 14, 28);
+    doc.text(`Report Date: ${new Date().toLocaleString()}`, 14, 33);
+
+    const tableData = [];
+    let totalPakka = 0;
+    let totalKaccha = 0;
+
+    // ট্রানজ্যাকশনগুলো লুপ করে টেবিল ডাটা তৈরি (আসল এমাউন্টে)
+    person.transactions.forEach(t => {
+        if (t.status === 'active') {
+            const amt = t.amount;
+            let pakkaVal = t.secret ? "-" : "Rs. " + amt.toLocaleString('en-IN');
+            let kacchaVal = t.secret ? "Rs. " + amt.toLocaleString('en-IN') : "-";
+
+            let change = (t.type === 'RECEIVED' ? amt : -amt);
+            if(t.secret) totalKaccha += change; else totalPakka += change;
+
+            tableData.push([t.date, t.type, t.note || "-", pakkaVal, kacchaVal]);
+        }
+    });
+
+    doc.autoTable({
+        startY: 40,
+        head: [['Date', 'Type', 'Note', 'Pakka Balance', 'Kaccha Balance']],
+        body: tableData,
+        foot: [[
+            { content: 'NET BALANCE', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+            "Rs. " + totalPakka.toLocaleString('en-IN'),
+            "Rs. " + totalKaccha.toLocaleString('en-IN')
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229] },
+        styles: { fontSize: 8, font: 'helvetica' }
+    });
+
+    doc.save(`Ledger_${person.name}.pdf`);
 }
 
     </script>
