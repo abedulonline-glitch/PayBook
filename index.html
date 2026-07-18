@@ -60,13 +60,10 @@
             <div class="flex justify-between items-center">
                 <h1 onclick="location.reload()" class="text-2xl font-black italic tracking-tighter">PayBook</h1>
                 <div class="flex gap-5 items-center">
-                    <i class="fas fa-chart-pie text-xl opacity-70" onclick="showFullReport()"></i>
+                   <i class="fas fa-file-pdf text-xl opacity-70" onclick="askPin(downloadBusinessSummaryPDF)"></i>
                     <div id="userAvatar" class="w-10 h-10 bg-indigo-800 rounded-full flex items-center justify-center border border-white/20 font-bold text-xs">AD</div>
                 </div>
             </div>
-            <button onclick="askPin(() => downloadPDF(db.activeId))" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold">
-               <i class="fas fa-file-pdf mr-1"></i> DOWNLOAD PDF REPORT
-            </button>
             <div class="mt-8 flex justify-between items-end">
                 <div>
                     <p class="text-[10px] uppercase font-bold text-indigo-300 tracking-widest mb-1">Net Balance (Pakka)</p>
@@ -617,49 +614,68 @@ function deleteTx(tid) {
             } else alert("Mobile number not found!");
         }
 
-        function downloadPDF(personId) {
+        function downloadBusinessSummaryPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const person = db.people.find(p => p.id === personId);
 
-    // ১. টাইটেল এবং হেডার সেট করা
-    doc.setFontSize(18);
-    doc.text(`Ledger Report: ${person.name}`, 14, 20);
+    // ১. টাইটেল ও এডমিন তথ্য
+    doc.setFontSize(20);
+    doc.setTextColor(79, 70, 229); // Indigo color
+    doc.text("PayBook: Full Business Summary", 14, 20);
+    
     doc.setFontSize(10);
-    doc.text(`Phone: ${person.phone} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.setTextColor(100);
+    doc.text(`Admin Phone: ${db.admin.phone} | Report Date: ${new Date().toLocaleString()}`, 14, 28);
 
-    // ২. ডাটা প্রিপারেশন (পাশাপাশি পাকা ও কাঁচা হিসাব)
+    // ২. ডাটা প্রসেসিং (সব কাস্টমার ও সাপ্লায়ারের হিসাব)
     const tableData = [];
-    let totalPakka = 0;
-    let totalKaccha = 0;
+    let grandPakka = 0;
+    let grandKaccha = 0;
 
-    person.transactions.forEach(t => {
-        if (t.status === 'active') {
-            const amt = t.amount; // এখানে অরিজিনাল অ্যামাউন্ট নেওয়া হচ্ছে (১০০ দিয়ে ভাগ না করে)
-            let pakkaVal = t.isKaccha ? "-" : `₹${amt}`;
-            let kacchaVal = t.isKaccha ? `₹${amt}` : "-";
+    db.people.forEach(p => {
+        let pakkaBal = 0;
+        let kacchaBal = 0;
 
-            // টোটাল হিসাব (GIVEN বিয়োগ, RECEIVED যোগ)
-            let change = (t.type === 'RECEIVED' ? amt : -amt);
-            if(t.isKaccha) totalKaccha += change; else totalPakka += change;
+        p.transactions.forEach(t => {
+            if (t.status === 'active') {
+                let val = (t.type === 'RECEIVED' ? t.amount : -t.amount);
+                if (t.isKaccha) kacchaBal += val; else pakkaBal += val;
+            }
+        });
 
-            tableData.push([t.date, t.type, t.note || "-", pakkaVal, kacchaVal]);
-        }
+        grandPakka += pakkaBal;
+        grandKaccha += kacchaBal;
+
+        // টেবিল রো তৈরি
+        tableData.push([
+            p.name,
+            p.phone,
+            p.type,
+            `₹${pakkaBal.toLocaleString()}`,
+            `₹${kacchaBal.toLocaleString()}`
+        ]);
     });
 
-    // ৩. অটো-টেবিল তৈরি
+    // ৩. পিডিএফ টেবিল তৈরি (Side-by-Side Pakka & Kaccha)
     doc.autoTable({
         startY: 35,
-        head: [['Date', 'Type', 'Note', 'Pakka Amount', 'Kaccha Amount']],
+        head: [['Contact Name', 'Mobile', 'Type', 'Pakka Balance', 'Kaccha Balance']],
         body: tableData,
-        foot: [['', '', 'TOTAL BALANCE', `₹${totalPakka}`, `₹${totalKaccha}`]],
-        theme: 'striped',
-        headStyles: { fillColor: [79, 70, 229] } // Indigo Color
+        foot: [[
+            { content: 'GRAND TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+            `₹${grandPakka.toLocaleString()}`,
+            `₹${grandKaccha.toLocaleString()}`
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229] }, // Header Color
+        footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42] }, // Footer Color
+        styles: { fontSize: 9 }
     });
 
-    // ৪. ফাইল ডাউনলোড
-    doc.save(`PayBook_${person.name}.pdf`);
+    // ৪. ফাইল সেভ
+    doc.save(`PayBook_Summary_${new Date().toLocaleDateString()}.pdf`);
 }
+
     </script>
 </body>
 </html>
