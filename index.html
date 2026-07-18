@@ -370,27 +370,62 @@
         `;
     });
 }
-        function preSave(type) {
-            askPin(() => {
-                const amt = parseFloat(document.getElementById('txAmt').value);
-                if(!amt) return alert("Enter amount");
-                const p = db.people.find(x => x.id === db.activeId);
-                p.transactions.unshift({
-                    id: Date.now(),
-                    amount: amt,
-                    type: type,
-                    secret: db.secret,
-                    date: new Date().toLocaleDateString('en-GB'),
-                    note: document.getElementById('txNote').value,
-                    status: 'active'
-                });
-                saveDB();
-                renderLedger();
-                // Clear Form
-                document.getElementById('txAmt').value = ""; document.getElementById('txNote').value = "";
-                document.getElementById('imgPreview').classList.add('hidden');
+        // ১. ইমেজকে চিরস্থায়ী ডাটাতে রূপান্তর করার ফাংশন
+function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+}
+
+// ২. আপডেট করা preSave ফাংশন (যা ইমেজ সেভ করবে)
+async function preSave(type) {
+    const amtInput = document.getElementById('txAmt');
+    const amt = parseFloat(amtInput.value);
+    
+    if(!amt) return alert("Please enter an amount");
+
+    // পিন চাইলে এই লজিকটি কাজ করবে
+    askPin(async () => {
+        try {
+            const p = db.people.find(x => x.id === db.activeId);
+            const fileInput = document.getElementById('txFile');
+            let savedImgUrl = "";
+
+            // যদি ইমেজ সিলেক্ট করা থাকে, তবে সেটিকে সেভ করবে
+            if (fileInput.files && fileInput.files[0]) {
+                savedImgUrl = await fileToDataURL(fileInput.files[0]);
+            }
+
+            // নতুন ট্রানজ্যাকশন অবজেক্ট
+            p.transactions.unshift({
+                id: Date.now(),
+                amount: amt,
+                type: type,
+                secret: db.secret,
+                date: new Date().toLocaleDateString('en-GB'),
+                note: document.getElementById('txNote').value,
+                imgUrl: savedImgUrl, // এখানে ইমেজ ডাটা সেভ হচ্ছে
+                status: 'active'
             });
+
+            saveDB();
+            renderLedger();
+            
+            // ফর্ম খালি করা
+            amtInput.value = ""; 
+            document.getElementById('txNote').value = "";
+            document.getElementById('txFile').value = "";
+            document.getElementById('imgPreview').classList.add('hidden');
+            
+        } catch (err) {
+            console.error("Image saving failed:", err);
+            alert("Failed to save image. Please try again.");
         }
+    });
+}
 
         function deleteTx(tid) {
             if(confirm("Are you sure? This entry will be grayed out.")) {
