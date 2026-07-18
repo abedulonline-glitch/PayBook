@@ -479,15 +479,12 @@ function fileToDataURL(file) {
 async function preSave(type) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value);
-    
-    if(!amt) return alert("Please enter an amount");
+    if(!amt) return alert("Please enter amount");
 
-    // লেনদেন সেভ করার মূল প্রোসেস (ছবি আপলোড সহ)
-    const saveProcess = async () => {
+    // লেনদেন সেভ করার প্রসেস
+    const saveAction = async () => {
         const fileInput = document.getElementById('txFile');
         let onlineImgUrl = "";
-
-        // ছবি থাকলে আপলোড হবে
         if (fileInput.files && fileInput.files[0]) {
             onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
         }
@@ -497,32 +494,23 @@ async function preSave(type) {
             id: Date.now(),
             amount: amt,
             type: type,
-            secret: db.secret,
+            secret: db.secret, // বর্তমান মোড (পাকা/কাঁচা) অনুযায়ী সেভ হবে
             date: new Date().toLocaleDateString('en-GB'),
             note: document.getElementById('txNote').value,
             imgUrl: onlineImgUrl,
             status: 'active'
         });
-
-        saveDB();
-        renderLedger();
-        
-        // ফর্ম ক্লিয়ার করা
-        amtInput.value = ""; 
-        document.getElementById('txNote').value = "";
-        document.getElementById('txFile').value = "";
+        saveDB(); renderLedger();
+        amtInput.value = ""; document.getElementById('txNote').value = "";
         document.getElementById('imgPreview').classList.add('hidden');
     };
 
-    // --- পিন চাওয়ার শর্ত (Condition) ---
-    // শুধুমাত্র কাস্টমারের (CUSTOMER) কাছ থেকে টাকা পাওয়ার (RECEIVED) সময় পিন চাইবে।
-    const currentCategory = db.tab || db.currentFilter;
-    const isCustomerReceiving = (currentCategory === 'CUSTOMER' && type === 'RECEIVED');
-
-    if (isCustomerReceiving) {
-        askPin(saveProcess); // পিন মোডাল ওপেন হবে এবং সঠিক পিন দিলে saveProcess রান করবে
+    // পিন চেক: শুধুমাত্র কাঁচা মোডে (Secret) + কাস্টমারের থেকে (CUSTOMER) + টাকা পাওয়া (RECEIVED)
+    const currentTab = db.tab || db.currentFilter;
+    if (db.secret === true && currentTab === 'CUSTOMER' && type === 'RECEIVED') {
+        askPin(saveAction);
     } else {
-        saveProcess(); // অন্য সব ক্ষেত্রে সরাসরি সেভ হবে, পিন চাইবে না
+        saveAction(); // অন্য সব ক্ষেত্রে সরাসরি সেভ (পাকা বা সাপ্লায়ারের জন্য পিন লাগবে না)
     }
 }
         // সংশোধিত ডিলিট ফাংশন (পিন প্রোটেকশন সহ)
@@ -543,24 +531,19 @@ function deleteTx(tid) {
     });
 }
 
-        function calcBalance(txs, isSecret, personType) {
-    let totalGiven = 0;
-    let totalReceived = 0;
-
-    // শুধুমাত্র একটিভ এবং মোড অনুযায়ী ট্রানজ্যাকশন ফিল্টার করা
-    const filteredTxs = txs.filter(t => t.secret === isSecret && t.status === 'active');
-
-    filteredTxs.forEach(t => {
-        if (t.type === 'GIVEN') totalGiven += t.amount;
-        if (t.type === 'RECEIVED') totalReceived += t.amount;
+       // সংশোধিত ব্যালেন্স ক্যালকুলেশন
+function calcBalance(txs, targetMode, personType) {
+    let bal = 0;
+    // শুধুমাত্র বর্তমান মোড (পাকা/কাঁচা) অনুযায়ী ট্রানজ্যাকশনগুলো যোগ-বিয়োগ হবে
+    txs.filter(t => t.status === 'active' && t.secret === targetMode).forEach(t => {
+        let change = (t.type === 'RECEIVED' ? t.amount : -t.amount);
+        bal += change;
     });
 
     if (personType === 'SUPPLIER') {
-        // সাপ্লায়ারের ক্ষেত্রে: যা পেয়েছি - যা দিয়েছি = আমার দেনা
-        return totalReceived - totalGiven; 
+        return bal; // সাপ্লায়ারের ক্ষেত্রে পজিটিভ মানে দেনা (Red)
     } else {
-        // কাস্টমারের ক্ষেত্রে: যা দিয়েছি - যা পেয়েছি = আমার পাওনা
-        return totalGiven - totalReceived;
+        return bal; // কাস্টমারের ক্ষেত্রে পজিটিভ মানে পাওনা (Red)
     }
 }
 
@@ -630,127 +613,90 @@ function handleSmartPdfDownload() {
 }
 
 // ২. ইন্ডিভিজুয়াল লেজার পিডিএফ (পাক্কা মোডে কাঁচা হিসাব পুরোপুরি ভ্যানিশ থাকবে)
-function downloadPersonalLedgerPDF(personId, isSecret) {
+function downloadPersonalLedgerPDF(personId, isAppInSecretMode) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const person = db.people.find(p => p.id === personId);
 
     doc.setFontSize(20);
-    doc.setTextColor(isSecret ? 225 : 79, isSecret ? 29 : 70, isSecret ? 72 : 229);
-    doc.text(`${isSecret ? 'Complete' : 'Pakka'} Ledger: ${person.name}`, 14, 20);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Mobile: ${person.phone} | Report Type: ${isSecret ? 'Full Summary' : 'Pakka Only'}`, 14, 28);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
+    doc.text(`${isAppInSecretMode ? 'Full' : 'Official'} Ledger: ${person.name}`, 14, 20);
 
-    // মোড অনুযায়ী কলাম সেট করা
-    let headers = isSecret 
-        ? [['Date', 'Type', 'Note', 'Pakka Amount', 'Kaccha Amount']] 
-        : [['Date', 'Type', 'Note', 'Amount']];
+    // ১. কলাম নির্ধারণ
+    let headers = isAppInSecretMode 
+        ? [['Date', 'Type', 'Note', 'Pakka Amt', 'Kaccha Amt']] 
+        : [['Date', 'Type', 'Note', 'Amount (Pakka)']];
 
     const tableData = [];
-    let totalPakka = 0;
-    let totalKaccha = 0;
+    let totP = 0, totK = 0;
 
     person.transactions.forEach(t => {
         if (t.status === 'active') {
             const amt = t.amount;
-            let change = (t.type === 'RECEIVED' ? amt : -amt);
+            const change = (t.type === 'RECEIVED' ? amt : -amt);
 
-            if (!isSecret) {
-                // পাক্কা মোড: শুধুমাত্র পাক্কা ট্রানজ্যাকশনগুলো আসবে
+            if (!isAppInSecretMode) {
+                // পাকা মোড: কাঁচা ডাটা ফিল্টার আউট (সম্পূর্ণ ভ্যানিশ)
                 if (!t.secret) {
-                    totalPakka += change;
+                    totP += change;
                     tableData.push([t.date, t.type, t.note || "-", "Rs. " + amt.toLocaleString('en-IN')]);
                 }
             } else {
-                // কাঁচা মোড: পাকা ও কাঁচা উভয়ই পাশাপাশি আসবে
-                let pakkaVal = t.secret ? "-" : "Rs. " + amt.toLocaleString('en-IN');
-                let kacchaVal = t.secret ? "Rs. " + amt.toLocaleString('en-IN') : "-";
-                if(t.secret) totalKaccha += change; else totalPakka += change;
-                tableData.push([t.date, t.type, t.note || "-", pakkaVal, kacchaVal]);
+                // কাঁচা মোড: পাকা ও কাঁচা পাশাপাশি
+                let pVal = t.secret ? "-" : "Rs. " + amt.toLocaleString('en-IN');
+                let kVal = t.secret ? "Rs. " + amt.toLocaleString('en-IN') : "-";
+                if(t.secret) totK += change; else totP += change;
+                tableData.push([t.date, t.type, t.note || "-", pVal, kVal]);
             }
         }
     });
-
-    // মোড অনুযায়ী নিচের টোটাল লাইন সেট করা
-    let footerRows = isSecret 
-        ? [[{ content: 'NET BALANCE', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + totalPakka.toLocaleString('en-IN'), "Rs. " + totalKaccha.toLocaleString('en-IN')]]
-        : [[{ content: 'TOTAL DUE', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + totalPakka.toLocaleString('en-IN')]];
 
     doc.autoTable({
         startY: 40,
         head: headers,
         body: tableData,
-        foot: footerRows,
         theme: 'grid',
-        headStyles: { fillColor: isSecret ? [225, 29, 72] : [79, 70, 229] },
-        styles: { fontSize: 8, font: 'helvetica' }
+        headStyles: { fillColor: isAppInSecretMode ? [225, 29, 72] : [79, 70, 229] },
+        styles: { fontSize: 8 }
     });
-
-    doc.save(`${isSecret ? 'Full' : 'Pakka'}_Ledger_${person.name}.pdf`);
+    doc.save(`${person.name}_Report.pdf`);
 }
 
 // ৩. গ্লোবাল বিজনেস সামারি পিডিএফ
-function downloadBusinessSummaryPDF(isSecret) {
+function downloadBusinessSummaryPDF(isAppInSecretMode) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    doc.text(`Business Summary (${isAppInSecretMode ? 'Full' : 'Pakka Only'})`, 14, 20);
 
-    doc.setFontSize(20);
-    doc.setTextColor(79, 70, 229);
-    doc.text(`Business Summary (${isSecret ? 'Full' : 'Pakka Only'})`, 14, 20);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Admin: ${db.admin.phone} | Report Date: ${new Date().toLocaleString()}`, 14, 28);
-
-    let headers = isSecret 
-        ? [['Name', 'Mobile', 'Type', 'Pakka Balance', 'Kaccha Balance']] 
-        : [['Name', 'Mobile', 'Type', 'Balance']];
+    let headers = isAppInSecretMode 
+        ? [['Name', 'Mobile', 'Type', 'Pakka Bal', 'Kaccha Bal']] 
+        : [['Name', 'Mobile', 'Type', 'Balance (Pakka)']];
 
     const tableData = [];
-    let grandPakka = 0;
-    let grandKaccha = 0;
-
     db.people.forEach(p => {
-        let pakkaBal = 0;
-        let kacchaBal = 0;
-
+        let pB = 0, kB = 0;
         p.transactions.forEach(t => {
             if (t.status === 'active') {
-                let val = (t.type === 'RECEIVED' ? t.amount : -t.amount);
-                if (t.secret) kacchaBal += val; else pakkaBal += val;
+                let v = (t.type === 'RECEIVED' ? t.amount : -t.amount);
+                if (t.secret) kB += v; else pB += v;
             }
         });
 
-        grandPakka += pakkaBal;
-        grandKaccha += kacchaBal;
-
-        if (!isSecret) {
-            tableData.push([p.name, p.phone, p.type, "Rs. " + pakkaBal.toLocaleString('en-IN')]);
+        if (!isAppInSecretMode) {
+            tableData.push([p.name, p.phone, p.type, "Rs. " + pB.toLocaleString('en-IN')]);
         } else {
-            tableData.push([p.name, p.phone, p.type, "Rs. " + pakkaBal.toLocaleString('en-IN'), "Rs. " + kacchaBal.toLocaleString('en-IN')]);
+            tableData.push([p.name, p.phone, p.type, "Rs. " + pB.toLocaleString('en-IN'), "Rs. " + kB.toLocaleString('en-IN')]);
         }
     });
-
-    let footerRows = isSecret 
-        ? [[{ content: 'GRAND TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + grandPakka.toLocaleString('en-IN'), "Rs. " + grandKaccha.toLocaleString('en-IN')]]
-        : [[{ content: 'GRAND TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + grandPakka.toLocaleString('en-IN')]];
 
     doc.autoTable({
         startY: 35,
         head: headers,
         body: tableData,
-        foot: footerRows,
         theme: 'grid',
-        headStyles: { fillColor: isSecret ? [225, 29, 72] : [79, 70, 229] },
-        styles: { fontSize: 8, font: 'helvetica' }
+        headStyles: { fillColor: isAppInSecretMode ? [225, 29, 72] : [79, 70, 229] }
     });
-
-    doc.save(`Business_Summary_${isSecret ? 'Full' : 'Pakka'}.pdf`);
+    doc.save(`Business_Report.pdf`);
 }
-
     </script>
 </body>
 </html>
