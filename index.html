@@ -614,25 +614,39 @@ function deleteTx(tid) {
             } else alert("Mobile number not found!");
         }
 
-        function downloadPersonalLedgerPDF(personId) {
+        // ১. স্মার্ট ডিসিশন মেকার (পাক্কা ও কাঁচা মোড অটো ডিটেক্ট করবে)
+function handleSmartPdfDownload() {
+    // চেক করা হচ্ছে ইউজার এখন লেজার পেজে আছে নাকি হোম পেজে
+    const isLedgerPage = !document.getElementById('pageLedger').classList.contains('hidden');
+    const isSecretMode = !!db.secret; // বর্তমানে অ্যাপ কোন মোডে আছে?
+
+    if (isLedgerPage && db.activeId) {
+        // ইন্ডিভিজুয়াল রিপোর্ট
+        downloadPersonalLedgerPDF(db.activeId, isSecretMode);
+    } else {
+        // গ্লোবাল সামারি রিপোর্ট
+        downloadBusinessSummaryPDF(isSecretMode);
+    }
+}
+
+// ২. ইন্ডিভিজুয়াল লেজার পিডিএফ (পাক্কা মোডে কাঁচা হিসাব পুরোপুরি ভ্যানিশ থাকবে)
+function downloadPersonalLedgerPDF(personId, isSecret) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const person = db.people.find(p => p.id === personId);
-    const isSecret = db.secret; // বর্তমানে অ্যাপ কোন মোডে আছে?
 
-    // হেডার সেকশন
     doc.setFontSize(20);
-    doc.setTextColor(79, 70, 229);
+    doc.setTextColor(isSecret ? 225 : 79, isSecret ? 29 : 70, isSecret ? 72 : 229);
     doc.text(`${isSecret ? 'Complete' : 'Pakka'} Ledger: ${person.name}`, 14, 20);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Mobile: ${person.phone} | Report Type: ${isSecret ? 'Full' : 'Pakka Only'}`, 14, 28);
-    doc.text(`Date: ${new Date().toLocaleString()}`, 14, 33);
+    doc.text(`Mobile: ${person.phone} | Report Type: ${isSecret ? 'Full Summary' : 'Pakka Only'}`, 14, 28);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
 
-    // টেবিল কলাম নির্ধারণ (সিক্রেট মোড অনুযায়ী)
+    // মোড অনুযায়ী কলাম সেট করা
     let headers = isSecret 
-        ? [['Date', 'Type', 'Note', 'Pakka Balance', 'Kaccha Balance']] 
+        ? [['Date', 'Type', 'Note', 'Pakka Amount', 'Kaccha Amount']] 
         : [['Date', 'Type', 'Note', 'Amount']];
 
     const tableData = [];
@@ -645,13 +659,13 @@ function deleteTx(tid) {
             let change = (t.type === 'RECEIVED' ? amt : -amt);
 
             if (!isSecret) {
-                // মোড: পাকা (শুধুমাত্র পাকা হিসাব এড হবে)
+                // পাক্কা মোড: শুধুমাত্র পাক্কা ট্রানজ্যাকশনগুলো আসবে
                 if (!t.secret) {
                     totalPakka += change;
                     tableData.push([t.date, t.type, t.note || "-", "Rs. " + amt.toLocaleString('en-IN')]);
                 }
             } else {
-                // মোড: সিক্রেট (পাকা এবং কাঁচা উভয়ই আসবে)
+                // কাঁচা মোড: পাকা ও কাঁচা উভয়ই পাশাপাশি আসবে
                 let pakkaVal = t.secret ? "-" : "Rs. " + amt.toLocaleString('en-IN');
                 let kacchaVal = t.secret ? "Rs. " + amt.toLocaleString('en-IN') : "-";
                 if(t.secret) totalKaccha += change; else totalPakka += change;
@@ -660,8 +674,8 @@ function deleteTx(tid) {
         }
     });
 
-    // ফুটার নির্ধারণ
-    let footer = isSecret 
+    // মোড অনুযায়ী নিচের টোটাল লাইন সেট করা
+    let footerRows = isSecret 
         ? [[{ content: 'NET BALANCE', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + totalPakka.toLocaleString('en-IN'), "Rs. " + totalKaccha.toLocaleString('en-IN')]]
         : [[{ content: 'TOTAL DUE', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + totalPakka.toLocaleString('en-IN')]];
 
@@ -669,29 +683,73 @@ function deleteTx(tid) {
         startY: 40,
         head: headers,
         body: tableData,
-        foot: footer,
+        foot: footerRows,
         theme: 'grid',
-        headStyles: { fillColor: isSecret ? [225, 29, 72] : [79, 70, 229] }, // সিক্রেট মোডে লাল হেডার
+        headStyles: { fillColor: isSecret ? [225, 29, 72] : [79, 70, 229] },
         styles: { fontSize: 8, font: 'helvetica' }
     });
 
-    doc.save(`Ledger_${person.name}.pdf`);
+    doc.save(`${isSecret ? 'Full' : 'Pakka'}_Ledger_${person.name}.pdf`);
 }
 
-        // ১. স্মার্ট ডিসিশন মেকার
-function handleSmartPdfDownload() {
-    // চেক করা হচ্ছে ইউজার এখন কাস্টমার পেজে আছে নাকি হোম পেজে
-    const isLedgerPage = !document.getElementById('pageLedger').classList.contains('hidden');
+// ৩. গ্লোবাল বিজনেস সামারি পিডিএফ
+function downloadBusinessSummaryPDF(isSecret) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
 
-    if (isLedgerPage && db.activeId) {
-        // যদি কাস্টমারের এন্ট্রি পেজে থাকে, তবে তার পার্সোনাল পিডিএফ
-        downloadPersonalLedgerPDF(db.activeId);
-    } else {
-        // যদি হোম স্ক্রিনে থাকে, তবে সম্পূর্ণ বিজনেসের সামারি
-        downloadBusinessSummaryPDF();
-    }
+    doc.setFontSize(20);
+    doc.setTextColor(79, 70, 229);
+    doc.text(`Business Summary (${isSecret ? 'Full' : 'Pakka Only'})`, 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Admin: ${db.admin.phone} | Report Date: ${new Date().toLocaleString()}`, 14, 28);
+
+    let headers = isSecret 
+        ? [['Name', 'Mobile', 'Type', 'Pakka Balance', 'Kaccha Balance']] 
+        : [['Name', 'Mobile', 'Type', 'Balance']];
+
+    const tableData = [];
+    let grandPakka = 0;
+    let grandKaccha = 0;
+
+    db.people.forEach(p => {
+        let pakkaBal = 0;
+        let kacchaBal = 0;
+
+        p.transactions.forEach(t => {
+            if (t.status === 'active') {
+                let val = (t.type === 'RECEIVED' ? t.amount : -t.amount);
+                if (t.secret) kacchaBal += val; else pakkaBal += val;
+            }
+        });
+
+        grandPakka += pakkaBal;
+        grandKaccha += kacchaBal;
+
+        if (!isSecret) {
+            tableData.push([p.name, p.phone, p.type, "Rs. " + pakkaBal.toLocaleString('en-IN')]);
+        } else {
+            tableData.push([p.name, p.phone, p.type, "Rs. " + pakkaBal.toLocaleString('en-IN'), "Rs. " + kacchaBal.toLocaleString('en-IN')]);
+        }
+    });
+
+    let footerRows = isSecret 
+        ? [[{ content: 'GRAND TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + grandPakka.toLocaleString('en-IN'), "Rs. " + grandKaccha.toLocaleString('en-IN')]]
+        : [[{ content: 'GRAND TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } }, "Rs. " + grandPakka.toLocaleString('en-IN')]];
+
+    doc.autoTable({
+        startY: 35,
+        head: headers,
+        body: tableData,
+        foot: footerRows,
+        theme: 'grid',
+        headStyles: { fillColor: isSecret ? [225, 29, 72] : [79, 70, 229] },
+        styles: { fontSize: 8, font: 'helvetica' }
+    });
+
+    doc.save(`Business_Summary_${isSecret ? 'Full' : 'Pakka'}.pdf`);
 }
-
 
     </script>
 </body>
