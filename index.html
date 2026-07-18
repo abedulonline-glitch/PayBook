@@ -13,6 +13,14 @@
         .btn-primary { @apply w-full py-5 rounded-2xl font-black text-lg shadow-2xl active:scale-95 transition-all; }
         .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
+   
+    @keyframes slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+.animate-slide-up {
+    animation: slide-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
     </style>
 </head>
 <body class="bg-[#0f172a] text-slate-200 overflow-x-hidden">
@@ -142,6 +150,34 @@
 <div id="zoomModal" class="hidden fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
     <img id="zoomImg" src="" class="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-300">
     <div class="absolute top-10 right-10 text-white text-3xl"><i class="fas fa-times"></i></div>
+</div>
+
+    <!-- Cool Image Picker Bottom Sheet -->
+<div id="imagePicker" class="hidden fixed inset-0 bg-black/60 z-[600] flex items-end transition-opacity duration-300">
+    <div class="w-full bg-white rounded-t-[40px] p-10 pb-12 animate-slide-up shadow-[0_-20px_50px_rgba(0,0,0,0.2)]">
+        <div class="flex justify-around items-center mb-8">
+            <!-- Camera Option -->
+            <div onclick="pickFromSource('camera')" class="flex flex-col items-center gap-3 cursor-pointer active:scale-90 transition-transform">
+                <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 shadow-lg border border-indigo-100">
+                    <i class="fas fa-camera"></i>
+                </div>
+                <span class="text-sm font-black text-slate-600 tracking-tight">Camera</span>
+            </div>
+            
+            <!-- Gallery Option -->
+            <div onclick="pickFromSource('gallery')" class="flex flex-col items-center gap-3 cursor-pointer active:scale-90 transition-transform">
+                <div class="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 shadow-lg border border-emerald-100">
+                    <i class="fas fa-image text-3xl"></i>
+                </div>
+                <span class="text-sm font-black text-slate-600 tracking-tight">Gallery</span>
+            </div>
+        </div>
+        
+        <!-- Cancel Button -->
+        <button onclick="closeImagePicker()" class="w-full py-4 text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px]">
+            Cancel
+        </button>
+    </div>
 </div>
 
     <!-- ADD PERSON MODAL -->
@@ -554,6 +590,31 @@ async function preSave(type) {
                 }
             } else alert("Mobile number not found!");
         }
+
+        // ১. পিকুার ওপেন করা
+function openImagePicker() {
+    document.getElementById('imagePicker').classList.remove('hidden');
+}
+
+// ২. পিকার বন্ধ করা
+function closeImagePicker() {
+    document.getElementById('imagePicker').classList.add('hidden');
+}
+
+// ৩. সোর্স অনুযায়ী ফাইল ইনপুট ট্রিগার করা
+function pickFromSource(source) {
+    const fileInput = document.getElementById('txFile');
+    
+    if (source === 'camera') {
+        fileInput.setAttribute('capture', 'camera'); // সরাসরি ক্যামেরা ওপেন করবে
+    } else {
+        fileInput.removeAttribute('capture'); // গ্যালারি ওপেন করবে
+    }
+    
+    closeImagePicker();
+    fileInput.click(); // মেইন ফাইল ইনপুটটি ক্লিক করবে
+}
+
     </script>
 </body>
 </html>
