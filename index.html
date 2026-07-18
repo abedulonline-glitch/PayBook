@@ -298,52 +298,31 @@ document.getElementById('txFile').onchange = e => {
         }
 
         function renderHome() {
-    const list = document.getElementById('contactList');
-    list.innerHTML = "";
-    let netTotal = 0;
-    
-    db.people.filter(p => p.type === db.tab).forEach(p => {
-        // ১. সঠিক প্যারামিটারসহ ব্যালেন্স ক্যালকুলেশন
-        const bal = calcBalance(p.transactions, false, p.type);
-        netTotal += bal;
-
-        // ২. কালার লজিক: বকেয়া (bal > 0) থাকলে লাল, অন্যথায় সবুজ
-        const balColor = bal > 0 ? 'text-rose-500' : 'text-emerald-600';
-
-        // ৩. স্ট্যাটাস টেক্সট লজিক
-        let statusText = "Settled";
-        if (bal > 0) {
-            statusText = (p.type === 'CUSTOMER') ? "Pending (Get)" : "Pending (Pay)";
-        } else if (bal < 0) {
-            statusText = "Advance";
+            const list = document.getElementById('contactList');
+            list.innerHTML = "";
+            let netTotal = 0;
+            
+            db.people.filter(p => p.type === db.tab).forEach(p => {
+                const bal = calcBalance(p.transactions, false);
+                netTotal += bal;
+                list.innerHTML += `
+                    <div onclick="openLedger(${p.id})" class="bg-white p-6 rounded-[35px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 bg-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center font-black text-xl">${p.name[0]}</div>
+                            <div>
+                                <h4 class="font-extrabold text-slate-800">${p.name}</h4>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <h5 class="font-black ${bal < 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${Math.abs(bal).toLocaleString()}</h5>
+                            <p class="text-[7px] uppercase font-bold text-slate-300 tracking-widest">${bal < 0 ? 'You Pay' : 'You Get'}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('mainTotal').innerText = netTotal.toLocaleString();
         }
-
-        list.innerHTML += `
-            <div onclick="openLedger(${p.id})" class="bg-white p-6 rounded-[35px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all">
-                <div class="flex items-center gap-4">
-                    <!-- নামের প্রথম অক্ষর ডাইনামিক করা হয়েছে -->
-                    <div class="w-14 h-14 bg-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center font-black text-xl">
-                        ${p.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                        <h4 class="font-extrabold text-slate-800">${p.name}</h4>
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <!-- বকেয়া থাকলে লাল রঙে অ্যামাউন্ট দেখাবে -->
-                    <h5 class="font-black ${balColor}">₹${Math.abs(bal).toLocaleString()}</h5>
-                    <p class="text-[7px] uppercase font-bold text-slate-300 tracking-widest">${statusText}</p>
-                </div>
-            </div>
-        `;
-    });
-    
-    // মেইন ড্যাশবোর্ড ব্যালেন্স আপডেট
-    const mainTotalEl = document.getElementById('mainTotal');
-    mainTotalEl.innerText = netTotal.toLocaleString();
-    mainTotalEl.style.color = netTotal > 0 ? '#f43f5e' : '#10b981'; // বকেয়া থাকলে মেইন ব্যালেন্সও লাল দেখাবে
-}
 
         function openLedger(id) {
             db.activeId = id;
@@ -361,17 +340,8 @@ document.getElementById('txFile').onchange = e => {
     list.innerHTML = "";
     
     const netBal = calcBalance(p.transactions, db.secret, p.type);
-const balEl = document.getElementById('mainTotal');
-balEl.innerText = "₹ " + Math.abs(netBal).toLocaleString();
-
-// ব্যালেন্স যদি ০ এর বেশি হয় (তার মানে বকেয়া আছে) তবে লাল দেখাবে
-if (netBal !== 0) {
-    balEl.style.color = '#f43f5e'; // লাল (Rose-500)
-    document.getElementById('headerSub').innerText = (p.type === 'CUSTOMER') ? "Pending Receivable" : "Pending Payable";
-} else {
-    balEl.style.color = '#10b981'; // সবুজ (Emerald-600)
-    document.getElementById('headerSub').innerText = "Account Settled";
-}
+    const balEl = document.getElementById('mainTotal');
+    balEl.innerText = "₹ " + Math.abs(netBal).toLocaleString();
     
     // মেইন ব্যালেন্স কালার লজিক
     if (p.type === 'SUPPLIER') {
@@ -394,18 +364,14 @@ if (netBal !== 0) {
                                    : 'rounded-tl-3xl rounded-bl-3xl rounded-br-3xl text-right';
 
         // কালার লজিক (সাপ্লায়ার ও কাস্টমার ভেদে আলাদা)
-        // ট্রানজ্যাকশন অনুযায়ী কালার লজিক (সংশোধিত)
-let txColor = "";
-
-if (p.type === 'CUSTOMER') {
-    // কাস্টমারকে মাল দিলে (GIVEN) সেটি পাওনা = লাল
-    // কাস্টমারের কাছ থেকে টাকা পেলে (RECEIVED) সেটি জমা = সবুজ
-    txColor = (t.type === 'GIVEN') ? 'text-rose-500' : 'text-emerald-600';
-} else {
-    // সাপ্লায়ারের কাছ থেকে মাল নিলে (RECEIVED) সেটি দেনা = লাল
-    // সাপ্লায়ারকে টাকা দিলে (GIVEN) সেটি শোধ = সবুজ
-    txColor = (t.type === 'RECEIVED') ? 'text-rose-500' : 'text-emerald-600';
-}
+        let txColor = "";
+        let txArrow = t.type === 'GIVEN' ? '<i class="fas fa-arrow-up ml-1 text-xs"></i>' : '<i class="fas fa-arrow-down mr-1 text-xs"></i>';
+        
+        if (p.type === 'SUPPLIER') {
+            txColor = t.type === 'GIVEN' ? 'text-emerald-600' : 'text-rose-500'; // মহাজনকে দিলে সবুজ, মাল নিলে লাল
+        } else {
+            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600'; // খদ্দেরকে মাল দিলে লাল, টাকা পেলে সবুজ
+        }
 
         list.innerHTML += `
             <div class="flex flex-col ${alignClass} mb-8 w-full animate-fade-in ${isDel ? 'tx-deleted' : ''}">
@@ -461,87 +427,48 @@ function fileToDataURL(file) {
     });
 }
 
-// ১. ফাংশনের বাইরে এই ভেরিয়েবলটি নিশ্চিত করুন (ডুপ্লিকেট এন্ট্রি আটকাতে)
-let isSaving = false;
-
+// ২. আপডেট করা preSave ফাংশন (যা ইমেজ সেভ করবে)
 async function preSave(type) {
-    // যদি অলরেডি একটি সেভ প্রসেস চলতে থাকে তবে নতুন ক্লিক কাজ করবে না
-    if (isSaving) return;
-
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value);
     
-    if(!amt || amt <= 0) return alert("Please enter a valid amount");
+    if(!amt) return alert("Please enter an amount");
 
-    // ডাটা সেভ করার মূল লজিক (ইনার ফাংশন)
-    const saveAction = async () => {
-        isSaving = true; // সেভ প্রসেস শুরু
+    // পিন ভেরিফিকেশন
+    askPin(async () => {
+        // স্ক্রিনে একটি লোডিং মেসেজ বা বাটন ডিজেবল করতে পারেন
+        document.getElementById('pinSubmitBtn').innerText = "Uploading...";
         
-        // UI ফিডব্যাক: বাটন বা পিন বক্সের টেক্সট পরিবর্তন
-        const saveBtn = document.getElementById('pinSubmitBtn');
-        if(saveBtn) saveBtn.innerText = "Saving Data...";
-        
-        // ট্রানজ্যাকশন বাটনের টেক্সটও চেঞ্জ করা যেতে পারে (ঐচ্ছিক)
-        const activeBtn = document.querySelector(`button[onclick="preSave('${type}')"]`);
-        const originalText = activeBtn ? activeBtn.innerText : type;
-        if(activeBtn) activeBtn.innerText = "Processing...";
+        const fileInput = document.getElementById('txFile');
+        let onlineImgUrl = "";
 
-        try {
-            const fileInput = document.getElementById('txFile');
-            let onlineImgUrl = "";
-
-            // ছবি থাকলে আপলোড হবে
-            if (fileInput.files && fileInput.files[0]) {
-                onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
-            }
-
-            const p = db.people.find(x => x.id === db.activeId);
-            
-            // ডাটাবেসে নতুন এন্ট্রি যোগ
-            p.transactions.unshift({
-                id: Date.now(),
-                amount: amt,
-                type: type,
-                secret: db.secret,
-                date: new Date().toLocaleDateString('en-GB'),
-                note: document.getElementById('txNote').value,
-                imgUrl: onlineImgUrl,
-                status: 'active'
-            });
-
-            // ডাটা সেভ এবং রেন্ডার
-            saveDB();
-            renderLedger();
-            
-            // ফর্ম ক্লিয়ার করা (যাতে নেক্সট ক্লিক না পড়ে)
-            amtInput.value = ""; 
-            document.getElementById('txNote').value = "";
-            document.getElementById('txFile').value = "";
-            document.getElementById('imgPreview').classList.add('hidden');
-            document.getElementById('imgPreview').src = "";
-
-        } catch (err) {
-            console.error("Save Error:", err);
-            alert("Something went wrong! Check your connection.");
-        } finally {
-            // প্রসেস শেষ, আবার বাটন সচল করা
-            isSaving = false;
-            if(saveBtn) saveBtn.innerText = "CONFIRM";
-            if(activeBtn) activeBtn.innerText = originalText;
+        // যদি ছবি থাকে তবে আপলোড হবে
+        if (fileInput.files && fileInput.files[0]) {
+            onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
         }
-    };
 
-    // --- পিন লজিক চেক ---
-    let needsPin = false;
-    if (db.secret === true && db.tab === 'CUSTOMER' && type === 'RECEIVED') {
-        needsPin = true;
-    }
+        const p = db.people.find(x => x.id === db.activeId);
+        p.transactions.unshift({
+            id: Date.now(),
+            amount: amt,
+            type: type,
+            secret: db.secret,
+            date: new Date().toLocaleDateString('en-GB'),
+            note: document.getElementById('txNote').value,
+            imgUrl: onlineImgUrl, // এখানে এখন আসল অনলাইন লিঙ্ক সেভ হবে
+            status: 'active'
+        });
 
-    if (needsPin) {
-        askPin(saveAction);
-    } else {
-        await saveAction(); // পিন ছাড়া সরাসরি সেভ
-    }
+        saveDB();
+        renderLedger();
+        
+        // সব ক্লিয়ার করা
+        amtInput.value = ""; 
+        document.getElementById('txNote').value = "";
+        document.getElementById('txFile').value = "";
+        document.getElementById('imgPreview').classList.add('hidden');
+        document.getElementById('pinSubmitBtn').innerText = "CONFIRM";
+    });
 }
 
         function deleteTx(tid) {
