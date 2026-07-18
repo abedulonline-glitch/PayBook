@@ -461,66 +461,86 @@ function fileToDataURL(file) {
     });
 }
 
-// ২. আপডেট করা preSave ফাংশন (যা ইমেজ সেভ করবে)
+// ১. ফাংশনের বাইরে এই ভেরিয়েবলটি নিশ্চিত করুন (ডুপ্লিকেট এন্ট্রি আটকাতে)
+let isSaving = false;
+
 async function preSave(type) {
+    // যদি অলরেডি একটি সেভ প্রসেস চলতে থাকে তবে নতুন ক্লিক কাজ করবে না
+    if (isSaving) return;
+
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value);
     
-    if(!amt) return alert("Please enter an amount");
+    if(!amt || amt <= 0) return alert("Please enter a valid amount");
 
-    // এই ফাংশনটি আসলে ডাটা সেভ এবং আপলোড করবে
+    // ডাটা সেভ করার মূল লজিক (ইনার ফাংশন)
     const saveAction = async () => {
-        // লোডিং বাটন আপডেট (ঐচ্ছিক)
+        isSaving = true; // সেভ প্রসেস শুরু
+        
+        // UI ফিডব্যাক: বাটন বা পিন বক্সের টেক্সট পরিবর্তন
         const saveBtn = document.getElementById('pinSubmitBtn');
-        if(saveBtn) saveBtn.innerText = "Processing...";
+        if(saveBtn) saveBtn.innerText = "Saving Data...";
         
-        const fileInput = document.getElementById('txFile');
-        let onlineImgUrl = "";
+        // ট্রানজ্যাকশন বাটনের টেক্সটও চেঞ্জ করা যেতে পারে (ঐচ্ছিক)
+        const activeBtn = document.querySelector(`button[onclick="preSave('${type}')"]`);
+        const originalText = activeBtn ? activeBtn.innerText : type;
+        if(activeBtn) activeBtn.innerText = "Processing...";
 
-        // ছবি থাকলে আপলোড হবে
-        if (fileInput.files && fileInput.files[0]) {
-            onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
+        try {
+            const fileInput = document.getElementById('txFile');
+            let onlineImgUrl = "";
+
+            // ছবি থাকলে আপলোড হবে
+            if (fileInput.files && fileInput.files[0]) {
+                onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
+            }
+
+            const p = db.people.find(x => x.id === db.activeId);
+            
+            // ডাটাবেসে নতুন এন্ট্রি যোগ
+            p.transactions.unshift({
+                id: Date.now(),
+                amount: amt,
+                type: type,
+                secret: db.secret,
+                date: new Date().toLocaleDateString('en-GB'),
+                note: document.getElementById('txNote').value,
+                imgUrl: onlineImgUrl,
+                status: 'active'
+            });
+
+            // ডাটা সেভ এবং রেন্ডার
+            saveDB();
+            renderLedger();
+            
+            // ফর্ম ক্লিয়ার করা (যাতে নেক্সট ক্লিক না পড়ে)
+            amtInput.value = ""; 
+            document.getElementById('txNote').value = "";
+            document.getElementById('txFile').value = "";
+            document.getElementById('imgPreview').classList.add('hidden');
+            document.getElementById('imgPreview').src = "";
+
+        } catch (err) {
+            console.error("Save Error:", err);
+            alert("Something went wrong! Check your connection.");
+        } finally {
+            // প্রসেস শেষ, আবার বাটন সচল করা
+            isSaving = false;
+            if(saveBtn) saveBtn.innerText = "CONFIRM";
+            if(activeBtn) activeBtn.innerText = originalText;
         }
-
-        const p = db.people.find(x => x.id === db.activeId);
-        p.transactions.unshift({
-            id: Date.now(),
-            amount: amt,
-            type: type,
-            secret: db.secret, // এটি বর্তমানে কাঁচা নাকি পাকা মোডে আছে তা চেক করবে
-            date: new Date().toLocaleDateString('en-GB'),
-            note: document.getElementById('txNote').value,
-            imgUrl: onlineImgUrl,
-            status: 'active'
-        });
-
-        saveDB();
-        renderLedger();
-        
-        // ফর্ম ক্লিয়ার করা
-        amtInput.value = ""; 
-        document.getElementById('txNote').value = "";
-        document.getElementById('txFile').value = "";
-        document.getElementById('imgPreview').classList.add('hidden');
-        if(saveBtn) saveBtn.innerText = "CONFIRM";
     };
 
     // --- পিন লজিক চেক ---
     let needsPin = false;
-
-    // যদি কাঁচা মোডে (Secret Mode) থাকে
-    if (db.secret === true) {
-        // শুধুমাত্র কাস্টমারের কাছ থেকে টাকা পাওয়ার (RECEIVED) সময় পিন লাগবে
-        if (db.tab === 'CUSTOMER' && type === 'RECEIVED') {
-            needsPin = true;
-        }
+    if (db.secret === true && db.tab === 'CUSTOMER' && type === 'RECEIVED') {
+        needsPin = true;
     }
 
-    // পিন লাগবে কি না সেই অনুযায়ী অ্যাকশন নেওয়া
     if (needsPin) {
         askPin(saveAction);
     } else {
-        saveAction(); // পিন ছাড়া সরাসরি সেভ
+        await saveAction(); // পিন ছাড়া সরাসরি সেভ
     }
 }
 
