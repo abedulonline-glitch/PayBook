@@ -289,30 +289,56 @@
         }
 
         function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList');
-            list.innerHTML = "";
-            
-            p.transactions.filter(t => t.secret === db.secret).forEach(t => {
-                const isDel = t.status === 'deleted';
-                list.innerHTML += `
-                    <div class="bg-white p-5 rounded-3xl border border-slate-100 flex justify-between items-center shadow-sm ${isDel ? 'tx-deleted' : ''}">
-                        <div class="flex gap-4 items-center">
-                            <div class="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-[8px] text-slate-300 italic border border-slate-100">IMG</div>
-                            <div>
-                                <p class="text-[8px] text-slate-400 font-bold uppercase">${t.date}</p>
-                                <p class="text-sm font-extrabold text-slate-800">${t.type}</p>
-                                <p class="text-[9px] text-slate-400 italic">${t.note || 'No note'}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <h4 class="font-black ${t.type==='GIVEN'?'text-rose-500':'text-emerald-600'}">₹${t.amount.toLocaleString()}</h4>
-                            ${!isDel ? `<button onclick="deleteTx(${t.id})" class="text-[8px] text-rose-300 font-bold uppercase tracking-widest">Delete</button>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList');
+    list.innerHTML = "";
+    
+    // ব্যালেন্স আপডেট এবং কালার সেট করা
+    const netBal = calcBalance(p.transactions, db.secret, p.type);
+    const balEl = document.getElementById('mainTotal');
+    balEl.innerText = netBal.toLocaleString();
+
+    // সাপ্লায়ারের পজিটিভ ব্যালেন্স মানে দেনা (Red), কাস্টমারের মানে পাওনা (Green)
+    if (p.type === 'SUPPLIER') {
+        balEl.style.color = netBal > 0 ? '#f43f5e' : '#10b981'; // Red if you owe
+        document.getElementById('headerSub').innerText = netBal > 0 ? "Net Due (Payable)" : "Advance Paid";
+    } else {
+        balEl.style.color = netBal > 0 ? '#10b981' : '#f43f5e'; // Green if they owe
+        document.getElementById('headerSub').innerText = netBal > 0 ? "Net Balance (Receivable)" : "Advance Received";
+    }
+
+    const txs = p.transactions.filter(t => t.secret === db.secret);
+    txs.forEach(t => {
+        const isDel = t.status === 'deleted';
+        
+        // ট্রানজ্যাকশন ওয়াইজ কালার লজিক
+        let txColor = "";
+        if (p.type === 'SUPPLIER') {
+            txColor = t.type === 'GIVEN' ? 'text-emerald-600' : 'text-rose-500'; // Given is Green, Received is Red
+        } else {
+            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600'; // Given is Red, Received is Green
         }
+
+        list.innerHTML += `
+            <div class="bg-white p-5 rounded-3xl border border-slate-100 flex justify-between items-center shadow-sm ${isDel ? 'tx-deleted' : ''}">
+                <div class="flex gap-4 items-center">
+                    <div class="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                        <i class="fas fa-image text-slate-200"></i>
+                    </div>
+                    <div>
+                        <p class="text-[8px] text-slate-400 font-bold uppercase">${t.date}</p>
+                        <p class="text-sm font-extrabold text-slate-800">${t.type}</p>
+                        <p class="text-[9px] text-slate-400 italic">${t.note || 'No note'}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h4 class="font-black ${txColor}">₹${t.amount.toLocaleString()}</h4>
+                    ${!isDel ? `<button onclick="deleteTx(${t.id})" class="text-[8px] text-rose-300 font-bold uppercase">Delete</button>` : ''}
+                </div>
+            </div>
+        `;
+    });
+}
 
         function preSave(type) {
             askPin(() => {
@@ -344,13 +370,26 @@
             }
         }
 
-        function calcBalance(txs, isSecret) {
-            let b = 0;
-            txs.filter(t => t.secret === isSecret && t.status === 'active').forEach(t => {
-                b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
-            });
-            return b;
-        }
+        function calcBalance(txs, isSecret, personType) {
+    let totalGiven = 0;
+    let totalReceived = 0;
+
+    // শুধুমাত্র একটিভ এবং মোড অনুযায়ী ট্রানজ্যাকশন ফিল্টার করা
+    const filteredTxs = txs.filter(t => t.secret === isSecret && t.status === 'active');
+
+    filteredTxs.forEach(t => {
+        if (t.type === 'GIVEN') totalGiven += t.amount;
+        if (t.type === 'RECEIVED') totalReceived += t.amount;
+    });
+
+    if (personType === 'SUPPLIER') {
+        // সাপ্লায়ারের ক্ষেত্রে: যা পেয়েছি - যা দিয়েছি = আমার দেনা
+        return totalReceived - totalGiven; 
+    } else {
+        // কাস্টমারের ক্ষেত্রে: যা দিয়েছি - যা পেয়েছি = আমার পাওনা
+        return totalGiven - totalReceived;
+    }
+}
 
         function saveDB() { localStorage.setItem('pb_pro_ledger_v3', JSON.stringify(db)); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
