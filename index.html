@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PayBook Pro - Professional Ledger</title>
@@ -62,6 +64,9 @@
                     <div id="userAvatar" class="w-10 h-10 bg-indigo-800 rounded-full flex items-center justify-center border border-white/20 font-bold text-xs">AD</div>
                 </div>
             </div>
+            <button onclick="askPin(() => downloadPDF(db.activeId))" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold">
+               <i class="fas fa-file-pdf mr-1"></i> DOWNLOAD PDF REPORT
+            </button>
             <div class="mt-8 flex justify-between items-end">
                 <div>
                     <p class="text-[10px] uppercase font-bold text-indigo-300 tracking-widest mb-1">Net Balance (Pakka)</p>
@@ -611,6 +616,50 @@ function deleteTx(tid) {
                 }
             } else alert("Mobile number not found!");
         }
+
+        function downloadPDF(personId) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const person = db.people.find(p => p.id === personId);
+
+    // ১. টাইটেল এবং হেডার সেট করা
+    doc.setFontSize(18);
+    doc.text(`Ledger Report: ${person.name}`, 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Phone: ${person.phone} | Date: ${new Date().toLocaleDateString()}`, 14, 28);
+
+    // ২. ডাটা প্রিপারেশন (পাশাপাশি পাকা ও কাঁচা হিসাব)
+    const tableData = [];
+    let totalPakka = 0;
+    let totalKaccha = 0;
+
+    person.transactions.forEach(t => {
+        if (t.status === 'active') {
+            const amt = t.amount; // এখানে অরিজিনাল অ্যামাউন্ট নেওয়া হচ্ছে (১০০ দিয়ে ভাগ না করে)
+            let pakkaVal = t.isKaccha ? "-" : `₹${amt}`;
+            let kacchaVal = t.isKaccha ? `₹${amt}` : "-";
+
+            // টোটাল হিসাব (GIVEN বিয়োগ, RECEIVED যোগ)
+            let change = (t.type === 'RECEIVED' ? amt : -amt);
+            if(t.isKaccha) totalKaccha += change; else totalPakka += change;
+
+            tableData.push([t.date, t.type, t.note || "-", pakkaVal, kacchaVal]);
+        }
+    });
+
+    // ৩. অটো-টেবিল তৈরি
+    doc.autoTable({
+        startY: 35,
+        head: [['Date', 'Type', 'Note', 'Pakka Amount', 'Kaccha Amount']],
+        body: tableData,
+        foot: [['', '', 'TOTAL BALANCE', `₹${totalPakka}`, `₹${totalKaccha}`]],
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229] } // Indigo Color
+    });
+
+    // ৪. ফাইল ডাউনলোড
+    doc.save(`PayBook_${person.name}.pdf`);
+}
     </script>
 </body>
 </html>
