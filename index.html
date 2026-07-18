@@ -109,7 +109,7 @@
                     <!-- Combined Camera & Gallery Support -->
                     <label class="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center relative cursor-pointer active:bg-slate-200 transition-all border-2 border-dashed border-slate-300">
                         <i class="fas fa-camera text-slate-400 text-2xl"></i>
-                       <input type="file" id="txFile" accept="image/*" multiple class="hidden">
+                        <input type="file" id="txFile" accept="image/*" class="hidden">
                         <img id="imgPreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl">
                     </label>
                 </div>
@@ -142,18 +142,6 @@
 <div id="zoomModal" class="hidden fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
     <img id="zoomImg" src="" class="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-300">
     <div class="absolute top-10 right-10 text-white text-3xl"><i class="fas fa-times"></i></div>
-</div>
-
-    <div id="editModal" class="hidden fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6">
-    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl">
-        <h3 class="text-xl font-black mb-4">Edit Transaction</h3>
-        <input id="editAmt" type="number" class="w-full p-4 bg-slate-100 rounded-xl mb-3 font-bold">
-        <input id="editDate" type="date" class="w-full p-4 bg-slate-100 rounded-xl mb-3">
-        <div class="flex gap-2">
-            <button onclick="closeEditModal()" class="flex-1 py-4 font-bold text-slate-400">Cancel</button>
-            <button id="saveEditBtn" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black">Save Changes</button>
-        </div>
-    </div>
 </div>
 
     <!-- ADD PERSON MODAL -->
@@ -288,24 +276,17 @@ document.getElementById('txFile').onchange = e => {
         }
 
         function askPin(callback) {
-    const modal = document.getElementById('pinModal');
-    const input = document.getElementById('confirmPinInput');
-    const btn = document.getElementById('pinSubmitBtn');
-
-    modal.classList.remove('hidden'); 
-    input.value = "";
-    input.focus();
-
-    btn.onclick = () => {
-        if (input.value === db.admin.pin) {
-            modal.classList.add('hidden'); // পিন সঠিক হলে বক্সটি সাথে সাথে লুকিয়ে যাবে
-            callback(); // এরপর আপলোড শুরু হবে
-        } else {
-            alert("Incorrect Security PIN!");
-            input.value = "";
+            const modal = document.getElementById('pinModal');
+            modal.classList.remove('hidden');
+            document.getElementById('confirmPinInput').value = "";
+            document.getElementById('confirmPinInput').focus();
+            document.getElementById('pinSubmitBtn').onclick = () => {
+                if(document.getElementById('confirmPinInput').value === db.admin.pin) {
+                    modal.classList.add('hidden');
+                    callback();
+                } else alert("Incorrect Security PIN!");
+            };
         }
-    };
-}
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
 
         // Core Functions
@@ -322,7 +303,7 @@ document.getElementById('txFile').onchange = e => {
             let netTotal = 0;
             
             db.people.filter(p => p.type === db.tab).forEach(p => {
-                const bal = calcBalance(p.transactions, false, p.type);
+                const bal = calcBalance(p.transactions, false);
                 netTotal += bal;
                 list.innerHTML += `
                     <div onclick="openLedger(${p.id})" class="bg-white p-6 rounded-[35px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all">
@@ -358,18 +339,15 @@ document.getElementById('txFile').onchange = e => {
     const list = document.getElementById('ledgerList');
     list.innerHTML = "";
     
-    // ১. ব্যালেন্স ক্যালকুলেশন
     const netBal = calcBalance(p.transactions, db.secret, p.type);
     const balEl = document.getElementById('mainTotal');
     balEl.innerText = "₹ " + Math.abs(netBal).toLocaleString();
     
-    // ২. মেইন ব্যালেন্স কালার লজিক (বকেয়া মানেই লাল)
+    // মেইন ব্যালেন্স কালার লজিক
     if (p.type === 'SUPPLIER') {
-        // সাপ্লায়ার: netBal পজিটিভ মানে আপনি দেনাদার (বকেয়া), তাই লাল
-        balEl.style.color = netBal > 0 ? '#f43f5e' : (netBal < 0 ? '#10b981' : '#64748b');
+        balEl.style.color = netBal > 0 ? '#f43f5e' : '#10b981'; // দেনা লাল, অগ্রিম সবুজ
     } else {
-        // কাস্টমার: netBal পজিটিভ মানে আপনি পাওনাদার (বকেয়া), তাই লাল
-        balEl.style.color = netBal > 0 ? '#f43f5e' : (netBal < 0 ? '#10b981' : '#64748b');
+        balEl.style.color = netBal > 0 ? '#10b981' : '#f43f5e'; // পাওনা সবুজ, অ্যাডভান্স লাল
     }
 
     const txs = p.transactions.filter(t => t.secret === db.secret);
@@ -377,24 +355,22 @@ document.getElementById('txFile').onchange = e => {
     txs.forEach(t => {
         const isDel = t.status === 'deleted';
         
-        // বাটন অনুযায়ী এলাইনমেন্ট: GIVEN বামে (Left), RECEIVED ডানে (Right)
+        // বাটন অনুযায়ী এলাইনমেন্ট: GIVEN বামে (Left), RECEIVED ডানে (Right)
         const isLeft = t.type === 'GIVEN';
         const alignClass = isLeft ? 'items-start pl-2' : 'items-end pr-2';
         
-        // বাবল স্টাইল
+        // বাবল স্টাইল (বামে ও ডানের জন্য আলাদা কর্নার রাউন্ডিং)
         const bubbleStyle = isLeft ? 'rounded-tr-3xl rounded-bl-3xl rounded-br-3xl' 
                                    : 'rounded-tl-3xl rounded-bl-3xl rounded-br-3xl text-right';
 
-        // ৩. ট্রানজ্যাকশন কালার লজিক (বকেয়া বা পেন্ডিং এন্ট্রি লাল হবে)
+        // কালার লজিক (সাপ্লায়ার ও কাস্টমার ভেদে আলাদা)
         let txColor = "";
         let txArrow = t.type === 'GIVEN' ? '<i class="fas fa-arrow-up ml-1 text-xs"></i>' : '<i class="fas fa-arrow-down mr-1 text-xs"></i>';
         
         if (p.type === 'SUPPLIER') {
-            // সাপ্লায়ার: RECEIVED (মাল নেওয়া/দেনা) = লাল, GIVEN (টাকা দেওয়া/শোধ) = সবুজ
-            txColor = t.type === 'RECEIVED' ? 'text-rose-500' : 'text-emerald-600';
+            txColor = t.type === 'GIVEN' ? 'text-emerald-600' : 'text-rose-500'; // মহাজনকে দিলে সবুজ, মাল নিলে লাল
         } else {
-            // কাস্টমার: GIVEN (মাল দেওয়া/পাওনা) = লাল, RECEIVED (টাকা পাওয়া/জমা) = সবুজ
-            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600';
+            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600'; // খদ্দেরকে মাল দিলে লাল, টাকা পেলে সবুজ
         }
 
         list.innerHTML += `
@@ -406,7 +382,7 @@ document.getElementById('txFile').onchange = e => {
 
                 <!-- Transaction Card -->
                 <div class="w-[85%] max-w-[400px] ${bubbleStyle} bg-white shadow-md p-2 border border-slate-100">
-                    <!-- Image Box -->
+                    <!-- Image Box (বড় করে দেখানোর জন্য) -->
                     <div class="relative overflow-hidden rounded-2xl bg-slate-50 aspect-[4/3] mb-3">
                         <img src="${t.imgUrl || 'https://via.placeholder.com/400x300?text=No+Bill+Attached'}" 
                              class="w-full h-full object-cover cursor-zoom-in"
@@ -458,66 +434,43 @@ async function preSave(type) {
     
     if(!amt) return alert("Please enter an amount");
 
-    // পিন চেক করার পর যা ঘটবে (Upload & Save)
-    const executeSave = async () => {
-        // স্ক্রিনে একটি ছোট মেসেজ দেখাবে যে আপলোড হচ্ছে
-        const mainBtn = document.querySelector(`button[onclick="preSave('${type}')"]`);
-        const originalText = mainBtn.innerText;
-        mainBtn.innerText = "Processing...";
-        mainBtn.disabled = true;
+    // পিন ভেরিফিকেশন
+    askPin(async () => {
+        // স্ক্রিনে একটি লোডিং মেসেজ বা বাটন ডিজেবল করতে পারেন
+        document.getElementById('pinSubmitBtn').innerText = "Uploading...";
         
         const fileInput = document.getElementById('txFile');
-        let onlineImgUrls = [];
+        let onlineImgUrl = "";
 
-        try {
-            // মাল্টিপল ইমেজ আপলোড লুপ
-            if (fileInput.files && fileInput.files.length > 0) {
-                for (let i = 0; i < fileInput.files.length; i++) {
-                    const url = await uploadToImgBB(fileInput.files[i]);
-                    if (url) onlineImgUrls.push(url);
-                }
-            }
-
-            const p = db.people.find(x => x.id === db.activeId);
-            p.transactions.unshift({
-                id: Date.now(),
-                amount: amt,
-                type: type,
-                secret: db.secret,
-                date: document.getElementById('txDate')?.value || new Date().toISOString().split('T')[0],
-                note: document.getElementById('txNote').value,
-                images: onlineImgUrls, 
-                status: 'active'
-            });
-
-            saveDB();
-            renderLedger();
-            
-            // সব ক্লিয়ার করা
-            amtInput.value = ""; 
-            document.getElementById('txNote').value = "";
-            document.getElementById('txFile').value = "";
-            document.getElementById('imgPreview').classList.add('hidden');
-        } catch (error) {
-            alert("Upload failed! Check internet connection.");
-        } finally {
-            mainBtn.innerText = originalText;
-            mainBtn.disabled = false;
+        // যদি ছবি থাকে তবে আপলোড হবে
+        if (fileInput.files && fileInput.files[0]) {
+            onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
         }
-    };
 
-    // আপনার শর্ত অনুযায়ী পিন লজিক
-    let needsPin = false;
-    if (db.secret === true && db.tab === 'CUSTOMER' && type === 'RECEIVED') {
-        needsPin = true;
-    }
+        const p = db.people.find(x => x.id === db.activeId);
+        p.transactions.unshift({
+            id: Date.now(),
+            amount: amt,
+            type: type,
+            secret: db.secret,
+            date: new Date().toLocaleDateString('en-GB'),
+            note: document.getElementById('txNote').value,
+            imgUrl: onlineImgUrl, // এখানে এখন আসল অনলাইন লিঙ্ক সেভ হবে
+            status: 'active'
+        });
 
-    if (needsPin) {
-        askPin(executeSave); // পিন চাওয়ার পর সেভ হবে
-    } else {
-        executeSave(); // সরাসরি সেভ হবে
-    }
+        saveDB();
+        renderLedger();
+        
+        // সব ক্লিয়ার করা
+        amtInput.value = ""; 
+        document.getElementById('txNote').value = "";
+        document.getElementById('txFile').value = "";
+        document.getElementById('imgPreview').classList.add('hidden');
+        document.getElementById('pinSubmitBtn').innerText = "CONFIRM";
+    });
 }
+
         function deleteTx(tid) {
             if(confirm("Are you sure? This entry will be grayed out.")) {
                 const p = db.people.find(x => x.id === db.activeId);
@@ -596,47 +549,6 @@ async function preSave(type) {
                 }
             } else alert("Mobile number not found!");
         }
-
-        let currentEditId = null;
-
-function openEditModal(txId) {
-    const person = db.people.find(p => p.id === db.activeId);
-    const tx = person.transactions.find(t => t.id === txId);
-    currentEditId = txId;
-
-    document.getElementById('editAmt').value = tx.amount;
-    document.getElementById('editDate').value = tx.date;
-    document.getElementById('editModal').classList.remove('hidden');
-
-    document.getElementById('saveEditBtn').onclick = () => updateTx(txId);
-}
-
-function updateTx(txId) {
-    const person = db.people.find(p => p.id === db.activeId);
-    const tx = person.transactions.find(t => t.id === txId);
-
-    // সিকিউরিটি পিন চেক (পাকা মোডে না লাগলেও কাঁচা মোডে রিসিভ এন্ট্রিতে পিন চাইবে)
-    let needsPin = (db.secret && person.type === 'CUSTOMER' && tx.type === 'RECEIVED');
-
-    const executeUpdate = () => {
-        tx.amount = parseFloat(document.getElementById('editAmt').value);
-        tx.date = document.getElementById('editDate').value;
-        saveDB();
-        renderLedger();
-        closeEditModal();
-        alert("Updated Successfully!");
-    };
-
-    if (needsPin) {
-        askPin(executeUpdate);
-    } else {
-        executeUpdate();
-    }
-}
-
-function closeEditModal() {
-    document.getElementById('editModal').classList.add('hidden');
-}
     </script>
 </body>
 </html>
