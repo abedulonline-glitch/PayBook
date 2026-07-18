@@ -339,15 +339,18 @@ document.getElementById('txFile').onchange = e => {
     const list = document.getElementById('ledgerList');
     list.innerHTML = "";
     
+    // ১. ব্যালেন্স ক্যালকুলেশন
     const netBal = calcBalance(p.transactions, db.secret, p.type);
     const balEl = document.getElementById('mainTotal');
     balEl.innerText = "₹ " + Math.abs(netBal).toLocaleString();
     
-    // মেইন ব্যালেন্স কালার লজিক
+    // ২. মেইন ব্যালেন্স কালার লজিক (বকেয়া মানেই লাল)
     if (p.type === 'SUPPLIER') {
-        balEl.style.color = netBal > 0 ? '#f43f5e' : '#10b981'; // দেনা লাল, অগ্রিম সবুজ
+        // সাপ্লায়ার: netBal পজিটিভ মানে আপনি দেনাদার (বকেয়া), তাই লাল
+        balEl.style.color = netBal > 0 ? '#f43f5e' : (netBal < 0 ? '#10b981' : '#64748b');
     } else {
-        balEl.style.color = netBal > 0 ? '#10b981' : '#f43f5e'; // পাওনা সবুজ, অ্যাডভান্স লাল
+        // কাস্টমার: netBal পজিটিভ মানে আপনি পাওনাদার (বকেয়া), তাই লাল
+        balEl.style.color = netBal > 0 ? '#f43f5e' : (netBal < 0 ? '#10b981' : '#64748b');
     }
 
     const txs = p.transactions.filter(t => t.secret === db.secret);
@@ -355,22 +358,24 @@ document.getElementById('txFile').onchange = e => {
     txs.forEach(t => {
         const isDel = t.status === 'deleted';
         
-        // বাটন অনুযায়ী এলাইনমেন্ট: GIVEN বামে (Left), RECEIVED ডানে (Right)
+        // বাটন অনুযায়ী এলাইনমেন্ট: GIVEN বামে (Left), RECEIVED ডানে (Right)
         const isLeft = t.type === 'GIVEN';
         const alignClass = isLeft ? 'items-start pl-2' : 'items-end pr-2';
         
-        // বাবল স্টাইল (বামে ও ডানের জন্য আলাদা কর্নার রাউন্ডিং)
+        // বাবল স্টাইল
         const bubbleStyle = isLeft ? 'rounded-tr-3xl rounded-bl-3xl rounded-br-3xl' 
                                    : 'rounded-tl-3xl rounded-bl-3xl rounded-br-3xl text-right';
 
-        // কালার লজিক (সাপ্লায়ার ও কাস্টমার ভেদে আলাদা)
+        // ৩. ট্রানজ্যাকশন কালার লজিক (বকেয়া বা পেন্ডিং এন্ট্রি লাল হবে)
         let txColor = "";
         let txArrow = t.type === 'GIVEN' ? '<i class="fas fa-arrow-up ml-1 text-xs"></i>' : '<i class="fas fa-arrow-down mr-1 text-xs"></i>';
         
         if (p.type === 'SUPPLIER') {
-            txColor = t.type === 'GIVEN' ? 'text-emerald-600' : 'text-rose-500'; // মহাজনকে দিলে সবুজ, মাল নিলে লাল
+            // সাপ্লায়ার: RECEIVED (মাল নেওয়া/দেনা) = লাল, GIVEN (টাকা দেওয়া/শোধ) = সবুজ
+            txColor = t.type === 'RECEIVED' ? 'text-rose-500' : 'text-emerald-600';
         } else {
-            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600'; // খদ্দেরকে মাল দিলে লাল, টাকা পেলে সবুজ
+            // কাস্টমার: GIVEN (মাল দেওয়া/পাওনা) = লাল, RECEIVED (টাকা পাওয়া/জমা) = সবুজ
+            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600';
         }
 
         list.innerHTML += `
@@ -382,7 +387,7 @@ document.getElementById('txFile').onchange = e => {
 
                 <!-- Transaction Card -->
                 <div class="w-[85%] max-w-[400px] ${bubbleStyle} bg-white shadow-md p-2 border border-slate-100">
-                    <!-- Image Box (বড় করে দেখানোর জন্য) -->
+                    <!-- Image Box -->
                     <div class="relative overflow-hidden rounded-2xl bg-slate-50 aspect-[4/3] mb-3">
                         <img src="${t.imgUrl || 'https://via.placeholder.com/400x300?text=No+Bill+Attached'}" 
                              class="w-full h-full object-cover cursor-zoom-in"
