@@ -109,7 +109,7 @@
                     <!-- Combined Camera & Gallery Support -->
                     <label class="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center relative cursor-pointer active:bg-slate-200 transition-all border-2 border-dashed border-slate-300">
                         <i class="fas fa-camera text-slate-400 text-2xl"></i>
-                        <input type="file" id="txFile" accept="image/*" class="hidden">
+                       <input type="file" id="txFile" accept="image/*" multiple class="hidden">
                         <img id="imgPreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl">
                     </label>
                 </div>
@@ -142,6 +142,18 @@
 <div id="zoomModal" class="hidden fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
     <img id="zoomImg" src="" class="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-300">
     <div class="absolute top-10 right-10 text-white text-3xl"><i class="fas fa-times"></i></div>
+</div>
+
+    <div id="editModal" class="hidden fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6">
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl">
+        <h3 class="text-xl font-black mb-4">Edit Transaction</h3>
+        <input id="editAmt" type="number" class="w-full p-4 bg-slate-100 rounded-xl mb-3 font-bold">
+        <input id="editDate" type="date" class="w-full p-4 bg-slate-100 rounded-xl mb-3">
+        <div class="flex gap-2">
+            <button onclick="closeEditModal()" class="flex-1 py-4 font-bold text-slate-400">Cancel</button>
+            <button id="saveEditBtn" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-black">Save Changes</button>
+        </div>
+    </div>
 </div>
 
     <!-- ADD PERSON MODAL -->
@@ -441,15 +453,22 @@ async function preSave(type) {
 
     // পিন ভেরিফিকেশন
     askPin(async () => {
-        // স্ক্রিনে একটি লোডিং মেসেজ বা বাটন ডিজেবল করতে পারেন
-        document.getElementById('pinSubmitBtn').innerText = "Uploading...";
+        // বাটনে লোডিং স্টেট দেখানো
+        const pinBtn = document.getElementById('pinSubmitBtn');
+        pinBtn.innerText = "Uploading...";
+        pinBtn.disabled = true;
         
         const fileInput = document.getElementById('txFile');
-        let onlineImgUrl = "";
+        let onlineImgUrls = []; // এখানে সব ইমেজের লিঙ্ক জমা হবে
 
-        // যদি ছবি থাকে তবে আপলোড হবে
-        if (fileInput.files && fileInput.files[0]) {
-            onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
+        // লুপ (Loop) এর মাধ্যমে প্রতিটি ছবি এক এক করে আপলোড করা
+        if (fileInput.files && fileInput.files.length > 0) {
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const url = await uploadToImgBB(fileInput.files[i]);
+                if (url) {
+                    onlineImgUrls.push(url); // আপলোড সফল হলে অ্যারেতে পুশ করবে
+                }
+            }
         }
 
         const p = db.people.find(x => x.id === db.activeId);
@@ -460,7 +479,7 @@ async function preSave(type) {
             secret: db.secret,
             date: new Date().toLocaleDateString('en-GB'),
             note: document.getElementById('txNote').value,
-            imgUrl: onlineImgUrl, // এখানে এখন আসল অনলাইন লিঙ্ক সেভ হবে
+            images: onlineImgUrls, // এখানে এখন ইমেজের লিস্ট সেভ হচ্ছে (imgUrl এর পরিবর্তে)
             status: 'active'
         });
 
@@ -472,10 +491,10 @@ async function preSave(type) {
         document.getElementById('txNote').value = "";
         document.getElementById('txFile').value = "";
         document.getElementById('imgPreview').classList.add('hidden');
-        document.getElementById('pinSubmitBtn').innerText = "CONFIRM";
+        pinBtn.innerText = "CONFIRM";
+        pinBtn.disabled = false;
     });
 }
-
         function deleteTx(tid) {
             if(confirm("Are you sure? This entry will be grayed out.")) {
                 const p = db.people.find(x => x.id === db.activeId);
@@ -554,6 +573,38 @@ async function preSave(type) {
                 }
             } else alert("Mobile number not found!");
         }
+
+        let currentEditId = null;
+
+function openEditModal(txId) {
+    const person = db.people.find(p => p.id === db.activeId);
+    const tx = person.transactions.find(t => t.id === txId);
+    currentEditId = txId;
+
+    document.getElementById('editAmt').value = tx.amount;
+    document.getElementById('editDate').value = tx.date;
+    document.getElementById('editModal').classList.remove('hidden');
+
+    document.getElementById('saveEditBtn').onclick = () => updateTx(txId);
+}
+
+function updateTx(txId) {
+    const person = db.people.find(p => p.id === db.activeId);
+    const tx = person.transactions.find(t => t.id === txId);
+
+    // ডাটা আপডেট
+    tx.amount = parseFloat(document.getElementById('editAmt').value);
+    tx.date = document.getElementById('editDate').value;
+
+    saveDB();
+    renderLedger();
+    closeEditModal();
+    alert("Transaction Updated Successfully!");
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
     </script>
 </body>
 </html>
