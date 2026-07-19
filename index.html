@@ -392,25 +392,71 @@ function getPinFromBoxes() {
 }
 
 // সংশোধিত লগইন ফাংশন
-function handleLogin()
+function handleLogin() {
+    const pinInputs = document.querySelectorAll('.pin-box');
+    let enteredPin = "";
+    pinInputs.forEach(input => enteredPin += input.value);
+    
+    if (db.admin && String(enteredPin) === String(db.admin.pin)) {
+        // ১. লগইন স্ক্রিন হাইড এবং মেইন বডি শো
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appBody').classList.remove('hidden');
+        
+        // ২. ডাটাবেস ঠিক আছে কি না নিশ্চিত করা
+        if(!db.people) db.people = [];
+        if(!db.tab) db.tab = 'CUSTOMER';
 
-        // Secret Toggle (Hold ₹ for 2s)
-        function initGestures() {
-            const el = document.getElementById('secretTrigger');
-            el.onpointerdown = () => {
-                holdTimer = setTimeout(() => {
-                    askPin(() => {
-                        db.secret = !db.secret;
-                        document.getElementById('kacchaIndicator').classList.toggle('hidden');
-                        document.getElementById('secretTrigger').classList.toggle('text-rose-500');
-                        refresh();
-                        alert(db.secret ? "Switched to Private Ledger" : "Switched to Main Ledger");
-                    });
-                }, 2000);
-            };
-            el.onpointerup = () => clearTimeout(holdTimer);
+        // ৩. হোম স্ক্রিন রেন্ডার
+        try {
+            renderHome();
+        } catch (e) {
+            console.error("Rendering failed: ", e);
+            alert("Error in loading data. Resetting list...");
+            renderHome();
         }
+        
+        if (typeof startGlobalSync === "function") startGlobalSync();
+    } else {
+        alert("Invalid PIN!");
+        pinInputs.forEach(input => input.value = "");
+        pinInputs[0].focus();
+    }
+}
 
+function renderHome() {
+    const list = document.getElementById('contactList');
+    if (!list) return;
+    
+    list.innerHTML = "";
+    let netTotal = 0;
+    
+    const filter = db.tab || db.currentFilter || 'CUSTOMER';
+
+    db.people.filter(p => p.type === filter).forEach(p => {
+        // ৩টি প্যারামিটারই পাঠানো নিশ্চিত করুন
+        const bal = calcBalance(p.transactions, false, p.type); 
+        netTotal += bal;
+        
+        list.innerHTML += `
+            <div onclick="openLedger(${p.id})" class="bg-white p-6 rounded-[35px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 bg-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center font-black text-xl">${p.name ? p.name[0].toUpperCase() : '?'}</div>
+                    <div>
+                        <h4 class="font-extrabold text-slate-800">${p.name}</h4>
+                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h5 class="font-black ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">Rs. ${Math.abs(bal).toLocaleString('en-IN')}</h5>
+                    <p class="text-[7px] uppercase font-bold text-slate-300 tracking-widest">${bal > 0 ? 'Pending' : 'Settled'}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    const totalEl = document.getElementById('mainTotal');
+    if(totalEl) totalEl.innerText = netTotal.toLocaleString('en-IN');
+}
         function askPin(callback) {
             const modal = document.getElementById('pinModal');
             modal.classList.remove('hidden');
@@ -432,39 +478,7 @@ function handleLogin()
             document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-indigo-600 text-white' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400';
             renderHome();
         }
-
-        function renderHome() {
-    const list = document.getElementById('contactList');
-    if (!list) return; // এরর প্রোটেকশন
-    list.innerHTML = "";
-    let netTotal = 0;
-    
-    // db.tab অথবা db.currentFilter যেটি আপনার কোডে আছে সেটি ব্যবহার করুন
-    const filter = db.tab || db.currentFilter || 'CUSTOMER';
-
-    db.people.filter(p => p.type === filter).forEach(p => {
-        // এখানে ৩টি প্যারামিটারই দিতে হবে: transactions, secret_mode, person_type
-        const bal = calcBalance(p.transactions, false, p.type); 
-        netTotal += bal;
-        
-        list.innerHTML += `
-            <div onclick="openLedger(${p.id})" class="bg-white p-6 rounded-[35px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all">
-                <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 bg-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center font-black text-xl">${p.name[0]}</div>
-                    <div>
-                        <h4 class="font-extrabold text-slate-800">${p.name}</h4>
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <h5 class="font-black ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">Rs. ${Math.abs(bal).toLocaleString('en-IN')}</h5>
-                    <p class="text-[7px] uppercase font-bold text-slate-300 tracking-widest">${bal > 0 ? 'Pending' : 'Settled'}</p>
-                </div>
-            </div>
-        `;
-    });
-    document.getElementById('mainTotal').innerText = netTotal.toLocaleString('en-IN');
-}
+         
         function openLedger(id) {
             db.activeId = id;
             const p = db.people.find(x => x.id === id);
