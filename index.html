@@ -382,13 +382,35 @@ document.getElementById('txFile').onchange = e => {
     location.reload();
 }
 
-        function handleLogin() {
-            if(document.getElementById('loginPin').value === db.admin.pin) {
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('appBody').classList.remove('hidden');
-                renderHome();
-            } else alert("Invalid PIN. Please try again.");
-        }
+        // ৪টি বক্স থেকে পিন একত্রে করার ফাংশন
+function getPinFromBoxes() {
+    const pinInputs = document.querySelectorAll('.pin-box');
+    let pin = "";
+    pinInputs.forEach(input => {
+        pin += input.value;
+    });
+    return pin;
+}
+
+// সংশোধিত লগইন ফাংশন
+function handleLogin() {
+    const enteredPin = getPinFromBoxes(); // ৪টি বক্সের মান নেওয়া হলো
+    
+    if (db.admin && enteredPin === db.admin.pin) {
+        // যদি পিন মিলে যায়
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appBody').classList.remove('hidden');
+        renderHome();
+        
+        // গ্লোবাল সিঙ্ক শুরু করা
+        if (typeof startGlobalSync === "function") startGlobalSync();
+    } else {
+        alert("Invalid PIN. Please try again.");
+        // ভুল পিন দিলে বক্সগুলো খালি করে দেওয়া
+        document.querySelectorAll('.pin-box').forEach(input => input.value = "");
+        document.querySelectorAll('.pin-box')[0].focus();
+    }
+}
 
         // Secret Toggle (Hold ₹ for 2s)
         function initGestures() {
