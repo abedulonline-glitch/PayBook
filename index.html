@@ -11,6 +11,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .input-field { @apply w-full p-4 rounded-2xl bg-white/10 border border-white/20 outline-none focus:border-indigo-500 transition-all text-white placeholder-slate-400; }
+        .btn-primary { @apply w-full py-5 rounded-2xl font-black text-lg shadow-2xl active:scale-95 transition-all; }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         /* আপনার CSS সেকশনে এই ভেরিয়েবলগুলো আপডেট করুন */
 :root {
     --primary: #97144d; /* Axis Burgundy */
@@ -44,13 +50,6 @@ input {
     transition: transform 0.4s ease-in-out;
     z-index: 1000;
 }
-        
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .input-field { @apply w-full p-4 rounded-2xl bg-white/10 border border-white/20 outline-none focus:border-indigo-500 transition-all text-white placeholder-slate-400; }
-        .btn-primary { @apply w-full py-5 rounded-2xl font-black text-lg shadow-2xl active:scale-95 transition-all; }
-        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
     </style>
 </head>
 <body class="bg-[#0f172a] text-slate-200 overflow-x-hidden">
