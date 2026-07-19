@@ -307,25 +307,48 @@ document.getElementById('txFile').onchange = e => {
         let holdTimer;
 
         window.onload = () => {
-            const data = localStorage.getItem('pb_pro_ledger_v3');
-            if(data) {
-                db = JSON.parse(data);
-                if(db.admin) {
-                    showLogin();
-                } else showReg();
-            } else showReg();
-            
-            initGestures();
-            
-            // Image Preview Handler
-            document.getElementById('txFile').onchange = e => {
-                const img = document.getElementById('imgPreview');
-                if(e.target.files[0]) {
-                    img.src = URL.createObjectURL(e.target.files[0]);
-                    img.classList.remove('hidden');
-                }
-            };
+    const data = localStorage.getItem('pb_pro_ledger_v3');
+    
+    if (data) {
+        db = JSON.parse(data);
+        
+        // --- পুরনো ১১ ডিজিটের নম্বর বা ভুল ডাটা পরিষ্কার করার লজিক ---
+        if (db.admin && db.admin.phone) {
+            // যদি ফোন নম্বর ১০ ডিজিটের না হয়, তবে সব ক্লিয়ার করে রিলোড হবে
+            if (String(db.admin.phone).length !== 10) {
+                localStorage.removeItem('pb_pro_ledger_v3');
+                location.reload(); // পেজ রিলোড হবে যাতে নতুন রেজিস্ট্রেশন স্ক্রিন আসে
+                return;
+            }
+        }
+
+        if (db.admin) {
+            showLogin();
+            // গ্লোবাল সিঙ্কিং শুরু করা (যদি ফাংশনটি আপনার কোডে থাকে)
+            if (typeof startGlobalSync === "function") startGlobalSync();
+        } else {
+            showReg();
+        }
+    } else {
+        showReg();
+    }
+    
+    // গেসচার এবং অন্যান্য সেটিংস ইনিশিয়েট করা
+    if (typeof initGestures === "function") initGestures();
+    
+    // Image Preview Handler
+    const fileInput = document.getElementById('txFile');
+    if (fileInput) {
+        fileInput.onchange = e => {
+            const img = document.getElementById('imgPreview');
+            if (e.target.files[0]) {
+                img.src = URL.createObjectURL(e.target.files[0]);
+                img.classList.remove('hidden');
+            }
         };
+    }
+};
+        
 
         function showReg() { 
             document.getElementById('authScreen').classList.remove('hidden'); 
