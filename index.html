@@ -9,6 +9,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* আপনার CSS সেকশনে এই ভেরিয়েবলগুলো আপডেট করুন */
+:root {
+    --primary: #97144d; /* Axis Burgundy */
+    --bg-light: #f4f4f4;
+    --text-dark: #1a1a1a; /* গাঢ় ব্ল্যাক */
+    --text-brown: #4a302a; /* গাঢ় ব্রাউন */
+}
+
+/* ইনপুট ফিল্ডের লেখা গাঢ় করার জন্য */
+input {
+    color: var(--text-dark) !important;
+    font-weight: 600;
+}
+
+        header, .fixed.bottom-0 {
+    transition: transform 0.4s ease-in-out;
+    z-index: 1000;
+}
+        
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .input-field { @apply w-full p-4 rounded-2xl bg-white/10 border border-white/20 outline-none focus:border-indigo-500 transition-all text-white placeholder-slate-400; }
@@ -39,19 +58,34 @@
             </div>
 
             <!-- Login Form -->
-            <div id="loginBox" class="hidden space-y-6">
-                <div class="text-center space-y-1">
-                    <p class="text-indigo-400 font-bold" id="welcomeMsg">Welcome Back</p>
-                    <p id="displayPhone" class="text-xs text-slate-500"></p>
-                </div>
-                <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4" class="input-field text-center text-3xl tracking-[1.5em] h-20">
-                <button onclick="handleLogin()" class="btn-primary bg-emerald-600 text-white">UNLOCK APP</button>
-                <div class="text-center">
-                    <button onclick="forgotPin()" class="text-[10px] text-slate-500 uppercase tracking-widest hover:text-indigo-400 transition-colors">Forgot PIN? Reset via Phone</button>
-                </div>
-            </div>
-        </div>
+            <div id="loginBox" class="hidden space-y-8 w-full max-w-sm">
+    <div class="text-center">
+        <p class="text-white font-bold text-lg mb-2">Security Login</p>
+        <p id="displayPhone" class="text-slate-400 text-sm"></p>
     </div>
+    
+    <!-- PIN Input Boxes -->
+    <div class="flex justify-center gap-4" id="pinContainer">
+        <input type="password" maxlength="1" class="pin-box">
+        <input type="password" maxlength="1" class="pin-box">
+        <input type="password" maxlength="1" class="pin-box">
+        <input type="password" maxlength="1" class="pin-box">
+    </div>
+
+    <button onclick="handleLogin()" class="w-full bg-[#97144d] py-5 rounded-2xl font-black text-white shadow-xl">UNLOCK PAYBOOK</button>
+</div>
+
+<style>
+.pin-box {
+    width: 60px; height: 70px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 15px;
+    text-align: center; font-size: 2rem; color: white;
+    outline: none; transition: 0.3s;
+}
+.pin-box:focus { border-color: #97144d; background: rgba(255,255,255,0.2); }
+</style>
 
     <!-- 2. MAIN APP CONTENT -->
     <div id="appBody" class="hidden min-h-screen bg-slate-50 text-slate-900 pb-24">
@@ -187,6 +221,41 @@ async function uploadToImgBB(file) {
         return "";
     }
 }
+
+        const inputs = document.querySelectorAll('.pin-box');
+inputs.forEach((input, index) => {
+    input.oninput = () => {
+        if (input.value.length === 1 && index < inputs.length - 1) inputs[index + 1].focus();
+    };
+    input.onkeydown = (e) => {
+        if (e.key === 'Backspace' && !input.value && index > 0) inputs[index - 1].focus();
+    };
+});
+
+// পিন কালেক্ট করার জন্য ফাংশন
+function getPin() {
+    return Array.from(inputs).map(i => i.value).join('');
+}
+
+        let lastScrollTop = 0;
+const header = document.querySelector('header');
+const footer = document.querySelector('.fixed.bottom-0'); // আপনার ট্রানজ্যাকশন ইনপুট বক্স
+
+window.addEventListener('scroll', function() {
+    let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    if (scrollTop > lastScrollTop && scrollTop > 100) {
+        // নিচে স্ক্রল করলে হাইড হবে
+        header.style.transform = 'translateY(-100%)';
+        footer.style.transform = 'translateY(100%)';
+    } else {
+        // উপরে স্ক্রল করলে ফিরে আসবে
+        header.style.transform = 'translateY(0)';
+        footer.style.transform = 'translateY(0)';
+    }
+    lastScrollTop = scrollTop;
+}, false);
+        
 
 // ৩. ইমেজ প্রিভিউ হ্যান্ডলার (এটি আপনার ফাইলে চেক করুন)
 document.getElementById('txFile').onchange = e => {
@@ -345,77 +414,78 @@ document.getElementById('txFile').onchange = e => {
     const balEl = document.getElementById('mainTotal');
     balEl.innerText = "₹ " + Math.abs(netBal).toLocaleString();
     
+    // Axis Bank Signature Colors
+    const AXIS_BURGUNDY = "#97144d";
+    const DARK_TEXT = "#1a1a1a";
+    const BROWN_TEXT = "#4a302a";
+    const EMERALD = "#10b981";
+    const ROSE = "#f43f5e";
+
     // মেইন ব্যালেন্স কালার লজিক
     if (p.type === 'SUPPLIER') {
-        balEl.style.color = netBal > 0 ? '#f43f5e' : '#10b981'; // দেনা লাল, অগ্রিম সবুজ
+        balEl.style.color = netBal > 0 ? ROSE : EMERALD;
     } else {
-        balEl.style.color = netBal > 0 ? '#10b981' : '#f43f5e'; // পাওনা সবুজ, অ্যাডভান্স লাল
+        balEl.style.color = netBal > 0 ? EMERALD : ROSE;
     }
 
     const txs = p.transactions.filter(t => t.secret === db.secret);
     
     txs.forEach(t => {
         const isDel = t.status === 'deleted';
+        const isLeft = t.type === 'GIVEN'; // GIVEN বামে, RECEIVED ডানে
+        const alignClass = isLeft ? 'items-start pl-3' : 'items-end pr-3';
         
-        // বাটন অনুযায়ী এলাইনমেন্ট: GIVEN বামে (Left), RECEIVED ডানে (Right)
-        const isLeft = t.type === 'GIVEN';
-        const alignClass = isLeft ? 'items-start pl-2' : 'items-end pr-2';
-        
-        // বাবল স্টাইল (বামে ও ডানের জন্য আলাদা কর্নার রাউন্ডিং)
-        const bubbleStyle = isLeft ? 'rounded-tr-3xl rounded-bl-3xl rounded-br-3xl' 
-                                   : 'rounded-tl-3xl rounded-bl-3xl rounded-br-3xl text-right';
+        // বাবল স্টাইল (Ok Credit-এর মতো আধুনিক রাউন্ডিং)
+        const bubbleStyle = isLeft 
+            ? 'rounded-tr-[35px] rounded-bl-[35px] rounded-br-[35px]' 
+            : 'rounded-tl-[35px] rounded-bl-[35px] rounded-br-[35px] text-right';
 
-        // কালার লজিক (সাপ্লায়ার ও কাস্টমার ভেদে আলাদা)
-        let txColor = "";
-        let txArrow = t.type === 'GIVEN' ? '<i class="fas fa-arrow-up ml-1 text-xs"></i>' : '<i class="fas fa-arrow-down mr-1 text-xs"></i>';
-        
-        if (p.type === 'SUPPLIER') {
-            txColor = t.type === 'GIVEN' ? 'text-emerald-600' : 'text-rose-500'; // মহাজনকে দিলে সবুজ, মাল নিলে লাল
-        } else {
-            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600'; // খদ্দেরকে মাল দিলে লাল, টাকা পেলে সবুজ
-        }
+        let txArrow = t.type === 'GIVEN' ? '↑' : '↓';
 
         list.innerHTML += `
-            <div class="flex flex-col ${alignClass} mb-8 w-full animate-fade-in ${isDel ? 'tx-deleted' : ''}">
-                <!-- Date Badge -->
-                <div class="text-[9px] font-black bg-slate-100 text-slate-400 px-4 py-1 rounded-full mb-3 uppercase tracking-widest">
+            <div class="flex flex-col ${alignClass} mb-12 w-full animate-fade-in ${isDel ? 'tx-deleted' : ''}">
+                <!-- Date Badge (Professional Look) -->
+                <div class="text-[10px] font-black bg-slate-200 text-[${BROWN_TEXT}] px-5 py-1.5 rounded-full mb-5 shadow-sm uppercase tracking-widest border border-slate-300">
                     ${t.date}
                 </div>
 
-                <!-- Transaction Card -->
-                <div class="w-[85%] max-w-[400px] ${bubbleStyle} bg-white shadow-md p-2 border border-slate-100">
-                    <!-- Image Box (বড় করে দেখানোর জন্য) -->
-                    <div class="relative overflow-hidden rounded-2xl bg-slate-50 aspect-[4/3] mb-3">
-                        <img src="${t.imgUrl || 'https://via.placeholder.com/400x300?text=No+Bill+Attached'}" 
-                             class="w-full h-full object-cover cursor-zoom-in"
+                <!-- Transaction Card (Axis Premium Style) -->
+                <div class="w-[90%] max-w-[450px] ${bubbleStyle} bg-white shadow-2xl p-4 border border-slate-100 relative overflow-hidden">
+                    <!-- Image Area (Large & Bold) -->
+                    <div class="relative overflow-hidden rounded-3xl bg-slate-50 aspect-[16/10] mb-5 shadow-inner border border-slate-50">
+                        <img src="${t.imgUrl || 'https://via.placeholder.com/600x400?text=Scan+Bill'}" 
+                             class="w-full h-full object-cover cursor-zoom-in active:scale-95 transition-transform"
                              onclick="zoomImage(this.src)">
-                        <div class="absolute bottom-2 ${isLeft ? 'right-2' : 'left-2'} bg-black/30 text-white p-1 rounded-lg text-[7px] uppercase">
-                            <i class="fas fa-expand"></i> Tap to Zoom
+                        <div class="absolute bottom-3 ${isLeft ? 'right-3' : 'left-3'} bg-black/40 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-wider">
+                            <i class="fas fa-expand-arrows-alt mr-1"></i> Tap to Zoom
                         </div>
                     </div>
 
                     <!-- Details Area -->
-                    <div class="px-3 pb-2">
-                        <div class="flex ${isLeft ? 'justify-start' : 'justify-end'} items-center mb-1">
-                            ${isLeft ? '' : txArrow}
-                            <h3 class="text-2xl font-black text-slate-800 tracking-tighter">₹${t.amount.toLocaleString()}</h3>
-                            ${isLeft ? txArrow : ''}
+                    <div class="px-2 pb-2">
+                        <div class="flex ${isLeft ? 'justify-start' : 'justify-end'} items-end gap-2 mb-2">
+                            <span class="text-xs font-black text-slate-300 mb-1">${txArrow}</span>
+                            <h3 class="text-3xl font-black text-[${DARK_TEXT}] tracking-tighter">₹${t.amount.toLocaleString()}</h3>
                         </div>
                         
                         <div class="flex ${isLeft ? 'justify-start' : 'justify-end'} items-center gap-3">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${t.type}</p>
-                            <span class="text-[8px] text-slate-300">Sent <i class="fas fa-check-double text-indigo-400"></i></span>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">${t.type}</p>
+                            <span class="text-[9px] text-slate-300 font-black uppercase tracking-widest">10:15 AM <i class="fas fa-check-double text-[${AXIS_BURGUNDY}]"></i></span>
                         </div>
 
-                        ${t.note ? `<div class="mt-3 p-3 bg-slate-50 rounded-xl text-[10px] text-slate-500 italic border-l-2 border-indigo-100">${t.note}</div>` : ''}
+                        ${t.note ? `<div class="mt-4 p-4 bg-slate-50 rounded-2xl text-[12px] text-[${BROWN_TEXT}] font-bold italic border-l-4 border-[${AXIS_BURGUNDY}] shadow-inner">${t.note}</div>` : ''}
                         
-                         <div class="mt-4 flex gap-4 ${isLeft ? 'justify-start' : 'justify-end'} border-t border-slate-50 pt-2">
-                          <button onclick="deleteTx(${t.id})" class="text-[8px] font-bold text-rose-300 uppercase">Delete</button>
-                          <button onclick="editTransaction(${p.id}, ${t.id})" class="text-[8px] font-bold text-indigo-500 uppercase tracking-widest">Edit</button>
-                          ${t.history ? `<i class="fas fa-history text-[8px] text-slate-300 ml-1" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
+                        <!-- Action Area -->
+                        <div class="mt-6 flex gap-6 ${isLeft ? 'justify-start' : 'justify-end'} border-t border-slate-100 pt-4">
+                            <button onclick="deleteTx(${t.id})" class="text-[10px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-widest">Delete</button>
+                            <button onclick="editTransaction(${p.id}, ${t.id})" class="text-[10px] font-black text-[${AXIS_BURGUNDY}] hover:text-[#7a103d] uppercase tracking-widest">Edit</button>
+                            ${t.history ? `<i class="fas fa-history text-[10px] text-slate-300 ml-2 cursor-pointer hover:text-slate-500" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
                         </div>
                     </div>
                 </div>
+
+                <!-- Running Balance (Like Ok Credit) -->
+                <p class="text-[10px] font-black text-slate-400 mt-3 px-8 uppercase tracking-widest italic opacity-50">Balance Due: ₹${Math.abs(netBal).toLocaleString()}</p>
             </div>
         `;
     });
