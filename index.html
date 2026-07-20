@@ -9,6 +9,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        // আপনার Firebase Config এখানে যোগ করুন
+const firebaseConfig = {
+  apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ",
+  authDomain: "paybook-cc6be.firebaseapp.com",
+  projectId: "paybook-cc6be",
+  storageBucket: "paybook-cc6be.firebasestorage.app",
+  messagingSenderId: "1000801647538",
+  appId: "1:1000801647538:web:648ac804d8d75a0811c2ab",
+  measurementId: "G-TFX1Y6FH29"
+};
+
+// Firebase Initialize করুন
+firebase.initializeApp(firebaseConfig);
+const fs = firebase.firestore();
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .input-field { @apply w-full p-4 rounded-2xl bg-white/10 border border-white/20 outline-none focus:border-indigo-500 transition-all text-white placeholder-slate-400; }
