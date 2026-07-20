@@ -19,21 +19,6 @@
     --text-brown: #4a302a; /* গাঢ় ব্রাউন */
 }
 
-        /* পিন বক্সের জন্য গাঢ় বর্ডার এবং পরিষ্কার টেক্সট */
-.pin-box {
-    background: #ffffff !important; /* লাইট ব্যাকগ্রাউন্ড */
-    color: #97144d !important; /* Axis Burgundy টেক্সট */
-    border: 2px solid #97144d;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-/* ডার্ক স্ক্রিনে টেক্সট ইনপুট (Registration) */
-#authScreen input {
-    background: rgba(255, 255, 255, 0.9) !important;
-    color: #1a1a1a !important; /* গাঢ় কালো লেখা */
-    border: 1px solid #97144d;
-} 
-
 /* ইনপুট ফিল্ডের লেখা গাঢ় করার জন্য */
 input {
     color: var(--text-dark) !important;
@@ -213,20 +198,6 @@ input {
     </div>
 
     <script>
-         // আপনার Firebase Config এখানে যোগ করুন
-const firebaseConfig = {
-  apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ",
-  authDomain: "paybook-cc6be.firebaseapp.com",
-  projectId: "paybook-cc6be",
-  storageBucket: "paybook-cc6be.firebasestorage.app",
-  messagingSenderId: "1000801647538",
-  appId: "1:1000801647538:web:648ac804d8d75a0811c2ab",
-  measurementId: "G-TFX1Y6FH29"
-};
-
-// Firebase Initialize করুন
-firebase.initializeApp(firebaseConfig);
-const fs = firebase.firestore();
          // ১. ImgBB API Key (অবশ্যই আপনার কি এখানে দিন)
 const IMGBB_API_KEY = '493904e927fb86161e0a4944d5b28de6';
 
@@ -340,24 +311,17 @@ document.getElementById('txFile').onchange = e => {
         }
 
         async function handleRegistration() {
-    const n = document.getElementById('regName').value;
-    const ph = document.getElementById('regPhone').value;
-    const p1 = document.getElementById('regPin').value;
-    const p2 = document.getElementById('regPinConf').value;
+            const n = document.getElementById('regName').value;
+            const ph = document.getElementById('regPhone').value;
+            const p1 = document.getElementById('regPin').value;
+            const p2 = document.getElementById('regPinConf').value;
 
-    if(!n || ph.length !== 10 || p1.length < 4 || p1 !== p2) {
-        return alert("Please enter a valid 10-digit mobile number and matching PINs.");
-    }
-    
-    const adminData = { name: n, phone: ph, pin: p1, createdAt: new Date() };
-
-    // Firestore-এ ইউজার সেভ করা
-    await fs.collection("users").doc(ph).set(adminData);
-    
-    db.admin = adminData;
-    saveDB(); // লোকাল ব্যাকআপ
-    location.reload();
-}
+            if(!n || ph.length < 10 || p1.length < 4 || p1 !== p2) return alert("Please fill all fields correctly. PINs must match.");
+            
+            db.admin = { name: n, phone: ph, pin: p1 };
+            saveDB();
+            location.reload();
+        }
 
         function handleLogin() {
             if(document.getElementById('loginPin').value === db.admin.pin) {
@@ -560,29 +524,6 @@ function editTransaction(personId, txId) {
     });
 }
 
-function startGlobalSync() {
-    const myPhone = db.admin.phone;
-
-    // আমি যাকে দিয়েছি অথবা যে আমাকে দিয়েছে—উভয় ডাটা সিঙ্ক হবে
-    fs.collection("ledger")
-      .where("receiver", "==", myPhone)
-      .onSnapshot((snapshot) => {
-          snapshot.docChanges().forEach((change) => {
-              if (change.type === "added") {
-                  const data = change.doc.data();
-                  processIncomingTransaction(data);
-              }
-          });
-      });
-}
-
-function processIncomingTransaction(data) {
-    // এখানে লজিক থাকবে: যদি A আপনাকে টাকা দেয় (GIVEN), আপনার কাছে তা RECEIVED হিসেবে আসবে।
-    // এটি অটোমেটিক আপনার 'db.people' লিস্টে ওই নম্বরের আন্ডারে জমা হবে।
-    console.log("New transaction synced from: " + data.sender);
-    // আপনার ক্যালকুলেশন লজিক এখানে কল করুন
-}
-         
         function showHistory(personId, txId) {
     const person = db.people.find(p => p.id === personId);
     const tx = person.transactions.find(t => t.id === txId);
@@ -612,63 +553,39 @@ async function preSave(type) {
     const amt = parseFloat(amtInput.value);
     if(!amt) return alert("Please enter amount");
 
-    // এই ফাংশনটি এখন লোকাল এবং ক্লাউড—উভয় জায়গায় ডাটা সেভ করবে
+    // লেনদেন সেভ করার প্রসেস
     const saveAction = async () => {
         const fileInput = document.getElementById('txFile');
         let onlineImgUrl = "";
-        
-        // ১. ছবি থাকলে ImgBB-তে আপলোড করা
         if (fileInput.files && fileInput.files[0]) {
             onlineImgUrl = await uploadToImgBB(fileInput.files[0]);
         }
 
         const p = db.people.find(x => x.id === db.activeId);
-        const txData = {
+        p.transactions.unshift({
             id: Date.now(),
             amount: amt,
             type: type,
-            secret: db.secret,
+            secret: db.secret, // বর্তমান মোড (পাকা/কাঁচা) অনুযায়ী সেভ হবে
             date: new Date().toLocaleDateString('en-GB'),
             note: document.getElementById('txNote').value,
             imgUrl: onlineImgUrl,
             status: 'active'
-        };
-
-        // ২. লোকাল সেভ (আপনার ফোনের মেমোরিতে)
-        p.transactions.unshift(txData);
-        saveDB(); 
-
-        // ৩. গ্লোবাল সেভ (Firebase Firestore-এ পাঠানো যাতে অন্যজন দেখতে পায়)
-        try {
-            await fs.collection("ledger").add({
-                sender: db.admin.phone,   // আপনার নম্বর
-                receiver: p.phone,        // কাস্টমার/সাপ্লায়ারের নম্বর
-                ...txData,                // বাকি সব তথ্য (amount, type, note ইত্যাদি)
-                serverTime: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            console.log("Global Sync Success!");
-        } catch (e) {
-            console.error("Global Sync Failed: ", e);
-        }
-
-        renderLedger();
-        
-        // ফর্ম ক্লিয়ার করা
-        amtInput.value = ""; 
-        document.getElementById('txNote').value = "";
-        document.getElementById('txFile').value = "";
+        });
+        saveDB(); renderLedger();
+        amtInput.value = ""; document.getElementById('txNote').value = "";
         document.getElementById('imgPreview').classList.add('hidden');
     };
 
-    // ৪. আপনার পিন চেক লজিক (অক্ষুণ্ণ রাখা হয়েছে)
+    // পিন চেক: শুধুমাত্র কাঁচা মোডে (Secret) + কাস্টমারের থেকে (CUSTOMER) + টাকা পাওয়া (RECEIVED)
     const currentTab = db.tab || db.currentFilter;
     if (db.secret === true && currentTab === 'CUSTOMER' && type === 'RECEIVED') {
         askPin(saveAction);
     } else {
-        saveAction(); 
+        saveAction(); // অন্য সব ক্ষেত্রে সরাসরি সেভ (পাকা বা সাপ্লায়ারের জন্য পিন লাগবে না)
     }
 }
-         // সংশোধিত ডিলিট ফাংশন (পিন প্রোটেকশন সহ)
+        // সংশোধিত ডিলিট ফাংশন (পিন প্রোটেকশন সহ)
 function deleteTx(tid) {
     // পিন চাওয়ার জন্য askPin কল করা হলো
     askPin(() => {
