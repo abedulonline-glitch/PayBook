@@ -88,16 +88,23 @@
                     <i class="fas fa-cog opacity-80" onclick="showSettings()"></i>
                 </div>
             </div>
-            <div id="headerLedger" class="hidden flex justify-between items-center w-full">
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-arrow-left" onclick="goHome()"></i>
-                    <h2 id="lName" class="text-sm font-bold">Client</h2>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span id="mainTotal" class="font-black text-lg">0.00</span>
-                    <span id="secretTrigger" class="text-xl font-black opacity-30 select-none">₹</span>
-                </div>
-            </div>
+            <!-- সংশোধিত লেজার হেডার (ব্যাক বাটন সহ) -->
+<div id="headerLedger" class="hidden flex justify-between items-center w-full">
+    <div class="flex items-center gap-4">
+        <!-- এই ব্যাক বাটনটি যোগ করা হয়েছে -->
+        <div onclick="goHome()" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full active:bg-white/20 transition-all">
+            <i class="fas fa-arrow-left text-white"></i>
+        </div>
+        <div>
+            <h2 id="lName" class="text-sm font-bold leading-none">Client Name</h2>
+            <p id="balLabel" class="text-[8px] uppercase opacity-60 mt-1">Portfolio Account</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-4">
+        <span id="mainTotal" class="font-black text-lg">0.00</span>
+        <span id="secretTrigger" class="text-xl font-black opacity-30 select-none">₹</span>
+    </div>
+</div>
         </header>
 
         <div id="mainViewport" class="bg-slate-50">
@@ -428,7 +435,6 @@ function calcBal(txs, isSecMode, pType) {
 }
         function startAutoExit() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(() => { db.secret = false; document.getElementById('secretBadge').classList.add('hidden'); renderLedger(); }, 10000); }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
         function openAddModal() { const n = prompt("Name:"), ph = prompt("10-Digit Mobile:"); if(n && ph.length===10) { db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); renderHome(); } }
         function deleteTx(tid) { askPin(() => { const p = db.people.find(x => x.id === db.activeId); p.transactions.find(t => t.id === tid).status = 'deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("New Amt:", t.amount)); if(!t.history) t.history = []; t.history.push({ amt: t.amount }); t.amount = n; saveDB(); renderLedger(); }); }
@@ -471,6 +477,23 @@ function calcBal(txs, isSecMode, pType) {
 
     doc.save(`${p.name}_Report.pdf`);
 }
+
+      function goHome() {
+    // ১. লেজার পেজ এবং তার হেডার ও ফুটার হাইড করা
+    document.getElementById('pageLedger').classList.add('hidden');
+    document.getElementById('headerLedger').classList.add('hidden');
+    document.getElementById('ledgerFooter')?.classList.add('hidden'); // যদি থাকে
+
+    // ২. মেইন হোম পেজ এবং তার হেডার শো করা
+    document.getElementById('pageHome').classList.remove('hidden');
+    document.getElementById('headerMain').classList.remove('hidden');
+
+    // ৩. কাস্টমার লিস্ট রিফ্রেশ করা
+    renderHome();
+    
+    // ৪. ব্রাউজার হিস্ট্রি পুশ (ঐচ্ছিক - ব্যাক বাটন কাজ করার জন্য)
+    history.pushState(null, null, window.location.pathname);
+}  
         function startAutoExitTimer() {
     clearTimeout(autoExitTimer); // আগের কোনো টাইমার চললে তা ক্লিয়ার করবে
     autoExitTimer = setTimeout(() => {
