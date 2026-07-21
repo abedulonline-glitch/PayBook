@@ -1,750 +1,483 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PayBook Pro | Axis Inspired Ledger</title>
+    
+    <!-- Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PayBook Pro - Professional Ledger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .input-field { @apply w-full p-4 rounded-2xl bg-white/10 border border-white/20 outline-none focus:border-indigo-500 transition-all text-white placeholder-slate-400; }
-        .btn-primary { @apply w-full py-5 rounded-2xl font-black text-lg shadow-2xl active:scale-95 transition-all; }
-        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
+        
+        :root {
+            --axis-burgundy: #861F41;
+            --axis-gold: #AE944F;
+            --axis-grey: #F5F5F5;
+        }
+
+        body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; }
+        
+        /* Axis Premium UI Elements */
+        .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
+        .axis-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(134, 31, 65, 0.05); }
+        .axis-input { @apply w-full p-4 rounded-xl border-2 border-slate-100 outline-none focus:border-[#861F41] transition-all bg-white; }
+        .axis-btn { @apply w-full py-4 rounded-xl font-bold text-white shadow-lg active:scale-95 transition-all; background-color: var(--axis-burgundy); }
+        
+        /* Secret Mode Styles */
+        .secret-active { border: 2px solid #ff4d4d !important; animation: pulse-border 2s infinite; }
+        @keyframes pulse-border { 0% { border-color: #ff4d4d; } 50% { border-color: transparent; } 100% { border-color: #ff4d4d; } }
+        
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
+        .hidden-el { display: none !important; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-[#0f172a] text-slate-200 overflow-x-hidden">
+<body>
 
-    <!-- 1. AUTH SCREEN (Register & Login) -->
-    <div id="authScreen" class="hidden fixed inset-0 z-[200] flex flex-col items-center justify-center p-8 bg-[#0f172a]">
-        <div class="w-full max-w-md space-y-8 animate-fade-in">
-            <div class="text-center">
-                <h1 class="text-5xl font-black italic tracking-tighter text-white">PayBook<span class="text-indigo-500">.</span></h1>
-                <p id="authSubtitle" class="text-xs uppercase tracking-[0.2em] text-slate-500 mt-2 font-bold">Secure Business Ledger</p>
+    <!-- 1. AXIS PREMIUM AUTH SCREEN -->
+    <div id="authScreen" class="fixed inset-0 z-[500] bg-white flex flex-col items-center justify-center p-8">
+        <div class="w-full max-w-md text-center">
+            <div class="mb-8">
+                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center shadow-2xl mb-4">
+                    <i class="fas fa-book-bookmark text-white text-3xl"></i>
+                </div>
+                <h1 class="text-3xl font-black tracking-tighter text-[#861F41]">PayBook<span class="text-slate-400">Pro</span></h1>
+                <p class="text-[10px] uppercase tracking-[0.3em] text-slate-400 font-bold">A Premium Business Ledger</p>
             </div>
 
-            <!-- Registration Form -->
+            <!-- Registration -->
             <div id="regBox" class="hidden space-y-4">
-                <input type="text" id="regName" placeholder="Business/Admin Name" class="input-field">
-                <input type="number" id="regPhone" placeholder="Mobile Number" class="input-field">
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="password" id="regPin" placeholder="4-Digit PIN" maxlength="4" class="input-field text-center tracking-widest">
-                    <input type="password" id="regPinConf" placeholder="Confirm PIN" maxlength="4" class="input-field text-center tracking-widest">
-                </div>
-                <button onclick="handleRegistration()" class="btn-primary bg-indigo-600 text-white mt-4">CREATE ACCOUNT</button>
+                <input type="text" id="regName" placeholder="Full Name" class="axis-input">
+                <input type="number" id="regPhone" placeholder="10 Digit Mobile Number" class="axis-input">
+                <input type="password" id="regPin" placeholder="Security PIN" maxlength="4" class="axis-input text-center tracking-[1em]">
+                <button onclick="handleRegistration()" class="axis-btn">OPEN ACCOUNT</button>
             </div>
 
-            <!-- Login Form -->
+            <!-- Login -->
             <div id="loginBox" class="hidden space-y-6">
-                <div class="text-center space-y-1">
-                    <p class="text-indigo-400 font-bold" id="welcomeMsg">Welcome Back</p>
-                    <p id="displayPhone" class="text-xs text-slate-500"></p>
+                <div class="p-6 bg-slate-50 rounded-2xl border-l-4 border-[#861F41]">
+                    <p class="text-xs text-slate-400 font-bold uppercase mb-1">Registered Phone</p>
+                    <p id="displayPhone" class="text-xl font-black text-slate-700"></p>
                 </div>
-                <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4" class="input-field text-center text-3xl tracking-[1.5em] h-20">
-                <button onclick="handleLogin()" class="btn-primary bg-emerald-600 text-white">UNLOCK APP</button>
-                <div class="text-center">
-                    <button onclick="forgotPin()" class="text-[10px] text-slate-500 uppercase tracking-widest hover:text-indigo-400 transition-colors">Forgot PIN? Reset via Phone</button>
-                </div>
+                <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4" class="axis-input text-center text-3xl tracking-[1em] h-20">
+                <button onclick="handleLogin()" class="axis-btn">SECURE LOGIN</button>
+                <button onclick="transferAccount()" class="text-xs font-bold text-[#861F41] uppercase tracking-widest mt-4">Transfer Account</button>
             </div>
         </div>
     </div>
 
-    <!-- 2. MAIN APP CONTENT -->
-    <div id="appBody" class="hidden min-h-screen bg-slate-50 text-slate-900 pb-24">
-        <!-- Modern Header -->
-        <header class="bg-indigo-900 text-white p-6 sticky top-0 z-50 rounded-b-[40px] shadow-2xl">
-            <div class="flex justify-between items-center">
-                <h1 onclick="location.reload()" class="text-2xl font-black italic tracking-tighter">PayBook</h1>
-                <div class="flex gap-5 items-center">
-                   <i class="fas fa-file-pdf text-xl opacity-70" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <div id="userAvatar" class="w-10 h-10 bg-indigo-800 rounded-full flex items-center justify-center border border-white/20 font-bold text-xs">AD</div>
-                </div>
-            </div>
-            <div class="mt-8 flex justify-between items-end">
-                <div>
-                    <p class="text-[10px] uppercase font-bold text-indigo-300 tracking-widest mb-1">Net Balance (Pakka)</p>
-                    <div class="flex items-center gap-3">
-                        <span id="secretTrigger" class="text-4xl font-black select-none cursor-pointer transition-all active:scale-75">₹</span>
-                        <h2 id="mainTotal" class="text-4xl font-extrabold tracking-tighter">0.00</h2>
+    <!-- 2. MAIN APP -->
+    <div id="appBody" class="hidden min-h-screen pb-24">
+        <!-- Axis Header -->
+        <header class="axis-gradient text-white p-6 sticky top-0 z-50 rounded-b-[2.5rem] shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <div class="flex items-center gap-3">
+                    <div id="userInitials" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold border border-white/30 text-xs">AD</div>
+                    <div>
+                        <h2 id="welcomeName" class="text-sm font-bold">Axis User</h2>
+                        <p class="text-[8px] opacity-60 uppercase tracking-widest">Premium Member</p>
                     </div>
                 </div>
-                <div id="kacchaIndicator" class="hidden bg-rose-500 px-3 py-1 rounded-full text-[10px] font-black animate-pulse uppercase text-white mb-2">Secret Mode</div>
+                <div class="flex gap-4">
+                    <i class="fas fa-file-pdf text-xl opacity-80" onclick="handleSmartPdfDownload()"></i>
+                    <i class="fas fa-sign-out-alt text-xl opacity-80" onclick="location.reload()"></i>
+                </div>
+            </div>
+
+            <div class="bg-white/10 p-6 rounded-3xl backdrop-blur-md border border-white/20">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p id="balLabel" class="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-1">Current Balance (Pakka)</p>
+                        <div class="flex items-center gap-2">
+                            <span id="secretTrigger" class="text-3xl font-black cursor-pointer select-none">₹</span>
+                            <h2 id="mainTotal" class="text-4xl font-black tracking-tighter">0.00</h2>
+                        </div>
+                    </div>
+                    <div id="kacchaTag" class="hidden bg-white text-[#861F41] px-3 py-1 rounded-full text-[8px] font-black uppercase animate-pulse">Secret Mode</div>
+                </div>
             </div>
         </header>
 
-        <!-- Home: Contact List -->
-        <div id="pageHome" class="p-5 animate-fade-in">
-            <div class="flex bg-white p-1 rounded-2xl shadow-sm mb-6 border border-slate-100">
-                <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-xl text-xs font-black bg-indigo-600 text-white transition-all">CUSTOMERS</button>
+        <!-- Home Page: Contact List -->
+        <div id="pageHome" class="p-6">
+            <div class="flex bg-white p-1 rounded-2xl shadow-inner mb-6">
+                <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
                 <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">SUPPLIERS</button>
             </div>
             <div id="contactList" class="space-y-4"></div>
-            <!-- FAB -->
-            <button onclick="openAddModal()" class="fixed bottom-8 right-8 w-16 h-16 bg-indigo-600 text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl active:scale-90 transition-all">
-                <i class="fas fa-plus"></i>
-            </button>
+            <button onclick="openAddModal()" class="fixed bottom-8 right-8 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white"><i class="fas fa-plus"></i></button>
         </div>
 
-        <!-- Ledger Screen -->
-        <div id="pageLedger" class="hidden p-5 animate-fade-in">
-            <div class="flex justify-between items-center mb-6 px-1">
-                <i class="fas fa-chevron-left text-xl text-slate-400" onclick="goHome()"></i>
+        <!-- Ledger Page -->
+        <div id="pageLedger" class="hidden p-6">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="goHome()" class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-[#861F41]"><i class="fas fa-chevron-left"></i></button>
                 <div class="text-center">
-                    <h2 id="lName" class="text-xl font-extrabold text-slate-800 tracking-tight">Name</h2>
-                    <p id="lPhone" class="text-[10px] text-slate-400 font-bold tracking-widest"></p>
+                    <h2 id="lName" class="text-xl font-black text-slate-800">Account</h2>
+                    <p id="lPhone" class="text-[10px] text-slate-400 font-bold"></p>
                 </div>
-                <i class="fas fa-info-circle text-lg text-slate-300"></i>
+                <div class="w-10"></div>
             </div>
-            <div id="ledgerList" class="space-y-4 pb-72"></div>
+            
+            <div id="ledgerList" class="space-y-6 pb-96"></div>
 
-            <!-- Transaction Dock -->
-            <div class="fixed bottom-0 left-0 right-0 bg-white p-6 rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.1)] border-t border-slate-100">
+            <!-- Axis Styled Tx Form -->
+            <div class="fixed bottom-0 left-0 right-0 bg-white p-6 rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.08)] border-t">
                 <div class="flex gap-3 mb-4">
                     <div class="flex-1 relative">
-                        <input type="number" id="txAmt" placeholder="0.00" class="w-full p-5 bg-slate-100 rounded-2xl font-black text-3xl outline-none border-2 border-transparent focus:border-indigo-500">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input type="number" id="txAmt" placeholder="0.00" class="w-full p-5 bg-slate-50 rounded-2xl font-black text-3xl outline-none border-2 border-transparent focus:border-[#861F41]">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold">₹</span>
                     </div>
-                    <!-- Combined Camera & Gallery Support -->
-                    <label class="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center relative cursor-pointer active:bg-slate-200 transition-all border-2 border-dashed border-slate-300">
-                        <i class="fas fa-camera text-slate-400 text-2xl"></i>
+                    <label class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center relative border-2 border-dashed border-slate-200">
+                        <i class="fas fa-camera text-slate-300 text-2xl"></i>
                         <input type="file" id="txFile" accept="image/*" class="hidden">
                         <img id="imgPreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl">
                     </label>
                 </div>
-                <input type="text" id="txNote" placeholder="What is this for? (Optional Note)" class="w-full p-4 bg-slate-100 rounded-2xl text-sm mb-5 outline-none">
-                <div class="flex gap-3">
-                    <button onclick="preSave('GIVEN')" class="flex-1 py-5 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-200 uppercase tracking-widest">Given</button>
-                    <button onclick="preSave('RECEIVED')" class="flex-1 py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-200 uppercase tracking-widest">Received</button>
+                <input type="text" id="txNote" placeholder="Note / Reference" class="axis-input mb-4 border-none bg-slate-50">
+                <div class="flex gap-4">
+                    <button onclick="preSave('GIVEN')" class="flex-1 py-5 bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-100 uppercase tracking-widest text-xs">Given</button>
+                    <button onclick="preSave('RECEIVED')" class="flex-1 py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 uppercase tracking-widest text-xs">Received</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PIN MODAL (Universal) -->
-    <div id="pinModal" class="hidden fixed inset-0 bg-slate-900/90 z-[300] backdrop-blur-sm flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-[40px] p-10 text-center shadow-2xl">
-            <div class="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600 text-3xl">
-                <i class="fas fa-lock"></i>
-            </div>
-            <h3 class="text-xl font-extrabold text-slate-800 mb-2">Security Verification</h3>
-            <p class="text-xs text-slate-400 mb-8 px-4 leading-relaxed">Please enter your 4-digit secret PIN to authorize this action.</p>
-            <input type="password" id="confirmPinInput" maxlength="4" class="w-full p-5 bg-slate-100 rounded-2xl text-center text-4xl tracking-[1em] outline-none border-2 border-transparent focus:border-indigo-500">
-            <div class="flex gap-4 mt-10">
-                <button onclick="closePinModal()" class="flex-1 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Cancel</button>
-                <button id="pinSubmitBtn" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-100">CONFIRM</button>
+    <!-- Modals -->
+    <div id="pinModal" class="hidden hidden-el fixed inset-0 bg-[#861F41]/90 z-[1000] backdrop-blur-md flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl">
+            <h3 class="text-xl font-black mb-6 text-[#861F41]">Enter Secure PIN</h3>
+            <input type="password" id="confirmPinInput" maxlength="4" class="w-full p-4 bg-slate-50 rounded-2xl text-center text-4xl tracking-widest outline-none border-2 focus:border-[#861F41]">
+            <div class="flex gap-4 mt-8">
+                <button onclick="closePinModal()" class="flex-1 font-bold text-slate-400">EXIT</button>
+                <button id="pinSubmitBtn" class="flex-1 py-4 axis-btn">VERIFY</button>
             </div>
         </div>
     </div>
 
-    <!-- Image Zoom Modal -->
-<div id="zoomModal" class="hidden fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
-    <img id="zoomImg" src="" class="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-300">
-    <div class="absolute top-10 right-10 text-white text-3xl"><i class="fas fa-times"></i></div>
-</div>
-
-    <!-- ADD PERSON MODAL -->
-    <div id="addModal" class="hidden fixed inset-0 bg-slate-900/60 z-[150] backdrop-blur-sm flex items-end">
-        <div class="bg-white w-full rounded-t-[50px] p-10 shadow-2xl">
-            <h3 id="addModalTitle" class="text-2xl font-black mb-8 text-slate-800 tracking-tight text-center">New Customer Account</h3>
-            <div class="space-y-4">
-                <input id="newPName" type="text" placeholder="Full Name" class="w-full p-5 bg-slate-100 rounded-2xl outline-none">
-                <input id="newPPhone" type="number" placeholder="Unique Mobile Number" class="w-full p-5 bg-slate-100 rounded-2xl outline-none">
-            </div>
-            <div class="flex gap-4 mt-10">
-                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Cancel</button>
-                <button onclick="confirmAdd()" class="flex-1 py-5 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-100 uppercase tracking-widest">Create Profile</button>
+    <div id="addModal" class="hidden hidden-el fixed inset-0 bg-slate-900/60 z-[400] flex items-end">
+        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl">
+            <h3 class="text-2xl font-black mb-8 text-[#861F41]">Add New Contact</h3>
+            <input id="newPName" type="text" placeholder="Contact Name" class="axis-input mb-4">
+            <input id="newPPhone" type="number" placeholder="Mobile Number" class="axis-input mb-8">
+            <div class="flex gap-4">
+                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400">CANCEL</button>
+                <button onclick="confirmAdd()" class="flex-1 py-4 axis-btn">SAVE CONTACT</button>
             </div>
         </div>
     </div>
 
     <script>
-         // ১. ImgBB API Key (অবশ্যই আপনার কি এখানে দিন)
-const IMGBB_API_KEY = '493904e927fb86161e0a4944d5b28de6';
-
-// ২. ImgBB-তে ছবি আপলোড করার আসল ফাংশন
-async function uploadToImgBB(file) {
-    const formData = new FormData();
-    formData.append('image', file);
-
-    try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-        if (data.success) {
-            return data.data.url; // এটি অনলাইন ছবির লিঙ্ক দিবে
-        } else {
-            console.error("ImgBB Error:", data.error);
-            return "";
-        }
-    } catch (err) {
-        console.error("Upload failed:", err);
-        return "";
-    }
-}
-
-// ৩. ইমেজ প্রিভিউ হ্যান্ডলার (এটি আপনার ফাইলে চেক করুন)
-document.getElementById('txFile').onchange = e => {
-    const file = e.target.files[0];
-    const preview = document.getElementById('imgPreview');
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            preview.src = event.target.result;
-            preview.classList.remove('hidden'); // ছবি সিলেক্ট করলে প্রিভিউ দেখাবে
+        // --- 1. CONFIG & DB ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ",
+            authDomain: "paybook-cc6be.firebaseapp.com",
+            projectId: "paybook-cc6be",
+            storageBucket: "paybook-cc6be.firebasestorage.app",
+            messagingSenderId: "1000801647538",
+            appId: "1:1000801647538:web:648ac804d8d75a0811c2ab"
         };
-        reader.readAsDataURL(file);
-    }
-};
-        
-        // APP LOGIC
+        firebase.initializeApp(firebaseConfig);
+        const db_fs = firebase.firestore();
+        const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
+        const SECRET_PIN = "5000";
+
         let db = { admin: null, people: [], secret: false, tab: 'CUSTOMER', activeId: null };
-        let holdTimer;
+        let secretTimer, holdTimer;
 
         window.onload = () => {
-            const data = localStorage.getItem('pb_pro_ledger_v3');
+            const data = localStorage.getItem('paybook_v4_axis');
             if(data) {
                 db = JSON.parse(data);
-                if(db.admin) {
-                    showLogin();
-                } else showReg();
+                if(db.admin) showLogin(); else showReg();
             } else showReg();
             
             initGestures();
-            
-            // Image Preview Handler
             document.getElementById('txFile').onchange = e => {
-                const img = document.getElementById('imgPreview');
-                if(e.target.files[0]) {
-                    img.src = URL.createObjectURL(e.target.files[0]);
-                    img.classList.remove('hidden');
-                }
+                const reader = new FileReader();
+                reader.onload = ev => { 
+                    document.getElementById('imgPreview').src = ev.target.result;
+                    document.getElementById('imgPreview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(e.target.files[0]);
             };
         };
 
-        function showReg() { 
-            document.getElementById('authScreen').classList.remove('hidden'); 
-            document.getElementById('regBox').classList.remove('hidden'); 
-            document.getElementById('authSubtitle').innerText = "Account Setup";
+        function saveDB() {
+            localStorage.setItem('paybook_v4_axis', JSON.stringify(db));
+            if(db.admin) db_fs.collection("global_ledgers").doc(db.admin.phone).set(db);
         }
+
+        // --- 2. AUTH LOGIC ---
+        function showReg() { document.getElementById('authScreen').classList.remove('hidden-el'); document.getElementById('regBox').classList.remove('hidden-el'); }
         function showLogin() { 
-            document.getElementById('authScreen').classList.remove('hidden'); 
-            document.getElementById('loginBox').classList.remove('hidden');
-            document.getElementById('displayPhone').innerText = "Logged in as " + db.admin.phone;
-            document.getElementById('userAvatar').innerText = db.admin.name.substring(0,2).toUpperCase();
+            document.getElementById('authScreen').classList.remove('hidden-el'); 
+            document.getElementById('loginBox').classList.remove('hidden-el');
+            document.getElementById('displayPhone').innerText = db.admin.phone;
         }
 
-        async function handleRegistration() {
-            const n = document.getElementById('regName').value;
-            const ph = document.getElementById('regPhone').value;
-            const p1 = document.getElementById('regPin').value;
-            const p2 = document.getElementById('regPinConf').value;
-
-            if(!n || ph.length < 10 || p1.length < 4 || p1 !== p2) return alert("Please fill all fields correctly. PINs must match.");
-            
-            db.admin = { name: n, phone: ph, pin: p1 };
-            saveDB();
-            location.reload();
+        function handleRegistration() {
+            const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
+            if(!n || ph.length !== 10 || p.length < 4) return alert("Please enter valid data!");
+            db.admin = { name: n, phone: ph, pin: p };
+            saveDB(); location.reload();
         }
 
         function handleLogin() {
             if(document.getElementById('loginPin').value === db.admin.pin) {
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('appBody').classList.remove('hidden');
+                document.getElementById('authScreen').classList.add('hidden-el');
+                document.getElementById('appBody').classList.remove('hidden-el');
+                document.getElementById('welcomeName').innerText = db.admin.name;
+                document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
                 renderHome();
-            } else alert("Invalid PIN. Please try again.");
+            } else alert("Invalid PIN!");
         }
 
-        // Secret Toggle (Hold ₹ for 2s)
+        // --- 3. SECRET MODE & TIMER ---
         function initGestures() {
             const el = document.getElementById('secretTrigger');
             el.onpointerdown = () => {
                 holdTimer = setTimeout(() => {
                     askPin(() => {
-                        db.secret = !db.secret;
-                        document.getElementById('kacchaIndicator').classList.toggle('hidden');
-                        document.getElementById('secretTrigger').classList.toggle('text-rose-500');
-                        refresh();
-                        alert(db.secret ? "Switched to Private Ledger" : "Switched to Main Ledger");
+                        db.secret = true;
+                        document.getElementById('kacchaTag').classList.remove('hidden-el');
+                        document.getElementById('secretTrigger').classList.add('text-rose-500');
+                        document.getElementById('balLabel').innerText = "Current Balance (Secret)";
+                        refreshView();
+                        resetSecretTimer();
                     });
                 }, 2000);
             };
             el.onpointerup = () => clearTimeout(holdTimer);
+            
+            // ইন্ডিকেটর টাচ করলে সাথে সাথে এক্সিট
+            document.getElementById('kacchaTag').onclick = () => exitSecretMode();
         }
 
-        function askPin(callback) {
-            const modal = document.getElementById('pinModal');
-            modal.classList.remove('hidden');
-            document.getElementById('confirmPinInput').value = "";
-            document.getElementById('confirmPinInput').focus();
-            document.getElementById('pinSubmitBtn').onclick = () => {
-                if(document.getElementById('confirmPinInput').value === db.admin.pin) {
-                    modal.classList.add('hidden');
-                    callback();
-                } else alert("Incorrect Security PIN!");
-            };
+        function resetSecretTimer() {
+            clearTimeout(secretTimer);
+            if(db.secret) {
+                secretTimer = setTimeout(() => exitSecretMode(), 10000); // ১০ সেকেন্ড অটো এক্সিট
+            }
         }
-        function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
 
-        // Core Functions
-        function switchTab(t) {
-            db.tab = t;
-            document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-indigo-600 text-white' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400';
-            document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-indigo-600 text-white' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400';
-            renderHome();
+        function exitSecretMode() {
+            db.secret = false;
+            document.getElementById('kacchaTag').classList.add('hidden-el');
+            document.getElementById('secretTrigger').classList.remove('text-rose-500');
+            document.getElementById('balLabel').innerText = "Current Balance (Pakka)";
+            refreshView();
+            alert("Secret Mode Exited Automatically");
+        }
+
+        // --- 4. CORE LOGIC ---
+        function calcBalance(txs, isSec) {
+            let b = 0;
+            txs.filter(t => t.status === 'active' && !!t.secret === !!isSec).forEach(t => {
+                b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+            });
+            return b;
         }
 
         function renderHome() {
-    const list = document.getElementById('contactList');
-    list.innerHTML = "";
-    let totalBal = 0;
-    
-    // হেডার লেবেল ঠিক করা
-    document.getElementById('balHeaderLabel').innerText = db.secret ? "Net Balance (Secret)" : "Net Balance (Pakka)";
+            const list = document.getElementById('contactList');
+            list.innerHTML = ""; let net = 0;
+            db.people.filter(p => p.type === db.tab).forEach(p => {
+                const bal = calcBalance(p.transactions, db.secret);
+                net += bal;
+                const dBal = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+                const isRed = bal > 0;
+                const status = bal > 0 ? (p.type==='CUSTOMER'?'YOU GET':'YOU PAY') : 'ADVANCE';
 
-    db.people.filter(p => p.type === db.tab).forEach(p => {
-        const bal = calcBalance(p.transactions, db.secret, p.type);
-        totalBal += bal;
-        
-        // ডিসপ্লে অ্যামাউন্ট: সিক্রেট মোডে ১০০ দিয়ে ভাগ হবে, পাকায় হবে না
-        const displayBal = db.secret ? (Math.abs(bal) / 100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-        
-        const colorClass = bal > 0 ? 'text-rose-500' : (bal < 0 ? 'text-emerald-600' : 'text-slate-400');
-        const statusText = bal > 0 ? (p.type === 'CUSTOMER' ? 'YOU GET' : 'YOU PAY') : 'ADVANCE';
-
-        list.innerHTML += `
-            <div onclick="openLedger(${p.id})" class="bg-white p-5 rounded-[30px] border border-slate-100 flex justify-between items-center shadow-sm active:scale-95 transition-all">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center font-black">${p.name[0]}</div>
-                    <div>
-                        <h4 class="font-extrabold text-slate-800">${p.name}</h4>
-                        <p class="text-[9px] text-slate-400 font-bold">${p.phone}</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <h5 class="font-black ${colorClass}">₹${displayBal}</h5>
-                    <p class="text-[7px] font-bold text-slate-300 uppercase">${statusText}</p>
-                </div>
-            </div>`;
-    });
-    
-    // মেইন হেডার ব্যালেন্স আপডেট
-    const mainTotalEl = document.getElementById('mainTotal');
-    mainTotalEl.innerText = db.secret ? (Math.abs(totalBal)/100).toFixed(2) : Math.abs(totalBal).toLocaleString('en-IN');
-    mainTotalEl.style.color = totalBal > 0 ? '#f43f5e' : '#10b981';
-}
+                list.innerHTML += `
+                    <div onclick="openLedger(${p.id})" class="axis-card p-6 flex justify-between items-center active:scale-95 transition-all mb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 bg-slate-50 text-[#861F41] rounded-2xl flex items-center justify-center font-black text-xl border border-slate-100">${p.name[0]}</div>
+                            <div>
+                                <h4 class="font-black text-slate-800">${p.name}</h4>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <h5 class="font-black text-lg ${isRed?'text-rose-600':'text-emerald-600'}">₹${dBal}</h5>
+                            <p class="text-[7px] font-bold text-slate-300 uppercase">${status}</p>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('mainTotal').innerText = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+            document.getElementById('mainTotal').style.color = net > 0 ? '#e11d48' : '#059669';
+        }
 
         function openLedger(id) {
-            db.activeId = id;
-            const p = db.people.find(x => x.id === id);
+            db.activeId = id; const p = db.people.find(x => x.id === id);
             document.getElementById('lName').innerText = p.name;
             document.getElementById('lPhone').innerText = p.phone;
-            document.getElementById('pageHome').classList.add('hidden');
-            document.getElementById('pageLedger').classList.remove('hidden');
+            document.getElementById('pageHome').classList.add('hidden-el');
+            document.getElementById('pageLedger').classList.remove('hidden-el');
             renderLedger();
+            if(db.secret) resetSecretTimer();
         }
 
-        
-
-
-        let autoExitTimer;
-
-function startAutoExitTimer() {
-    clearTimeout(autoExitTimer); // আগের টাইমার থাকলে ক্লিয়ার করবে
-    autoExitTimer = setTimeout(() => {
-        exitSecretMode();
-    }, 10000); // ১০ সেকেন্ড
-}
-
-function exitSecretMode() {
-    db.secret = false;
-    document.getElementById('kacchaIndicator').classList.add('hidden');
-    document.getElementById('secretTrigger').classList.remove('text-rose-500');
-    refreshView(); // ভিউ আপডেট করবে
-}
-
-// ইন্ডিকেটরে টাচ করলে সাথে সাথে এক্সিট
-document.getElementById('kacchaIndicator').onclick = () => exitSecretMode();
-        
-        function showHistory(personId, txId) {
-    const person = db.people.find(p => p.id === personId);
-    const tx = person.transactions.find(t => t.id === txId);
-
-    if (tx.history && tx.history.length > 0) {
-        let historyMsg = "Edit History for this Bill:\n\n";
-        tx.history.forEach((h, index) => {
-            historyMsg += `${index + 1}. Date: ${h.oldDate} | Amt: ₹${h.oldAmount} | Note: ${h.oldNote}\n(Edited on: ${h.editedAt})\n\n`;
-        });
-        alert(historyMsg);
-        
-    }
-}
-
-// ১. কাস্টমার/সাপ্লায়ার তৈরি করার ফাংশন (Fixes Creation)
-function confirmAdd() {
-    const n = document.getElementById('newPName').value;
-    const ph = document.getElementById('newPPhone').value;
-    
-    if(!n || ph.length !== 10) return alert("Please enter Name and 10-digit Phone number");
-    
-    // চেক করা হচ্ছে এই নম্বর আগে থেকে আছে কি না
-    const exists = db.people.some(p => p.phone === ph);
-    if(exists) return alert("This phone number already exists!");
-
-    const newPerson = { 
-        id: Date.now(), 
-        name: n, 
-        phone: ph, 
-        type: db.tab, // বর্তমানে যে ট্যাব সিলেক্ট করা আছে (CUSTOMER/SUPPLIER)
-        transactions: [] 
-    };
-    
-    db.people.unshift(newPerson);
-    saveDB(); 
-    closeAddModal(); 
-    renderHome();
-    
-    // ইনপুট খালি করা
-    document.getElementById('newPName').value = ""; 
-    document.getElementById('newPPhone').value = "";
-}
-
-// ২. লেজার রেন্ডার ফাংশন (Fixes UI, Edit, History, Images)
-function renderLedger() {
-    const p = db.people.find(x => x.id === db.activeId);
-    const list = document.getElementById('ledgerList');
-    list.innerHTML = "";
-    
-    const netBal = calcBalance(p.transactions, db.secret, p.type);
-    const displayTotal = db.secret ? (Math.abs(netBal) / 100).toFixed(2) : Math.abs(netBal).toLocaleString('en-IN');
-    
-    document.getElementById('mainTotal').innerText = "₹ " + displayTotal;
-    document.getElementById('mainTotal').style.color = netBal > 0 ? '#f43f5e' : (netBal < 0 ? '#10b981' : '#64748b');
-
-    const txs = p.transactions.filter(t => !!t.secret === !!db.secret);
-    
-    txs.forEach(t => {
-        const isDel = t.status === 'deleted';
-        const isLeft = t.type === 'GIVEN';
-        const alignClass = isLeft ? 'items-start pl-2' : 'items-end pr-2';
-        const bubbleStyle = isLeft ? 'rounded-tr-3xl rounded-bl-3xl rounded-br-3xl border-l-4 border-indigo-400' 
-                                   : 'rounded-tl-3xl rounded-bl-3xl rounded-br-3xl border-r-4 border-indigo-400 text-right';
-
-        const txDisplayAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
-
-        // কালার লজিক: CUSTOMER GIVEN = RED, SUPPLIER RECEIVED = RED
-        let txColor = "";
-        if (p.type === 'SUPPLIER') {
-            txColor = t.type === 'RECEIVED' ? 'text-rose-500' : 'text-emerald-600';
-        } else {
-            txColor = t.type === 'GIVEN' ? 'text-rose-500' : 'text-emerald-600';
-        }
-
-        list.innerHTML += `
-            <div class="flex flex-col ${alignClass} mb-8 w-full animate-fade-in ${isDel ? 'tx-deleted' : ''}">
-                <div class="text-[9px] font-black bg-slate-100 text-slate-400 px-4 py-1 rounded-full mb-3 uppercase tracking-widest">${t.date}</div>
-                <div class="w-[85%] max-w-[400px] ${bubbleStyle} bg-white shadow-md p-2 border border-slate-100">
-                    <div class="relative overflow-hidden rounded-2xl bg-slate-50 aspect-[4/3] mb-3">
-                        <img src="${t.imgUrl || 'https://via.placeholder.com/400x300?text=No+Bill'}" 
-                             class="w-full h-full object-cover" onclick="zoomImage(this.src)">
-                    </div>
-                    <div class="px-3 pb-2">
-                        <h3 class="text-2xl font-black ${txColor} tracking-tighter">₹${txDisplayAmt} ${isLeft?'↑':'↓'}</h3>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">${t.type}</p>
-                        ${t.note ? `<div class="mt-2 p-2 bg-slate-50 rounded-xl text-[10px] text-slate-500 italic">${t.note}</div>` : ''}
-                        
-                        <div class="mt-4 flex gap-4 border-t pt-2 items-center">
-                            <button onclick="deleteTx(${t.id})" class="text-[8px] font-bold text-rose-300 uppercase">Delete</button>
-                            <button onclick="editTransaction(${p.id}, ${t.id})" class="text-[8px] font-bold text-indigo-500 uppercase">Edit</button>
-                            ${t.history ? `<i class="fas fa-history text-slate-300 text-[10px] ml-auto" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>`;
-    });
-}
-
-// ৩. ট্রানজ্যাকশন সেভ (Fixes ImgBB & PIN logic)
-async function preSave(type) {
-    const amt = parseFloat(document.getElementById('txAmt').value);
-    if(!amt) return alert("Enter amount");
-
-    const saveAction = async () => {
-        let imgUrl = "";
-        const file = document.getElementById('txFile').files[0];
-        if(file) {
-            const fd = new FormData(); fd.append('image', file);
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-            const data = await res.json(); 
-            if(data.success) imgUrl = data.data.url;
-        }
-
-        const p = db.people.find(x => x.id === db.activeId);
-        p.transactions.unshift({ 
-            id: Date.now(), 
-            amount: amt, 
-            type: type, 
-            secret: !!db.secret, 
-            date: new Date().toLocaleDateString('en-GB'), 
-            note: document.getElementById('txNote').value, 
-            imgUrl: imgUrl, 
-            status: 'active' 
-        });
-        saveDB(); renderLedger();
-        
-        // রিসেট ফর্ম
-        document.getElementById('txAmt').value = ""; 
-        document.getElementById('txNote').value = ""; 
-        document.getElementById('txFile').value = ""; 
-        document.getElementById('imgPreview').classList.add('hidden');
-    };
-
-    // পিন শর্ত: শুধুমাত্র সিক্রেট মোডে + কাস্টমার থেকে টাকা পেলে
-    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') {
-        askPin(saveAction); 
-    } else {
-        saveAction();
-    }
-}
-
-// ৪. এডিট ট্রানজ্যাকশন (Fixes Editing with PIN)
-function editTransaction(pid, tid) {
-    const p = db.people.find(x => x.id === pid);
-    const t = p.transactions.find(x => x.id === tid);
-    
-    askPin(() => {
-        const nAmt = parseFloat(prompt("New Amount (Original):", t.amount));
-        const nNote = prompt("Update Note:", t.note || "");
-        
-        if(!isNaN(nAmt)) {
-            if(!t.history) t.history = [];
-            t.history.push({ oldAmt: t.amount, oldNote: t.note, date: new Date().toLocaleString() });
-            
-            t.amount = nAmt;
-            t.note = nNote;
-            saveDB(); renderLedger();
-            alert("Entry Updated!");
-        }
-    });
-}
-
-// ৫. হিস্ট্রি দেখা (Fixes showHistory)
-function showHistory(pid, tid) {
-    const p = db.people.find(x => x.id === pid);
-    const t = p.transactions.find(x => x.id === tid);
-    if(!t.history) return;
-    
-    let msg = "Edit History:\n\n";
-    t.history.forEach(h => {
-        msg += `${h.date}: Was ₹${h.oldAmt} (${h.oldNote || 'No note'})\n`;
-    });
-    alert(msg);
-}
-
-// ৬. আলাদা ক্যালকুলেশন (Strict Separation)
-function calcBalance(txs, isSec, pType) {
-    let b = 0;
-    txs.filter(t => t.status === 'active' && !!t.secret === !!isSec).forEach(t => {
-        b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
-    });
-    return b; 
-}
-        
-        // ১. ইমেজকে চিরস্থায়ী ডাটাতে রূপান্তর করার ফাংশন
-function fileToDataURL(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-        reader.readAsDataURL(file);
-    });
-}
-
-
-        // সংশোধিত ডিলিট ফাংশন (পিন প্রোটেকশন সহ)
-function deleteTx(tid) {
-    // পিন চাওয়ার জন্য askPin কল করা হলো
-    askPin(() => {
-        // সঠিক পিন দেওয়ার পর এই অংশটি কাজ করবে
-        if(confirm("Are you sure you want to cancel this entry? This action cannot be undone.")) {
+        function renderLedger() {
             const p = db.people.find(x => x.id === db.activeId);
-            const tx = p.transactions.find(t => t.id === tid);
-            
-            tx.status = 'deleted'; // হিসাব ধূসর (gray) হয়ে যাবে কিন্তু হিস্ট্রিতে থাকবে
-            
-            saveDB();
-            renderLedger();
-            alert("Entry successfully canceled with PIN verification!");
-        }
-    });
-}
+            const list = document.getElementById('ledgerList'); list.innerHTML = "";
+            const net = calcBalance(p.transactions, db.secret);
+            document.getElementById('mainTotal').innerText = "₹ " + (db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN'));
+            document.getElementById('mainTotal').style.color = net > 0 ? '#e11d48' : '#059669';
 
-       // সংশোধিত ব্যালেন্স ক্যালকুলেশন
-function calcBalance(txs, isSecMode, pType) {
-    let bal = 0;
-    // এখানে !!isSecMode ব্যবহার করা হয়েছে যাতে Boolean (true/false) ঠিক থাকে
-    txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode).forEach(t => {
-        let change = (t.type === 'RECEIVED' ? t.amount : -t.amount);
-        bal += change;
-    });
-    return bal; 
-}
+            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+                const isL = t.type === 'GIVEN';
+                const isDel = t.status === 'deleted';
+                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
+                
+                // Color Logic
+                let color = "";
+                if(p.type === 'CUSTOMER') color = t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600';
+                else color = t.type === 'RECEIVED' ? 'text-rose-600' : 'text-emerald-600';
 
-        function saveDB() { localStorage.setItem('pb_pro_ledger_v3', JSON.stringify(db)); }
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
-        function refresh() { if(db.activeId && !document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function openAddModal() { 
-            document.getElementById('addModal').classList.remove('hidden');
-            document.getElementById('addModalTitle').innerText = "Add New " + (db.tab === 'CUSTOMER' ? 'Customer' : 'Supplier');
-        }
-        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
-        
-        function confirmAdd() {
-            const n = document.getElementById('newPName').value;
-            const ph = document.getElementById('newPPhone').value;
-            if(!n || !ph) return alert("Required fields missing");
-            db.people.unshift({ id: Date.now(), name: n, phone: ph, type: db.tab, transactions: [] });
-            saveDB(); closeAddModal(); renderHome();
-            document.getElementById('newPName').value = ""; document.getElementById('newPPhone').value = "";
-        }
-
-        function showFullReport() {
-            askPin(() => {
-                let msg = "BUSINESS SUMMARY\n\nNAME | MAIN | SECRET\n--------------------\n";
-                db.people.forEach(p => {
-                    msg += `${p.name} | ₹${calcBalance(p.transactions, false)} | ₹${calcBalance(p.transactions, true)}\n`;
-                });
-                alert(msg);
+                list.innerHTML += `
+                    <div class="flex flex-col ${isL ? 'items-start' : 'items-end'} mb-6 w-full ${isDel ? 'tx-deleted' : ''}">
+                        <div class="text-[8px] font-bold text-slate-300 bg-white px-3 py-1 rounded-full mb-2 border shadow-sm">${t.date}</div>
+                        <div class="bg-white w-[88%] rounded-3xl p-3 shadow-md border ${isL?'rounded-tl-none border-l-4 border-rose-500':'rounded-tr-none border-r-4 border-emerald-500'}">
+                            <img src="${t.imgUrl || 'https://via.placeholder.com/400x250?text=No+Bill'}" class="w-full h-44 object-cover rounded-2xl mb-3 shadow-inner" onclick="zoomImg(this.src)">
+                            <div class="flex justify-between items-center px-2">
+                                <h3 class="text-2xl font-black ${color}">₹${dAmt} ${isL?'↑':'↓'}</h3>
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${t.type}</p>
+                            </div>
+                            <p class="text-[10px] text-slate-500 italic mt-2 px-2">${t.note || 'Ref: PB-00'+t.id.toString().slice(-3)}</p>
+                            <div class="mt-4 flex gap-4 pt-3 border-t px-2 items-center">
+                                <button onclick="deleteTx(${t.id})" class="text-[8px] font-black text-rose-300 uppercase">Delete</button>
+                                <button onclick="editTx(${p.id}, ${t.id})" class="text-[8px] font-black text-[#861F41] uppercase">Edit</button>
+                                ${t.history ? `<i class="fas fa-history text-slate-300 text-[10px] ml-auto" onclick="alert('Old Amount: ₹${t.history[0].amt}')"></i>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
             });
         }
 
-        function zoomImage(src) {
-    const modal = document.getElementById('zoomModal');
-    const img = document.getElementById('zoomImg');
-    img.src = src;
-    modal.classList.remove('hidden');
-    // পিন চিমটি দিয়ে জুম করার ফিল দেওয়ার জন্য এনিমেশন
-    img.style.transform = "scale(0.8)";
-    setTimeout(() => {
-        img.style.transform = "scale(1)";
-    }, 50);
-}
-
-        function forgotPin() {
-            const ph = prompt("Enter your registered mobile number:");
-            if(ph === db.admin.phone) {
-                const pin = prompt("Enter NEW 4-digit PIN:");
-                if(pin.length === 4) {
-                    db.admin.pin = pin; saveDB(); alert("PIN Updated Successfully!");
+        async function preSave(type) {
+            const amt = parseFloat(document.getElementById('txAmt').value);
+            if(!amt) return alert("Enter amount!");
+            
+            const action = async () => {
+                let imgUrl = ""; const file = document.getElementById('txFile').files[0];
+                if(file) {
+                    const fd = new FormData(); fd.append('image', file);
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                    const data = await res.json(); imgUrl = data.data.url;
                 }
-            } else alert("Mobile number not found!");
+                const p = db.people.find(x => x.id === db.activeId);
+                p.transactions.unshift({ id:Date.now(), amount:amt, type, secret:db.secret, date:new Date().toLocaleDateString('en-GB'), note:document.getElementById('txNote').value, imgUrl, status:'active' });
+                saveDB(); renderLedger();
+                document.getElementById('txAmt').value = ""; document.getElementById('txNote').value = ""; document.getElementById('imgPreview').classList.add('hidden-el');
+                if(db.secret) resetSecretTimer();
+            };
+
+            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
         }
 
-        // ১. স্মার্ট ডিসিশন মেকার (পাক্কা ও কাঁচা মোড অটো ডিটেক্ট করবে)
-function handleSmartPdfDownload() {
-    // চেক করা হচ্ছে ইউজার এখন লেজার পেজে আছে নাকি হোম পেজে
-    const isLedgerPage = !document.getElementById('pageLedger').classList.contains('hidden');
-    const isSecretMode = !!db.secret; // বর্তমানে অ্যাপ কোন মোডে আছে?
+        // --- 5. PDF & HELPERS ---
+        function handleSmartPdfDownload() {
+            const isLedger = !document.getElementById('pageLedger').classList.contains('hidden-el');
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            const isSec = db.secret;
 
-    if (isLedgerPage && db.activeId) {
-        // ইন্ডিভিজুয়াল রিপোর্ট
-        downloadPersonalLedgerPDF(db.activeId, isSecretMode);
-    } else {
-        // গ্লোবাল সামারি রিপোর্ট
-        downloadBusinessSummaryPDF(isSecretMode);
-    }
-}
-
-// ২. ইন্ডিভিজুয়াল লেজার পিডিএফ (পাক্কা মোডে কাঁচা হিসাব পুরোপুরি ভ্যানিশ থাকবে)
-function downloadPersonalLedgerPDF(personId, isAppInSecretMode) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const person = db.people.find(p => p.id === personId);
-
-    doc.setFontSize(20);
-    doc.text(`${isAppInSecretMode ? 'Full' : 'Official'} Ledger: ${person.name}`, 14, 20);
-
-    // ১. কলাম নির্ধারণ
-    let headers = isAppInSecretMode 
-        ? [['Date', 'Type', 'Note', 'Pakka Amt', 'Kaccha Amt']] 
-        : [['Date', 'Type', 'Note', 'Amount (Pakka)']];
-
-    const tableData = [];
-    let totP = 0, totK = 0;
-
-    person.transactions.forEach(t => {
-        if (t.status === 'active') {
-            const amt = t.amount;
-            const change = (t.type === 'RECEIVED' ? amt : -amt);
-
-            if (!isAppInSecretMode) {
-                // পাকা মোড: কাঁচা ডাটা ফিল্টার আউট (সম্পূর্ণ ভ্যানিশ)
-                if (!t.secret) {
-                    totP += change;
-                    tableData.push([t.date, t.type, t.note || "-", "Rs. " + amt.toLocaleString('en-IN')]);
-                }
+            if(isLedger) {
+                const p = db.people.find(x => x.id === db.activeId);
+                doc.text(`Ledger Report: ${p.name}`, 14, 20);
+                const head = isSec ? [['Date', 'Ref', 'Pakka Rs.', 'Kaccha Rs.']] : [['Date', 'Ref', 'Pakka Rs.']];
+                const rows = p.transactions.filter(t => t.status === 'active').map(t => {
+                    if(!isSec && t.secret) return null;
+                    const r = [t.date, t.note || 'PB-'+t.id];
+                    if(isSec) { r.push(t.secret?'-':t.amount, t.secret?t.amount:'-'); } else { r.push(t.amount); }
+                    return r;
+                }).filter(x => x !== null);
+                doc.autoTable({ startY:30, head, body:rows, headStyles: {fillColor:[134, 31, 65]} });
+                doc.save(`${p.name}_Report.pdf`);
             } else {
-                // কাঁচা মোড: পাকা ও কাঁচা পাশাপাশি
-                let pVal = t.secret ? "-" : "Rs. " + amt.toLocaleString('en-IN');
-                let kVal = t.secret ? "Rs. " + amt.toLocaleString('en-IN') : "-";
-                if(t.secret) totK += change; else totP += change;
-                tableData.push([t.date, t.type, t.note || "-", pVal, kVal]);
+                doc.text(`Business Summary Report`, 14, 20);
+                const head = isSec ? [['Name', 'Pakka Balance', 'Kaccha Balance']] : [['Name', 'Pakka Balance']];
+                const rows = db.people.map(p => {
+                    let pb = 0, kb = 0;
+                    p.transactions.filter(t => t.status === 'active').forEach(t => { 
+                        let v = (t.type === 'RECEIVED' ? t.amount : -t.amount); 
+                        if(t.secret) kb += v; else pb += v; 
+                    });
+                    return isSec ? [p.name, pb, kb] : [p.name, pb];
+                });
+                doc.autoTable({ startY:30, head, body:rows, headStyles: {fillColor:[134, 31, 65]} });
+                doc.save("Full_Business_Summary.pdf");
             }
         }
-    });
 
-    doc.autoTable({
-        startY: 40,
-        head: headers,
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: isAppInSecretMode ? [225, 29, 72] : [79, 70, 229] },
-        styles: { fontSize: 8 }
-    });
-    doc.save(`${person.name}_Report.pdf`);
-}
-
-// ৩. গ্লোবাল বিজনেস সামারি পিডিএফ
-function downloadBusinessSummaryPDF(isAppInSecretMode) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.text(`Business Summary (${isAppInSecretMode ? 'Full' : 'Pakka Only'})`, 14, 20);
-
-    let headers = isAppInSecretMode 
-        ? [['Name', 'Mobile', 'Type', 'Pakka Bal', 'Kaccha Bal']] 
-        : [['Name', 'Mobile', 'Type', 'Balance (Pakka)']];
-
-    const tableData = [];
-    db.people.forEach(p => {
-        let pB = 0, kB = 0;
-        p.transactions.forEach(t => {
-            if (t.status === 'active') {
-                let v = (t.type === 'RECEIVED' ? t.amount : -t.amount);
-                if (t.secret) kB += v; else pB += v;
-            }
-        });
-
-        if (!isAppInSecretMode) {
-            tableData.push([p.name, p.phone, p.type, "Rs. " + pB.toLocaleString('en-IN')]);
-        } else {
-            tableData.push([p.name, p.phone, p.type, "Rs. " + pB.toLocaleString('en-IN'), "Rs. " + kB.toLocaleString('en-IN')]);
+        function askPin(cb) {
+            document.getElementById('pinModal').classList.remove('hidden-el');
+            document.getElementById('confirmPinInput').value = "";
+            document.getElementById('pinSubmitBtn').onclick = () => {
+                if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === SECRET_PIN) {
+                    document.getElementById('pinModal').classList.add('hidden-el'); cb();
+                } else alert("Wrong PIN!");
+            };
         }
-    });
 
-    doc.autoTable({
-        startY: 35,
-        head: headers,
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: isAppInSecretMode ? [225, 29, 72] : [79, 70, 229] }
-    });
-    doc.save(`Business_Report.pdf`);
-}
+        function switchTab(t) {
+            db.tab = t;
+            document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400';
+            document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400';
+            renderHome();
+        }
+
+        function confirmAdd() {
+            const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value;
+            if(!n || ph.length !== 10) return alert("Invalid Name or 10-digit Phone!");
+            if(db.people.some(x => x.phone === ph)) return alert("Number already exists!");
+            db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] });
+            saveDB(); closeAddModal(); renderHome();
+        }
+
+        function editTx(pid, tid) {
+            const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid);
+            askPin(() => {
+                const nAmt = parseFloat(prompt("New Original Amount:", t.amount));
+                if(!t.history) t.history = []; t.history.push({ amt: t.amount });
+                t.amount = nAmt; saveDB(); renderLedger();
+            });
+        }
+
+        function deleteTx(tid) {
+            askPin(() => {
+                const p = db.people.find(x => x.id === db.activeId);
+                p.transactions.find(x => x.id === tid).status = 'deleted';
+                saveDB(); renderLedger();
+            });
+        }
+
+        function goHome() { document.getElementById('pageLedger').classList.add('hidden-el'); document.getElementById('pageHome').classList.remove('hidden-el'); renderHome(); }
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden-el'); }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden-el'); }
+        function closePinModal() { document.getElementById('pinModal').classList.add('hidden-el'); }
+        function refreshView() { if(db.activeId && !document.getElementById('pageLedger').classList.contains('hidden-el')) renderLedger(); else renderHome(); }
+        function zoomImg(src) { window.open(src); }
+        
+        function transferAccount() {
+            const oldPh = prompt("Enter Current Registered Number:");
+            if(oldPh === db.admin.phone) {
+                const newPh = prompt("Enter New 10-Digit Mobile Number:");
+                if(newPh && newPh.length === 10) {
+                    db.admin.phone = newPh; saveDB(); alert("Transfer Successful! Restarting..."); location.reload();
+                }
+            } else alert("Verification failed!");
+        }
     </script>
 </body>
 </html>
