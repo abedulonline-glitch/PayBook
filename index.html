@@ -206,9 +206,16 @@
             if(doc.exists) { db = doc.data(); renderHome(); }
         }
         function saveDB() {
-            localStorage.setItem('pb_v11_axis', JSON.stringify(db));
-            if(db.admin) db_fs.collection("ledgers").doc(db.admin.phone).set(db);
-        }
+    // লোকাল স্টোরেজে আগে সেভ হবে (এটি দ্রুত)
+    localStorage.setItem('paybook_v10_final', JSON.stringify(db));
+
+    // ফায়ারবেসে সেভ হবে ব্যাকগ্রাউন্ডে (এটি ইউআই স্লো করবে না)
+    if(db.admin && db.admin.phone) {
+        db_fs.collection("global_ledgers").doc(db.admin.phone).set(db)
+            .then(() => console.log("Cloud Sync Done"))
+            .catch(err => console.error("Cloud Sync Failed", err));
+    }
+}
 
         function handleRegistration() {
             const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
@@ -247,14 +254,21 @@
         }
 
         // --- LEDGER LOGIC ---
-        function calcBal(txs, isSec, pType) {
-            let b = 0;
-            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
-                if (pType === 'CUSTOMER') b += (t.type==='GIVEN'?t.amount:-t.amount);
-                else b += (t.type==='RECEIVED'?t.amount:-t.amount);
-            });
-            return b;
+        function calcBal(txs, isSecMode, pType) {
+    let b = 0;
+    // দ্রুত ফিল্টারিং
+    const filtered = txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode);
+    
+    for (let i = 0; i < filtered.length; i++) {
+        const t = filtered[i];
+        if (pType === 'CUSTOMER') {
+            b += (t.type === 'GIVEN' ? t.amount : -t.amount);
+        } else {
+            b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
         }
+    }
+    return b;
+}
 
         function renderHome() {
             const list = document.getElementById('contactList'); list.innerHTML = "";
@@ -345,6 +359,29 @@
             };
             if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
         }
+
+        function exitSecret() {
+    db.secret = false;
+    clearTimeout(autoExitTimer);
+
+    // ১. সাথে সাথে UI ইন্ডিকেটর পরিবর্তন করুন
+    const badge = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
+    if(badge) badge.classList.add('hidden');
+    
+    const trigger = document.getElementById('secretTrigger');
+    if(trigger) trigger.classList.remove('text-rose-500');
+
+    const label = document.getElementById('balLabel') || document.getElementById('balHeader');
+    if(label) label.innerText = "Total Net Portfolio (Pakka)";
+
+    // ২. ক্লাউড থেকে ডাটা লোড না করে সরাসরি লোকাল ডাটা দিয়ে রেন্ডার করুন
+    // এটি মাইক্রো-সেকেন্ডে কাজ করবে
+    if (!document.getElementById('pageLedger').classList.contains('hidden')) {
+        renderLedger();
+    } else {
+        renderHome();
+    }
+}
 
         // --- GESTURES & TIMER (30s) ---
         function initSecretGesture() {
