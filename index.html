@@ -66,6 +66,11 @@
         </div>
     </div>
 
+    <!-- সেটিংস মোডালের ভেতরে এই বাটনটি যোগ করুন -->
+<button onclick="shareApp()" class="w-full p-6 bg-slate-50 rounded-3xl flex items-center justify-between font-bold mt-3">
+    <span>Share App with Friends</span> <i class="fas fa-share-nodes text-emerald-500"></i>
+</button>
+
     <!-- 2. MAIN APPLICATION UI -->
     <div id="appBody" class="hidden min-h-screen">
         <header class="axis-gradient text-white sticky top-0 z-[100] h-[60px] px-5 flex items-center justify-between shadow-lg">
@@ -433,7 +438,126 @@
         function openAddModal() { const n = prompt("Contact Name:"), ph = prompt("10-Digit Mobile:"); if(n && ph.length===10) { db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); renderHome(); } }
         function deleteTx(tid) { askPin(() => { const p = db.people.find(x => x.id === db.activeId); p.transactions.find(t => t.id === tid).status = 'deleted'; saveDB(); renderLedger(); }); }
         function shareWA(amt, type, name) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro Receipt: '+name+'\n'+type+': Rs.'+amt)}`); }
-        function handleSmartPdfDownload() { /* আপনার আগের পিডিএফ কোডটি এখানে থাকবে */ alert("Generating PDF..."); }
+         // ১. স্মার্ট ডিসিশন মেকার (হেডার আইকনের জন্য)
+function handleSmartPdfDownload() {
+    const isLedgerPage = !document.getElementById('pageLedger').classList.contains('hidden');
+    const isSecret = db.secret; // বর্তমানে আপনি কোন মোডে আছেন?
+
+    if (isLedgerPage && db.activeId) {
+        downloadPersonalLedgerPDF(db.activeId, isSecret);
+    } else {
+        downloadBusinessSummaryPDF(isSecret);
+    }
+}
+
+// ২. পার্সোনাল লেজার পিডিএফ
+function downloadPersonalLedgerPDF(personId, isSecret) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const person = db.people.find(p => p.id === personId);
+
+    doc.setFontSize(18);
+    doc.setTextColor(isSecret ? 134 : 15, isSecret ? 31 : 23, isSecret ? 65 : 42);
+    doc.text(`${isSecret ? 'Detailed' : 'Official'} Ledger: ${person.name}`, 14, 20);
+    
+    doc.setFontSize(10);
+    doc.text(`Mobile: ${person.phone} | Type: ${person.type}`, 14, 28);
+    doc.text(`Date: ${new Date().toLocaleString()}`, 14, 33);
+
+    // কলাম নির্ধারণ
+    let headers = isSecret 
+        ? [['Date', 'Type', 'Note', 'Pakka Rs.', 'Kaccha Rs.']] 
+        : [['Date', 'Type', 'Note', 'Amount Rs.']];
+
+    const tableData = [];
+    let totP = 0, totK = 0;
+
+    person.transactions.forEach(t => {
+        if (t.status === 'active') {
+            const amt = t.amount; // অরিজিনাল অ্যামাউন্ট
+            let change = (t.type === 'RECEIVED' ? amt : -amt);
+
+            if (!isSecret) {
+                if (!t.secret) {
+                    totP += change;
+                    tableData.push([t.date, t.type, t.note || "-", amt.toLocaleString('en-IN')]);
+                }
+            } else {
+                let pVal = t.secret ? "-" : amt.toLocaleString('en-IN');
+                let kVal = t.secret ? amt.toLocaleString('en-IN') : "-";
+                if(t.secret) totK += change; else totP += change;
+                tableData.push([t.date, t.type, t.note || "-", pVal, kVal]);
+            }
+        }
+    });
+
+    doc.autoTable({
+        startY: 40,
+        head: headers,
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: isSecret ? [134, 31, 65] : [15, 23, 42] }
+    });
+
+    doc.save(`${person.name}_Ledger.pdf`);
+}
+
+// ৩. গ্লোবাল বিজনেস সামারি পিডিএফ
+function downloadBusinessSummaryPDF(isSecret) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text(`Portfolio Summary (${isSecret ? 'Secret' : 'Pakka Only'})`, 14, 20);
+
+    let headers = isSecret 
+        ? [['Name', 'Mobile', 'Pakka Balance', 'Kaccha Balance']] 
+        : [['Name', 'Mobile', 'Balance (Pakka)']];
+
+    const tableData = [];
+    db.people.forEach(p => {
+        let pB = 0, kB = 0;
+        p.transactions.filter(t => t.status === 'active').forEach(t => {
+            let v = (t.type === 'RECEIVED' ? t.amount : -t.amount);
+            if (t.secret) kB += v; else pB += v;
+        });
+
+        if (!isSecret) {
+            tableData.push([p.name, p.phone, pB.toLocaleString('en-IN')]);
+        } else {
+            tableData.push([p.name, p.phone, pB.toLocaleString('en-IN'), kB.toLocaleString('en-IN')]);
+        }
+    });
+
+    doc.autoTable({
+        startY: 30,
+        head: headers,
+        body: tableData,
+        headStyles: { fillColor: isSecret ? [134, 31, 65] : [15, 23, 42] }
+    });
+
+    doc.save(`Business_Summary.pdf`);
+}
+
+   function shareApp() {
+    const shareData = {
+        title: 'PayBook Pro',
+        text: 'Manage your business ledger with Axis Premium Edition. Secure, Smart & Powerful!',
+        url: window.location.href // এটি আপনার অ্যাপের লাইভ লিঙ্কটি শেয়ার করবে
+    };
+
+    if (navigator.share) {
+        navigator.share(shareData).then(() => {
+            console.log('App shared successfully');
+        }).catch((err) => {
+            console.error('Error sharing:', err);
+        });
+    } else {
+        // যদি ব্রাউজার শেয়ার সাপোর্ট না করে তবে হোয়াটসঅ্যাপে শেয়ার হবে
+        const waMsg = `PayBook Pro: Download the premium business ledger app here: ${window.location.href}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`);
+    }
+}     
     </script>
 </body>
 </html>
