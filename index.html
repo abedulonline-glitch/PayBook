@@ -200,7 +200,7 @@
 
         // --- STARTUP ---
         window.onload = () => {
-            const data = localStorage.getItem('paybook_v9_master');
+            const data = loc9alStorage.getItem('paybook_v9_master');
             if(data) {
                 db = JSON.parse(data);
                 if(db.admin) showLogin(); else showReg();
@@ -252,31 +252,51 @@
         }
 
         function calcBal(txs, isSec) {
-            let b = 0;
-            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => { b += (t.type==='RECEIVED'?t.amount:-t.amount); });
-            return b;
-        }
+    let b = 0;
+    // এখানে !!isSec ব্যবহার করা হয়েছে যাতে Boolean (true/false) ১০০% নিশ্চিত হয়
+    txs.filter(t => t.status === 'active' && !!t.secret === !!isSec).forEach(t => {
+        // GIVEN বিয়োগ হবে, RECEIVED যোগ হবে (কাস্টমারের জন্য)
+        // আপনি যদি বিপরীত চান তবে নিচের চিহ্ন বদলে দিতে পারেন
+        b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+    });
+    return b;
+}
 
         function renderHome() {
-            const list = document.getElementById('contactList'); list.innerHTML = "";
-            document.getElementById('headerMain').classList.remove('hidden');
-            document.getElementById('headerLedger').classList.add('hidden');
-            db.people.filter(p => p.type === db.tab).forEach(p => {
-                const bal = calcBal(p.transactions, db.secret);
-                const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-                list.innerHTML += `
-                    <div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black border text-xs shadow-lg">${p.name[0]}</div>
-                            <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p></div>
-                        </div>
-                        <div class="text-right">
-                            <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5>
-                            <p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? (p.type==='CUSTOMER'?'YOU GET':'YOU PAY') : 'ADVANCE'}</p>
-                        </div>
-                    </div>`;
-            });
-        }
+    const list = document.getElementById('contactList'); list.innerHTML = "";
+    let totalPortfolio = 0;
+    
+    // হেডার লেবেল আপডেট
+    document.getElementById('headerLedger').classList.add('hidden');
+    document.getElementById('headerMain').classList.remove('hidden');
+
+    db.people.filter(p => p.type === db.tab).forEach(p => {
+        const bal = calcBal(p.transactions, db.secret);
+        totalPortfolio += bal;
+        
+        // ১০০ দিয়ে ভাগ করার লজিক (শুধুমাত্র সিক্রেট মোডে)
+        const dAmt = db.secret ? (Math.abs(bal) / 100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+        
+        const isRed = bal > 0;
+        list.innerHTML += `
+            <div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
+                    <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p></div>
+                </div>
+                <div class="text-right">
+                    <h5 class="font-black text-sm ${isRed?'text-rose-500':'text-emerald-600'}">₹${dAmt}</h5>
+                    <p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'YOU GET' : 'CLEAR'}</p>
+                </div>
+            </div>`;
+    });
+    
+    // মেইন হেডার ব্যালেন্স এবং ১০০ দিয়ে ভাগ
+    const mainTotalEl = document.getElementById('mainTotal');
+    const finalTotal = db.secret ? (Math.abs(totalPortfolio) / 100).toFixed(2) : Math.abs(totalPortfolio).toLocaleString('en-IN');
+    mainTotalEl.innerText = finalTotal;
+    mainTotalEl.style.color = totalPortfolio > 0 ? '#f43f5e' : '#10b981';
+}
 
         function openLedger(id) {
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -290,39 +310,44 @@
         }
 
         function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList'); list.innerHTML = "";
-            const net = calcBal(p.transactions, db.secret);
-            document.getElementById('mainTotal').innerText = "₹" + (db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN'));
-            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); list.innerHTML = "";
+    
+    const net = calcBal(p.transactions, db.secret);
+    
+    // হেডার আপডেট
+    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    document.getElementById('mainTotal').innerText = displayHeaderTotal;
+    document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
 
-            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                // Color logic: Given to Customer=Red, Received from Supplier=Red
-                let isRedCol = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+    // শুধুমাত্র বর্তমান মোড (পাকা বা কাঁচা) অনুযায়ী ফিল্টার
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
+        
+        // ইন্ডিভিজুয়াল এন্ট্রি ১০০ দিয়ে ভাগ (সিক্রেট মোডে)
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+        
+        let isRedCol = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
 
-                list.innerHTML += `
-                    <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                        <div class="text-[8px] font-black text-slate-300 uppercase mb-2">${t.date}</div>
-                        <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                            ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="window.open(this.src)">` : ''}
-                            <div class="flex justify-between items-center gap-6">
-                                <h3 class="text-xl font-black ${isRedCol?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3>
-                                <p class="text-[8px] font-bold text-slate-300">${t.type}</p>
-                            </div>
-                            <p class="text-[10px] text-slate-500 italic mt-1">${t.note || 'Ref: PB-00'+t.id.toString().slice(-4)}</p>
-                            <div class="flex gap-4 mt-4 pt-3 border-t">
-                                <i class="fas fa-edit text-indigo-200 text-xs" onclick="editTx(${p.id}, ${t.id})"></i>
-                                <i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i>
-                                <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                                ${t.history ? `<i class="fas fa-history text-slate-200 text-[10px]" onclick="alert('Original Was: Rs.'+${t.history[0].amt})"></i>`:''}
-                            </div>
-                        </div>
-                    </div>`;
-            });
-            setTimeout(() => { document.getElementById('mainViewport').scrollTop = list.scrollHeight; }, 100);
-        }
+        list.innerHTML += `
+            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="text-[8px] font-black text-slate-300 uppercase mb-2">${t.date}</div>
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                    ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="window.open(this.src)">` : ''}
+                    <div class="flex justify-between items-center gap-6">
+                        <h3 class="text-xl font-black ${isRedCol?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3>
+                        <p class="text-[8px] font-bold text-slate-300">${t.type}</p>
+                    </div>
+                    <p class="text-[10px] text-slate-500 italic mt-1">${t.note || 'Ref: PB-00'+t.id.toString().slice(-4)}</p>
+                    <div class="flex gap-4 mt-4 pt-3 border-t">
+                        <i class="fas fa-edit text-indigo-200 text-xs" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                    </div>
+                </div>
+            </div>`;
+    });
+}
 
         // --- DATA ENTRY DRAWER LOGIC ---
         function triggerDrawer(type) {
