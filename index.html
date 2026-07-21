@@ -39,7 +39,19 @@
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
         #mainViewport { height: calc(100vh - 60px); overflow-y: auto; scroll-behavior: smooth; }
+  
+        /* ব্লিঙ্কিং এনিমেশন */
+@keyframes blinker { 
+    50% { opacity: 0.1; } 
+}
+.blink-mode { 
+    animation: blinker 1s linear infinite; 
+    background-color: #e11d48 !important; /* লাল রঙ */
+    color: white !important;
+    cursor: pointer;
+}
     </style>
+
 </head>
 <body>
 
@@ -448,26 +460,87 @@
     }, 10000); // ১০ সেকেন্ড
 }
 
+let autoExitTimer;
+
+// ১. সিক্রেট মোড থেকে এক্সিট করার ফাংশন
 function exitSecretMode() {
     db.secret = false;
+    clearTimeout(autoExitTimer);
+    
+    // UI রিসেট
+    const badge = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
+    if(badge) {
+        badge.classList.add('hidden');
+        badge.classList.remove('blink-mode');
+    }
+    document.getElementById('secretTrigger').classList.remove('text-rose-500');
+    document.getElementById('balHeader').innerText = "Total Net Portfolio (Pakka)";
+    
+    renderAll(); // স্ক্রিন রিফ্রেশ
+    console.log("Exited to Pakka Mode");
+}
 
-    // ইউআই পাক্কা মোডে ফিরিয়ে আনা
-    const tag = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
-    if(tag) tag.classList.add('hidden');
-
-    const trigger = document.getElementById('secretTrigger');
-    if(trigger) trigger.classList.remove('text-rose-500');
-
-    const label = document.getElementById('balHeader') || document.getElementById('balLabel') || document.getElementById('balTypeLabel');
-    if(label) label.innerText = "Net Balance (Pakka)";
-
-    // স্ক্রিন আবার আপডেট করা
-    if (!document.getElementById('pageLedger').classList.contains('hidden')) {
-        renderLedger();
-    } else {
-        renderHome();
+// ২. টাইমার শুরু বা রিসেট করার ফাংশন
+function resetAutoExitTimer() {
+    clearTimeout(autoExitTimer);
+    if (db.secret) {
+        autoExitTimer = setTimeout(() => {
+            exitSecretMode();
+            alert("Security Timeout: Returned to Pakka Mode");
+        }, 10000); // ১০ সেকেন্ড
     }
 }
-    </script>
+
+// ৩. ডাটা সেভ করার নিখুঁত লজিক (Separate Storage)
+async function preSave(type) {
+    const amtInput = document.getElementById('txAmt');
+    const amt = parseFloat(amtInput.value);
+    if(!amt) return alert("Enter Amount!");
+
+    const action = async () => {
+        const p = db.people.find(x => x.id === db.activeId);
+        
+        // এখানে !!db.secret নিশ্চিত করবে যে এটি কাঁচা নাকি পাকা হিসেবে সেভ হবে
+        const isCurrentlySecret = !!db.secret;
+
+        p.transactions.unshift({
+            id: Date.now(),
+            amount: amt,
+            type: type,
+            secret: isCurrentlySecret, // একদম আলাদাভাবে ফ্ল্যাগ সেট হবে
+            date: new Date().toLocaleDateString('en-GB'),
+            note: document.getElementById('txNote').value,
+            status: 'active'
+        });
+
+        saveDB(); 
+        renderLedger(); 
+        closeDrawer();
+
+        // এন্ট্রি করার পর আবার ১০ সেকেন্ড টাইমার শুরু হবে
+        if(isCurrentlySecret) resetAutoExitTimer();
+    };
+
+    // আপনার পিন লজিক
+    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
+}
+function activateSecretMode() {
+    db.secret = true;
+    
+    const badge = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
+    if(badge) {
+        badge.classList.remove('hidden');
+        badge.classList.add('blink-mode'); // ব্লিঙ্কিং শুরু হবে
+        badge.innerText = "SECRET MODE ON (EXIT)";
+        badge.onclick = exitSecretMode; // ক্লিক করলে ম্যানুয়ালি বের হবে
+    }
+
+    document.getElementById('secretTrigger').classList.add('text-rose-500');
+    document.getElementById('balHeader').innerText = "Total Net Portfolio (Secret)";
+
+    renderAll(); // সাথে সাথে স্ক্রিন চেঞ্জ হবে
+    resetAutoExitTimer(); // ১০ সেকেন্ডের টাইমার শুরু
+}
+     </script>
 </body>
 </html>
