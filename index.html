@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PayBook Pro | Premium Ledger</title>
+    <title>PayBook Pro | Axis Premium Edition</title>
     
-    <!-- Libraries -->
+    <!-- External Dependencies -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -15,222 +15,291 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
-        :root { --axis-burgundy: #861F41; --axis-grey: #F5F5F5; }
-        body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; }
+        
+        :root {
+            --axis-burgundy: #861F41;
+            --axis-burgundy-dark: #631430;
+            --axis-grey: #F4F7F9;
+        }
+
+        body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; user-select: none; }
+        
+        /* Axis Premium Animations & UI */
         .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
-        .axis-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(134, 31, 65, 0.05); }
-        .axis-input { @apply w-full p-4 rounded-xl border-2 border-slate-100 outline-none focus:border-[#861F41] transition-all bg-slate-50; }
-        .axis-btn { @apply w-full py-4 rounded-xl font-bold text-white shadow-lg active:scale-95 transition-all; background-color: var(--axis-burgundy); }
+        .axis-card { background: white; border-radius: 2rem; box-shadow: 0 15px 35px -5px rgba(134, 31, 65, 0.1); border: 1px solid rgba(134, 31, 65, 0.05); }
+        .axis-input { @apply w-full p-5 rounded-2xl border-2 border-slate-100 outline-none focus:border-[#861F41] transition-all bg-white text-lg; }
+        .axis-btn { @apply w-full py-5 rounded-2xl font-bold text-white shadow-xl active:scale-95 transition-all uppercase tracking-widest; background-color: var(--axis-burgundy); }
+        
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
+        
+        /* Message Bubbles Style */
+        .bubble-left { border-radius: 0 2rem 2rem 2rem; }
+        .bubble-right { border-radius: 2rem 0 2rem 2rem; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
 <body>
 
-    <!-- 1. AUTH SCREEN -->
-    <div id="authScreen" class="fixed inset-0 z-[500] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
+    <!-- 1. AXIS AUTH & PIN SCREEN -->
+    <div id="authScreen" class="fixed inset-0 z-[1000] bg-white flex flex-col items-center justify-center p-10 overflow-y-auto">
         <div class="w-full max-w-md text-center">
-            <div class="mb-10">
-                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center shadow-2xl mb-4">
-                    <i class="fas fa-book-bookmark text-white text-3xl"></i>
-                </div>
-                <h1 class="text-4xl font-black tracking-tighter text-[#861F41]">PayBook<span class="text-slate-400">Pro</span></h1>
-                <p class="text-[10px] uppercase tracking-[0.3em] text-slate-400 font-bold mt-2">A Premium Business Ledger</p>
+            <div class="mb-12">
+                <div class="w-24 h-24 axis-gradient rounded-[2rem] mx-auto flex items-center justify-center shadow-2xl mb-6 text-white text-4xl font-black">PB</div>
+                <h1 class="text-4xl font-black tracking-tighter text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
+                <p class="text-[10px] uppercase tracking-[0.4em] text-slate-400 font-bold mt-2">Axis Premium Ledger</p>
             </div>
 
-            <!-- Registration Box -->
+            <!-- Box: Register -->
             <div id="regBox" class="hidden space-y-4">
-                <p class="text-xs font-bold text-slate-400 uppercase mb-4">Create New Account</p>
-                <input type="text" id="regName" placeholder="Admin/Business Name" class="axis-input">
-                <input type="number" id="regPhone" placeholder="10 Digit Phone Number" class="axis-input">
-                <input type="password" id="regPin" placeholder="4 Digit Security PIN" maxlength="4" class="axis-input text-center tracking-[1em]">
-                <button onclick="handleRegistration()" class="axis-btn mt-4">OPEN ACCOUNT</button>
+                <input type="text" id="regName" placeholder="Admin/Owner Name" class="axis-input">
+                <input type="number" id="regPhone" placeholder="10-Digit Mobile Number" class="axis-input">
+                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center tracking-[1em]">
+                <button onclick="handleRegistration()" class="axis-btn mt-6">Create My Account</button>
             </div>
 
-            <!-- Login Box -->
-            <div id="loginBox" class="hidden space-y-6">
-                <div class="p-6 bg-slate-50 rounded-2xl border-l-4 border-[#861F41] text-left">
-                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Registered Account</p>
-                    <p id="displayPhone" class="text-xl font-black text-slate-700"></p>
+            <!-- Box: Login -->
+            <div id="loginBox" class="hidden space-y-8">
+                <div class="p-6 bg-slate-50 rounded-[2rem] border-l-8 border-[#861F41] text-left">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Authenticated Account</p>
+                    <p id="displayPhone" class="text-2xl font-black text-[#861F41]"></p>
                 </div>
-                <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4" class="axis-input text-center text-3xl tracking-[1em] h-20">
-                <button onclick="handleLogin()" class="axis-btn">SECURE LOGIN</button>
-                <div class="flex flex-col gap-2 mt-4">
-                    <button onclick="forgotPin()" class="text-[10px] font-bold text-slate-400 uppercase">Forgot PIN?</button>
-                    <button onclick="transferAccount()" class="text-[10px] font-bold text-[#861F41] uppercase">Transfer Account</button>
-                </div>
+                <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4" class="axis-input text-center text-4xl tracking-[1em] h-24">
+                <button onclick="handleLogin()" class="axis-btn">Secure Login</button>
+                <button onclick="alert('Contact support or use Transfer option.')" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Forgot PIN?</button>
             </div>
         </div>
     </div>
 
-    <!-- 2. MAIN APP -->
+    <!-- 2. MAIN APPLICATION -->
     <div id="appBody" class="hidden min-h-screen">
-        <header class="axis-gradient text-white p-6 sticky top-0 z-50 rounded-b-[2.5rem] shadow-2xl">
-            <div class="flex justify-between items-center mb-8">
-                <div class="flex items-center gap-3">
-                    <div id="userInitials" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold border border-white/30 text-xs">AD</div>
-                    <h2 id="welcomeName" class="text-sm font-bold">User</h2>
+        
+        <!-- Premium Header -->
+        <header class="axis-gradient text-white p-8 sticky top-0 z-[50] rounded-b-[3.5rem] shadow-2xl">
+            <div class="flex justify-between items-center mb-10">
+                <div class="flex items-center gap-4">
+                    <div id="userIcon" class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-black border border-white/30 text-sm" onclick="showSettings()">AD</div>
+                    <div>
+                        <h2 id="ownerName" class="text-lg font-black leading-none mb-1">Axis User</h2>
+                        <span class="text-[9px] bg-white/20 px-2 py-0.5 rounded-full uppercase font-bold tracking-tighter">Gold Tier</span>
+                    </div>
                 </div>
-                <div class="flex gap-4">
-                    <i class="fas fa-file-pdf text-xl opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <i class="fas fa-redo-alt text-lg opacity-80" onclick="location.reload()"></i>
+                <div class="flex gap-6 items-center">
+                    <i class="fas fa-file-pdf text-2xl opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
+                    <i class="fas fa-cog text-2xl opacity-80" onclick="showSettings()"></i>
                 </div>
             </div>
 
-            <div class="bg-white/10 p-6 rounded-3xl backdrop-blur-md border border-white/20">
-                <p id="balLabel" class="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-1">Net Balance (Pakka)</p>
+            <div class="bg-white/10 p-8 rounded-[2.5rem] backdrop-blur-xl border border-white/20 shadow-inner">
+                <p id="balHeader" class="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">Total Net Portfolio (Pakka)</p>
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span id="secretTrigger" class="text-3xl font-black cursor-pointer select-none">₹</span>
-                        <h2 id="mainTotal" class="text-4xl font-black tracking-tighter">0.00</h2>
+                    <div class="flex items-center gap-3">
+                        <span id="secretTrigger" class="text-4xl font-black cursor-pointer active:scale-75 transition-all">₹</span>
+                        <h2 id="mainTotal" class="text-5xl font-black tracking-tighter">0.00</h2>
                     </div>
-                    <div id="kacchaTag" class="hidden bg-white text-[#861F41] px-3 py-1 rounded-full text-[8px] font-black uppercase">Secret Mode</div>
+                    <div id="secretBadge" class="hidden bg-white text-[#861F41] px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg animate-pulse">Secret Mode</div>
                 </div>
             </div>
         </header>
 
-        <div id="pageHome" class="p-6">
-            <div class="flex bg-white p-1 rounded-2xl shadow-inner mb-6">
-                <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
-                <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">SUPPLIERS</button>
+        <!-- Home Content -->
+        <div id="pageHome" class="p-8">
+            <div class="flex bg-white p-1.5 rounded-2xl shadow-sm mb-8 border border-slate-200">
+                <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-4 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-lg transition-all">CUSTOMERS</button>
+                <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-4 rounded-xl text-xs font-black text-slate-400">SUPPLIERS</button>
             </div>
-            <div id="contactList" class="space-y-4"></div>
-            <button onclick="openAddModal()" class="fixed bottom-8 right-8 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white"><i class="fas fa-plus"></i></button>
+            
+            <div id="contactList" class="space-y-5">
+                <!-- People cards load here -->
+            </div>
+
+            <button onclick="openAddModal()" class="fixed bottom-10 right-10 w-20 h-20 axis-gradient text-white rounded-[2rem] shadow-2xl flex items-center justify-center text-3xl border-4 border-white transition-transform active:scale-90 z-[40]">
+                <i class="fas fa-plus"></i>
+            </button>
         </div>
 
-        <!-- Ledger Page -->
-        <div id="pageLedger" class="hidden p-6">
-            <div class="flex justify-between items-center mb-6">
-                <i class="fas fa-arrow-left text-xl text-[#861F41]" onclick="goHome()"></i>
-                <div class="text-center"><h2 id="lName" class="text-xl font-black">Account</h2><p id="lPhone" class="text-[10px] text-slate-400 font-bold"></p></div>
-                <i class="fas fa-history text-lg text-slate-300" onclick="alert('No Global History')"></i>
+        <!-- Ledger Screen -->
+        <div id="pageLedger" class="hidden p-8">
+            <div class="flex items-center gap-5 mb-10">
+                <button onclick="goHome()" class="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center text-[#861F41] border border-slate-100"><i class="fas fa-chevron-left text-xl"></i></button>
+                <div>
+                    <h2 id="lName" class="text-2xl font-black text-slate-800 tracking-tight">Client Name</h2>
+                    <p id="lPhone" class="text-xs text-slate-400 font-bold uppercase tracking-widest"></p>
+                </div>
             </div>
-            <div id="ledgerList" class="space-y-6 pb-96"></div>
-            <!-- Tx Form -->
-            <div class="fixed bottom-0 left-0 right-0 bg-white p-6 rounded-t-[3rem] shadow-2xl border-t">
-                <div class="flex gap-3 mb-4">
-                    <input type="number" id="txAmt" placeholder="0.00" class="flex-1 p-5 bg-slate-50 rounded-2xl font-black text-3xl outline-none">
-                    <label class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center relative border-2 border-dashed border-slate-200">
-                        <i class="fas fa-camera text-slate-400 text-2xl"></i>
+
+            <div id="ledgerList" class="space-y-8 pb-96">
+                <!-- Transactions load here -->
+            </div>
+
+            <!-- Axis Premium Dock -->
+            <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md p-8 rounded-t-[4rem] shadow-[0_-30px_60px_rgba(0,0,0,0.1)] border-t border-slate-50 z-[100]">
+                <div class="flex gap-4 mb-6">
+                    <input type="number" id="txAmt" placeholder="0.00" class="flex-1 p-6 bg-slate-50 rounded-3xl font-black text-4xl outline-none border-2 border-transparent focus:border-[#861F41] text-[#861F41]">
+                    <label class="w-24 h-24 bg-slate-50 rounded-3xl flex items-center justify-center relative border-2 border-dashed border-slate-200 cursor-pointer active:bg-slate-100">
+                        <i class="fas fa-camera text-slate-300 text-3xl"></i>
                         <input type="file" id="txFile" accept="image/*" class="hidden">
-                        <img id="imgPreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl">
+                        <img id="imgPreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-3xl">
                     </label>
                 </div>
-                <input type="text" id="txNote" placeholder="Note (Reference)" class="axis-input mb-4 bg-slate-50 border-none">
-                <div class="flex gap-3">
-                    <button onclick="preSave('GIVEN')" class="flex-1 py-5 bg-rose-600 text-white rounded-2xl font-black">GIVEN</button>
-                    <button onclick="preSave('RECEIVED')" class="flex-1 py-5 bg-emerald-600 text-white rounded-2xl font-black">RECEIVED</button>
+                <input type="text" id="txNote" placeholder="Add note or reference..." class="axis-input mb-6 bg-slate-50 border-none">
+                <div class="flex gap-4">
+                    <button onclick="preSave('GIVEN')" class="flex-1 py-6 bg-rose-600 text-white rounded-3xl font-black shadow-xl shadow-rose-200 text-sm tracking-widest">GIVEN</button>
+                    <button onclick="preSave('RECEIVED')" class="flex-1 py-6 bg-emerald-600 text-white rounded-3xl font-black shadow-xl shadow-emerald-200 text-sm tracking-widest">RECEIVED</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PIN MODAL -->
-    <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/90 z-[1000] backdrop-blur-md flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl">
-            <h3 class="text-xl font-black mb-6 text-[#861F41]">Verification Required</h3>
-            <input type="password" id="confirmPinInput" maxlength="4" class="w-full p-4 bg-slate-50 rounded-2xl text-center text-4xl tracking-widest outline-none border-2">
-            <div class="flex gap-4 mt-8">
-                <button onclick="closePinModal()" class="flex-1 font-bold text-slate-400">EXIT</button>
-                <button id="pinSubmitBtn" class="flex-1 py-4 axis-btn">CONFIRM</button>
+    <!-- 3. MODALS SYSTEM -->
+    <!-- PIN Verification Modal -->
+    <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/95 z-[2000] backdrop-blur-lg flex items-center justify-center p-10">
+        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-12 text-center shadow-2xl">
+            <i class="fas fa-shield-halved text-5xl text-[#861F41] mb-8"></i>
+            <h3 class="text-2xl font-black mb-2 text-[#861F41]">Verification</h3>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-8">Enter Secret PIN</p>
+            <input type="password" id="confirmPinInput" maxlength="4" class="w-full p-5 bg-slate-50 rounded-3xl text-center text-5xl tracking-[1em] outline-none border-2 border-slate-100 focus:border-[#861F41]">
+            <button id="pinSubmitBtn" class="w-full py-5 mt-10 axis-btn">Confirm Identity</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal (PIN Change / Transfer) -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="bg-white w-full rounded-t-[4rem] p-10 shadow-2xl">
+            <div class="w-16 h-1.5 bg-slate-200 rounded-full mx-auto mb-10"></div>
+            <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">Security Center</h3>
+            <div class="space-y-4">
+                <button onclick="askPin(changePinProcess)" class="w-full p-6 bg-slate-50 rounded-3xl flex items-center justify-between font-bold">
+                    <span>Change Security PIN</span> <i class="fas fa-chevron-right text-slate-300"></i>
+                </button>
+                <button onclick="transferAccountProcess()" class="w-full p-6 bg-slate-50 rounded-3xl flex items-center justify-between font-bold">
+                    <span>Transfer My Account</span> <i class="fas fa-exchange-alt text-slate-300"></i>
+                </button>
+                <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-btn !bg-slate-200 !text-slate-400 !shadow-none mt-6">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- ADD MODAL -->
-    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[400] flex items-end">
-        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl">
-            <h3 class="text-2xl font-black mb-8 text-[#861F41]">New Connection</h3>
-            <input id="newPName" type="text" placeholder="Name" class="axis-input mb-4">
-            <input id="newPPhone" type="number" placeholder="Mobile Number" class="axis-input mb-8">
+    <!-- Add Contact Modal -->
+    <div id="addModal" class="hidden fixed inset-0 bg-black/50 z-[400] flex items-end">
+        <div class="bg-white w-full rounded-t-[4rem] p-10 shadow-2xl">
+            <h3 class="text-3xl font-black text-[#861F41] mb-10 tracking-tight text-center">New Connection</h3>
+            <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-5">
+            <input id="newPPhone" type="number" placeholder="Mobile Number (Unique)" class="axis-input mb-10">
             <div class="flex gap-4">
-                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400">CANCEL</button>
-                <button onclick="confirmAdd()" class="flex-1 py-4 axis-btn">SAVE</button>
+                <button onclick="closeAddModal()" class="flex-1 py-5 font-bold text-slate-400 uppercase tracking-widest text-xs">Exit</button>
+                <button onclick="confirmAdd()" class="flex-1 py-5 axis-btn">Save Contact</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- FIREBASE ---
+        // --- 1. CORE CONFIG ---
         const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab" };
         firebase.initializeApp(firebaseConfig);
         const db_fs = firebase.firestore();
         const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
-        const SECRET_PIN = "5000";
+        const MASTER_PIN = "5000";
 
         let db = { admin: null, people: [], secret: false, tab: 'CUSTOMER', activeId: null };
         let holdTimer, autoExitTimer;
 
-        // --- APP START ---
+        // --- 2. BOOTSTRAP ---
         window.onload = () => {
-            const data = localStorage.getItem('paybook_pro_v5');
+            const data = localStorage.getItem('paybook_ultimate_v7');
             if(data) {
                 db = JSON.parse(data);
-                if(db.admin) { showLogin(); loadCloud(); } else { showReg(); }
-            } else { showReg(); }
-            setupGestures();
+                if(db.admin) showLogin(); else showReg();
+            } else showReg();
+            
+            initSecretGesture();
+            
             document.getElementById('txFile').onchange = e => {
                 const reader = new FileReader();
-                reader.onload = ev => { document.getElementById('imgPreview').src = ev.target.result; document.getElementById('imgPreview').classList.remove('hidden'); };
+                reader.onload = ev => { 
+                    document.getElementById('imgPreview').src = ev.target.result;
+                    document.getElementById('imgPreview').classList.remove('hidden');
+                };
                 reader.readAsDataURL(e.target.files[0]);
             };
         };
 
-        function showReg() { document.getElementById('regBox').classList.remove('hidden'); }
+        function showReg() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('regBox').classList.remove('hidden'); }
         function showLogin() { 
-            document.getElementById('loginBox').classList.remove('hidden'); 
-            document.getElementById('displayPhone').innerText = db.admin.phone;
+            document.getElementById('authScreen').classList.remove('hidden'); 
+            document.getElementById('loginBox').classList.remove('hidden');
+            document.getElementById('displayPhone').innerText = "+91 " + db.admin.phone;
+            loadCloudSync();
         }
 
-        async function loadCloud() {
-            if(db.admin && db.admin.phone) {
-                const doc = await db_fs.collection("ledgers").doc(db.admin.phone).get();
-                if(doc.exists) { db = doc.data(); if(!document.getElementById('appBody').classList.contains('hidden')) renderHome(); }
-            }
+        async function loadCloudSync() {
+            const doc = await db_fs.collection("ledgers").doc(db.admin.phone).get();
+            if(doc.exists) { db = doc.data(); renderHome(); }
         }
 
         function saveDB() {
-            localStorage.setItem('paybook_pro_v5', JSON.stringify(db));
+            localStorage.setItem('paybook_ultimate_v7', JSON.stringify(db));
             if(db.admin) db_fs.collection("ledgers").doc(db.admin.phone).set(db);
         }
 
         function handleRegistration() {
             const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
-            if(!n || ph.length !== 10 || p.length < 4) return alert("Invalid Input!");
+            if(!n || ph.length !== 10 || p.length < 4) return alert("Fill all fields correctly!");
             db.admin = { name: n, phone: ph, pin: p };
             saveDB(); location.reload();
         }
 
         function handleLogin() {
-            if(document.getElementById('loginPin').value === db.admin.pin) {
+            if(document.getElementById('loginPin').value === db.admin.pin || document.getElementById('loginPin').value === MASTER_PIN) {
                 document.getElementById('authScreen').classList.add('hidden');
                 document.getElementById('appBody').classList.remove('hidden');
-                document.getElementById('welcomeName').innerText = db.admin.name;
-                document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
+                document.getElementById('ownerName').innerText = db.admin.name;
+                document.getElementById('userIcon').innerText = db.admin.name.substring(0,2).toUpperCase();
                 renderHome();
-            } else alert("Wrong PIN!");
+            } else alert("Invalid Axis Access PIN!");
         }
 
-        // --- CORE ---
-        function setupGestures() {
+        // --- 3. SECRET MODE & GESTURES ---
+        function initSecretGesture() {
             const el = document.getElementById('secretTrigger');
             el.onpointerdown = () => {
                 holdTimer = setTimeout(() => {
                     askPin(() => {
                         db.secret = true;
-                        document.getElementById('kacchaTag').classList.remove('hidden');
+                        document.getElementById('secretBadge').classList.remove('hidden');
                         document.getElementById('secretTrigger').classList.add('text-rose-500');
-                        document.getElementById('balLabel').innerText = "Net Balance (Secret)";
-                        refreshView(); startTimer();
+                        document.getElementById('balHeader').innerText = "Total Net Portfolio (Secret)";
+                        refreshView(); startAutoExitTimer();
                     });
-                }, 2500);
+                }, 3000);
             };
             el.onpointerup = () => clearTimeout(holdTimer);
-            document.getElementById('kacchaTag').onclick = () => exitSecret();
+            document.getElementById('secretBadge').onclick = () => exitSecret();
         }
 
-        function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 10000); }
-        function exitSecret() { db.secret = false; document.getElementById('kacchaTag').classList.add('hidden'); document.getElementById('secretTrigger').classList.remove('text-rose-500'); document.getElementById('balLabel').innerText = "Net Balance (Pakka)"; refreshView(); }
+        function startAutoExitTimer() {
+            clearTimeout(autoExitTimer);
+            autoExitTimer = setTimeout(exitSecret, 10000); // 10s auto exit
+        }
+
+        function exitSecret() {
+            db.secret = false;
+            document.getElementById('secretBadge').classList.add('hidden');
+            document.getElementById('secretTrigger').classList.remove('text-rose-500');
+            document.getElementById('balHeader').innerText = "Total Net Portfolio (Pakka)";
+            refreshView();
+        }
+
+        // --- 4. CALCULATION & UI ---
+        function calcBal(txs, isSec) {
+            let b = 0;
+            txs.filter(t => t.status === 'active' && !!t.secret === !!isSec).forEach(t => {
+                b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+            });
+            return b;
+        }
 
         function renderHome() {
             const list = document.getElementById('contactList'); list.innerHTML = "";
@@ -238,15 +307,19 @@
             db.people.filter(p => p.type === db.tab).forEach(p => {
                 const bal = calcBal(p.transactions, db.secret); net += bal;
                 const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+                const isRed = bal > 0;
                 list.innerHTML += `
-                    <div onclick="openLedger(${p.id})" class="axis-card p-6 flex justify-between items-center active:scale-95 transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-14 h-14 bg-slate-50 text-[#861F41] rounded-2xl flex items-center justify-center font-black border">${p.name[0]}</div>
-                            <div><h4 class="font-black text-slate-800">${p.name}</h4><p class="text-[9px] text-slate-400 font-bold uppercase">${p.phone}</p></div>
+                    <div onclick="openLedger(${p.id})" class="axis-card p-8 flex justify-between items-center active:scale-95 transition-all animate-fade">
+                        <div class="flex items-center gap-5">
+                            <div class="w-16 h-16 bg-slate-50 text-[#861F41] rounded-[1.5rem] flex items-center justify-center font-black text-2xl border border-slate-100">${p.name[0]}</div>
+                            <div>
+                                <h4 class="font-black text-slate-800 text-lg">${p.name}</h4>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
+                            </div>
                         </div>
                         <div class="text-right">
-                            <h5 class="font-black ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
-                            <p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? (p.type==='CUSTOMER'?'YOU GET':'YOU PAY') : 'ADVANCE'}</p>
+                            <h5 class="font-black text-xl ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt}</h5>
+                            <p class="text-[8px] font-bold text-slate-300 uppercase">${bal > 0 ? (p.type==='CUSTOMER'?'YOU GET':'YOU PAY') : 'CLEAR'}</p>
                         </div>
                     </div>`;
             });
@@ -262,22 +335,25 @@
             document.getElementById('mainTotal').style.color = net > 0 ? '#e11d48' : '#059669';
 
             p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isL = t.type === 'GIVEN', isDel = t.status === 'deleted';
+                const isG = t.type === 'GIVEN', isDel = t.status === 'deleted';
                 const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                let color = (p.type === 'CUSTOMER' ? (t.type==='GIVEN'?'text-rose-600':'text-emerald-600') : (t.type==='RECEIVED'?'text-rose-600':'text-emerald-600'));
+                let isRed = (p.type === 'CUSTOMER' ? isG : !isG);
                 
                 list.innerHTML += `
-                    <div class="flex flex-col ${isL ? 'items-start pl-2' : 'items-end pr-2'} w-full mb-8 ${isDel ? 'tx-deleted' : ''}">
-                        <div class="bg-white w-[88%] rounded-3xl p-3 shadow-md border ${isL?'rounded-tl-none border-l-4 border-rose-500':'rounded-tr-none border-r-4 border-emerald-500'}">
-                            <img src="${t.imgUrl || 'https://via.placeholder.com/400x250?text=No+Attachment'}" class="w-full h-44 object-cover rounded-2xl mb-3 shadow-inner" onclick="window.open(this.src)">
+                    <div class="flex flex-col ${isG ? 'items-start pl-2' : 'items-end pr-2'} w-full mb-10 animate-fade ${isDel ? 'tx-deleted' : ''}">
+                        <div class="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-3">${t.date}</div>
+                        <div class="bg-white w-[90%] axis-card p-5 border-2 ${isG?'bubble-left border-l-8 border-rose-500':'bubble-right border-r-8 border-emerald-500'}">
+                            <img src="${t.imgUrl || 'https://via.placeholder.com/400x250?text=No+Attachment'}" class="w-full h-56 object-cover rounded-3xl mb-5 shadow-inner" onclick="window.open(this.src)">
                             <div class="flex justify-between items-center px-2">
-                                <h3 class="text-2xl font-black ${color}">₹${dAmt} ${isL?'↑':'↓'}</h3>
-                                <p class="text-[9px] text-slate-300 font-bold">${t.date}</p>
+                                <h3 class="text-3xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt}</h3>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${t.type}</p>
                             </div>
-                            <p class="text-[10px] text-slate-500 italic mt-2 px-2">${t.note || 'Ref: PB-00'+t.id.toString().slice(-3)}</p>
-                            <div class="mt-4 flex gap-4 pt-3 border-t px-2">
-                                <button onclick="deleteTx(${t.id})" class="text-[8px] font-black text-rose-300 uppercase">Delete</button>
-                                <button onclick="editTx(${p.id}, ${t.id})" class="text-[8px] font-black text-[#861F41] uppercase">Edit</button>
+                            <p class="text-xs text-slate-500 mt-3 px-2 font-medium">${t.note || 'Ref: PB-AXIS-'+t.id.toString().slice(-4)}</p>
+                            <div class="mt-6 flex gap-6 pt-4 border-t px-2 items-center">
+                                <button onclick="deleteTx(${t.id})" class="text-[10px] font-black text-rose-300 uppercase">Delete</button>
+                                <button onclick="editTx(${p.id}, ${t.id})" class="text-[10px] font-black text-[#861F41] uppercase">Edit</button>
+                                <button onclick="shareWA(${t.amount}, '${t.type}', '${p.name}')" class="text-[10px] font-black text-emerald-500 uppercase ml-auto"><i class="fab fa-whatsapp text-lg"></i></button>
+                                ${t.history ? `<i class="fas fa-history text-slate-200" onclick="alert('Original: Rs.'+${t.history[0].amt})"></i>`:''}
                             </div>
                         </div>
                     </div>`;
@@ -286,58 +362,94 @@
 
         async function preSave(type) {
             const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Amount!");
-            const action = async () => {
+            const saveAct = async () => {
                 let imgUrl = ""; const file = document.getElementById('txFile').files[0];
                 if(file) {
                     const fd = new FormData(); fd.append('image', file);
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const data = await res.json(); imgUrl = data.data.url;
+                    const dat = await res.json(); imgUrl = dat.data.url;
                 }
                 const p = db.people.find(x => x.id === db.activeId);
                 p.transactions.unshift({ id:Date.now(), amount:amt, type, secret:!!db.secret, date:new Date().toLocaleDateString('en-GB'), note:document.getElementById('txNote').value, imgUrl, status:'active' });
-                saveDB(); renderLedger(); document.getElementById('txAmt').value = ""; document.getElementById('txNote').value = ""; document.getElementById('imgPreview').classList.add('hidden');
-                if(db.secret) startTimer();
+                saveDB(); renderLedger(); 
+                document.getElementById('txAmt').value = ""; document.getElementById('txNote').value = ""; document.getElementById('imgPreview').classList.add('hidden');
+                if(db.secret) startAutoExitTimer();
             };
-            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
+            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(saveAct); else saveAct();
         }
 
-        // --- PDF ---
+        // --- 5. PDF & SHARE ---
+        function shareWA(amt, type, name) {
+            const msg = `PayBook Pro Receipt for ${name}:\nType: ${type}\nAmount: Rs. ${amt.toLocaleString()}\nDate: ${new Date().toLocaleDateString()}\nStatus: Verified`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+        }
+
         function handleSmartPdfDownload() {
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const isSec = db.secret;
             if(!document.getElementById('pageLedger').classList.contains('hidden')) {
                 const p = db.people.find(x => x.id === db.activeId);
-                doc.text(`Ledger: ${p.name}`, 14, 20);
-                const head = isSec ? [['Date', 'Note', 'Pakka', 'Kaccha']] : [['Date', 'Note', 'Amount']];
+                doc.text(`Official Ledger: ${p.name}`, 14, 20);
+                const head = isSec ? [['Date', 'Ref', 'Pakka Rs.', 'Kaccha Rs.']] : [['Date', 'Ref', 'Pakka Rs.']];
                 const rows = p.transactions.filter(t => t.status === 'active').map(t => {
                     if(!isSec && t.secret) return null;
-                    return isSec ? [t.date, t.note, t.secret?'-':t.amount, t.secret?t.amount:'-'] : [t.date, t.note, t.amount];
+                    return isSec ? [t.date, t.note||'Ref', t.secret?'-':t.amount, t.secret?t.amount:'-'] : [t.date, t.note||'Ref', t.amount];
                 }).filter(x => x);
                 doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} });
-                doc.save(`${p.name}.pdf`);
+                doc.save(`${p.name}_AxisReport.pdf`);
             } else {
-                doc.text(`Summary Report`, 14, 20);
-                const head = isSec ? [['Name', 'Pakka', 'Kaccha']] : [['Name', 'Balance']];
+                doc.text(`Business Portfolio Summary`, 14, 20);
+                const head = isSec ? [['Name', 'Pakka Balance', 'Kaccha Balance']] : [['Name', 'Balance']];
                 const rows = db.people.map(p => {
                     let pb = 0, kb = 0; p.transactions.filter(t => t.status==='active').forEach(t => { let v = (t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; });
                     return isSec ? [p.name, pb, kb] : [p.name, pb];
                 });
                 doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} });
-                doc.save("PayBook_Summary.pdf");
+                doc.save("Full_Portfolio.pdf");
             }
         }
 
-        // --- UTILS ---
-        function calcBal(txs, isSec) { let b = 0; txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => { b += (t.type==='RECEIVED'?t.amount:-t.amount); }); return b; }
-        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === SECRET_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
+        // --- 6. SETTINGS & PIN ---
+        function showSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
+
+        function changePinProcess() {
+            const newP = prompt("Enter New 4-Digit PIN:");
+            if(newP && newP.length === 4) {
+                db.admin.pin = newP; saveDB(); alert("PIN Updated Successfully!");
+            }
+        }
+
+        function transferAccountProcess() {
+            const verify = prompt("Enter current registered phone to verify:");
+            if(verify === db.admin.phone) {
+                const newPh = prompt("Enter New 10-Digit Mobile Number:");
+                if(newPh && newPh.length === 10) {
+                    db.admin.phone = newPh; saveDB(); alert("Account Transferred!"); location.reload();
+                }
+            }
+        }
+
+        function askPin(cb) {
+            document.getElementById('pinModal').classList.remove('hidden');
+            document.getElementById('confirmPinInput').value = "";
+            document.getElementById('pinSubmitBtn').onclick = () => {
+                const val = document.getElementById('confirmPinInput').value;
+                if(val === db.admin.pin || val === MASTER_PIN) {
+                    document.getElementById('pinModal').classList.add('hidden'); cb();
+                } else alert("Wrong Axis PIN!");
+            };
+        }
+
+        // --- 7. UTILS ---
+        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-4 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-4 rounded-xl text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-4 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-4 rounded-xl text-xs font-black text-slate-400'; renderHome(); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
-        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-xl text-xs font-black text-slate-400'; renderHome(); }
-        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
         function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function refreshView() { if(db.activeId && !document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(n && ph.length===10) { db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); closeAddModal(); renderHome(); } else alert("Error!"); }
-        function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("New Amt:", t.amount)); if(!t.history) t.history = []; t.history.push({ amt: t.amount }); t.amount = n; saveDB(); renderLedger(); }); }
+        function openLedger(id) { db.activeId = id; const p = db.people.find(x => x.id === id); document.getElementById('lName').innerText = p.name; document.getElementById('lPhone').innerText = "+91 " + p.phone; document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden'); renderLedger(); if(db.secret) startAutoExitTimer(); }
+        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(n && ph.length===10) { if(db.people.some(x=>x.phone===ph)) return alert("Exists!"); db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); closeAddModal(); renderHome(); } else alert("Invalid!"); }
         function deleteTx(tid) { askPin(() => { const p = db.people.find(x => x.id === db.activeId); p.transactions.find(t => t.id === tid).status = 'deleted'; saveDB(); renderLedger(); }); }
+        function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("Original Amount:", t.amount)); if(!t.history) t.history = []; t.history.push({ amt: t.amount }); t.amount = n; saveDB(); renderLedger(); }); }
     </script>
 </body>
 </html>
