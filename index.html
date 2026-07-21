@@ -248,21 +248,15 @@
             renderHome();
         }
 
-function calcBal(txs, isSecMode, pType) {
+function calcBal(txs, isSecMode) {
     let b = 0;
-    // !! ব্যবহার করা হয়েছে যাতে Boolean (true/false) একদম ১০০% নিখুঁতভাবে ম্যাচ করে
-    const filtered = txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode);
-    
-    filtered.forEach(t => {
-        if (pType === 'CUSTOMER') {
-            // কাস্টমার: দিয়েছি (+) মানে পাওনা, নিয়েছি (-) মানে জমা
-            b += (t.type === 'GIVEN' ? t.amount : -t.amount);
-        } else {
-            // সাপ্লায়ার: নিয়েছি (+) মানে দেনা, দিয়েছি (-) মানে শোধ
-            b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
-        }
+    // এখানে একদম নিখুঁতভাবে চেক করা হচ্ছে t.secret === true নাকি false
+    // পাক্কা মোডে থাকলে শুধু secret: false গুলো যোগ হবে, কাঁচায় থাকলে শুধু secret: true গুলো।
+    txs.filter(t => t.status === 'active' && (!!t.secret === !!isSecMode)).forEach(t => {
+        // লজিক: RECEIVED মানে টাকা ইন (+), GIVEN মানে টাকা আউট (-)
+        b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
     });
-    return b;
+    return b; 
 }
 
         function renderHome() {
@@ -366,38 +360,7 @@ function calcBal(txs, isSecMode, pType) {
         function handleImageFile(f) { if(!f) return; capturedImgFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); }
         function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedImgFile = null; }
 
-      async function preSave(type) {
-    const amtInput = document.getElementById('txAmt');
-    const amt = parseFloat(amtInput.value);
-    if(!amt) return alert("Enter Amount!");
-
-    const action = async () => {
-        const p = db.people.find(x => x.id === db.activeId);
-        
-        // বর্তমান মোডটি একটি ভেরিয়েবলে লক করে নেওয়া হলো
-        const modeAtTimeOfEntry = !!db.secret; 
-
-        p.transactions.push({
-            id: Date.now(),
-            amount: amt,
-            type: type,
-            secret: modeAtTimeOfEntry, // এটিই আপনার 'কাঁচা' নাকি 'পাকা' তা নির্ধারণ করবে
-            date: new Date().toLocaleDateString('en-GB'),
-            note: document.getElementById('txNote').value,
-            status: 'active'
-        });
-
-        saveDB(); 
-        renderLedger(); 
-        closeDrawer();
-
-        // যদি কাঁচা মোড হয় তবে ১০ সেকেন্ডের টাইমার আবার শুরু হবে
-        if(modeAtTimeOfEntry) resetAutoExitTimer(); 
-    };
-
-    // আপনার পিন লজিক (শুধুমাত্র কাঁচা মোডে কাস্টমার পেমেন্টে)
-    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
-}
+    
 
         // --- UTILS ---
         function initSecretGesture() {
@@ -505,16 +468,16 @@ function calcBal(txs, isSecMode, pType) {
 function exitSecretMode() {
     db.secret = false;
     clearTimeout(autoExitTimer);
-
-    // আইডিগুলো না থাকলেও কোড এরর দিবে না (Optional Chaining)
-    document.getElementById('kacchaTag')?.classList.add('hidden');
+    
+    // UI আপডেট
     document.getElementById('secretBadge')?.classList.add('hidden');
     document.getElementById('secretTrigger')?.classList.remove('text-rose-500');
     
-    const label = document.getElementById('balHeader') || document.getElementById('balLabel') || document.getElementById('balTypeLabel');
+    // ব্যালেন্স লেবেল পাক্কা মোডে ফিরিয়ে আনা
+    const label = document.getElementById('balHeader') || document.getElementById('balLabel');
     if(label) label.innerText = "Total Net Portfolio (Pakka)";
 
-    renderLedger(); // পাকা হিসাবের লিস্ট সামনে আনবে
+    renderLedger(); // বর্তমান কাস্টমারের পাকা লিস্ট দেখাবে
     renderHome();   // ড্যাশবোর্ড আপডেট করবে
 }
 
@@ -522,10 +485,11 @@ function exitSecretMode() {
 function resetAutoExitTimer() {
     clearTimeout(autoExitTimer);
     if (db.secret) {
+        // ৩০ সেকেন্ড টাইমার (৩০০০০ মিলি-সেকেন্ড)
         autoExitTimer = setTimeout(() => {
             exitSecretMode();
-            alert("Security Timeout: Returned to Pakka Mode");
-        }, 10000); // ১০ সেকেন্ড
+            alert("Security Alert: Automatically returned to Pakka Mode (30s Inactivity)");
+        }, 30000); 
     }
 }
 
@@ -538,16 +502,17 @@ async function preSave(type) {
     const action = async () => {
         const p = db.people.find(x => x.id === db.activeId);
         
-        // এখানে !!db.secret নিশ্চিত করবে যে এটি কাঁচা নাকি পাকা হিসেবে সেভ হবে
-        const isCurrentlySecret = !!db.secret;
+        // সেভ করার ঠিক এই মুহূর্তের মোডটি লক করা হলো
+        const modeToSave = !!db.secret; 
 
-        p.transactions.unshift({
+        p.transactions.push({
             id: Date.now(),
             amount: amt,
             type: type,
-            secret: isCurrentlySecret, // একদম আলাদাভাবে ফ্ল্যাগ সেট হবে
+            secret: modeToSave, // এটিই আপনার মেইন ফিল্টার
             date: new Date().toLocaleDateString('en-GB'),
             note: document.getElementById('txNote').value,
+            imgUrl: capturedImg || "", // আপনার ক্যাপচার করা ইমেজের লিঙ্ক
             status: 'active'
         });
 
@@ -555,11 +520,11 @@ async function preSave(type) {
         renderLedger(); 
         closeDrawer();
 
-        // এন্ট্রি করার পর আবার ১০ সেকেন্ড টাইমার শুরু হবে
-        if(isCurrentlySecret) resetAutoExitTimer();
+        // কাঁচা মোড হলে ৩০ সেকেন্ডের টাইমার রিসেট হবে
+        if(modeToSave) resetAutoExitTimer(); 
     };
 
-    // আপনার পিন লজিক
+    // আপনার পিন শর্ত
     if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
 }
 function activateSecretMode() {
