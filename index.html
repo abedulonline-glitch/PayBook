@@ -201,29 +201,85 @@
             document.getElementById('displayPhone').innerText = "+91 " + db.admin.phone;
             syncCloud();
         }
-        async function syncCloud() {
-            const doc = await db_fs.collection("ledgers").doc(db.admin.phone).get();
-            if(doc.exists) { db = doc.data(); renderHome(); }
-        }
-        function saveDB() {
-    // লোকাল স্টোরেজে আগে সেভ হবে (এটি দ্রুত)
-    localStorage.setItem('paybook_v10_final', JSON.stringify(db));
+        // ১. একটি নির্দিষ্ট এবং ইউনিক ডেটাবেস কী ব্যবহার করা
+const DB_KEY = 'PayBook_Pro_Verified_V12';
 
-    // ফায়ারবেসে সেভ হবে ব্যাকগ্রাউন্ডে (এটি ইউআই স্লো করবে না)
+// ২. ডেটা সেভ করার সলিড ফাংশন
+function saveDB() {
+    // লোকাল স্টোরেজে সেভ
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    
+    // ফায়ারবেসে ব্যাকগ্রাউন্ডে সেভ
     if(db.admin && db.admin.phone) {
         db_fs.collection("global_ledgers").doc(db.admin.phone).set(db)
-            .then(() => console.log("Cloud Sync Done"))
-            .catch(err => console.error("Cloud Sync Failed", err));
+            .then(() => console.log("Cloud Updated"))
+            .catch(err => console.error("Cloud Error", err));
     }
 }
 
-        function handleRegistration() {
-            const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
-            if(!n || ph.length !== 10) return alert("Valid 10-digit mobile required!");
-            db.admin = { name: n, phone: ph, pin: p };
-            saveDB(); location.reload();
-        }
+// ৩. রেজিস্ট্রেশন হ্যান্ডলার (সরাসরি অ্যাপে নিয়ে যাবে)
+function handleRegistration() {
+    const n = document.getElementById('regName').value.trim();
+    const ph = document.getElementById('regPhone').value.trim();
+    const p = document.getElementById('regPin').value.trim();
 
+    if(!n || ph.length !== 10 || p.length < 4) {
+        return alert("Please enter Name, 10-digit Phone, and 4-digit PIN!");
+    }
+
+    // ডেটা অবজেক্ট তৈরি
+    db.admin = { name: n, phone: ph, pin: p };
+    db.people = []; // নতুন ইউজারের জন্য কন্টাক্ট লিস্ট খালি
+    
+    // সেভ করা
+    saveDB();
+
+    // রেজিস্ট্রেশন সফল হলে সরাসরি অ্যাপ বডিতে নিয়ে যাবে (রিফ্রেশ ছাড়াই)
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    
+    // ইউজার ইনফো আপডেট
+    document.getElementById('welcomeName').innerText = db.admin.name;
+    document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
+    
+    renderHome();
+    alert("Account Created Successfully!");
+}
+
+// ৪. অ্যাপ স্টার্টআপ লজিক (নিখুঁত চেক)
+window.onload = () => {
+    const savedData = localStorage.getItem(DB_KEY);
+    
+    if(savedData) {
+        db = JSON.parse(savedData);
+        if(db.admin && db.admin.phone) {
+            // যদি আগে থেকে রেজিস্টার করা থাকে, তবে লগইন বক্স দেখাবে
+            showLogin(); 
+            loadCloudSync(); // ব্যাকগ্রাউন্ডে ক্লাউড থেকে লেটেস্ট ডেটা আনবে
+        } else {
+            showReg();
+        }
+    } else {
+        showReg();
+    }
+
+    // ইমেজ এবং অন্যান্য হ্যান্ডলার...
+    setupImageHandlers();
+};
+
+async function loadCloudSync() {
+    if(db.admin && db.admin.phone) {
+        const doc = await db_fs.collection("global_ledgers").doc(db.admin.phone).get();
+        if(doc.exists) { 
+            db = doc.data(); 
+            // যদি ইউজার অলরেডি লগইন অবস্থায় অ্যাপ বডিতে থাকে, তবেই রি-রেন্ডার হবে
+            if(!document.getElementById('appBody').classList.contains('hidden')) {
+                renderHome(); 
+            }
+        }
+    }
+}
+          
         function handleLogin() {
             if(document.getElementById('loginPin').value === db.admin.pin || document.getElementById('loginPin').value === MASTER_PIN) {
                 document.getElementById('authScreen').classList.add('hidden');
