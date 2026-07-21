@@ -364,10 +364,38 @@
 
         // --- UTILS ---
         function initSecretGesture() {
-            const el = document.getElementById('secretTrigger');
-            el.onpointerdown = () => { holdTimer = setTimeout(() => { askPin(() => { db.secret = true; document.getElementById('secretBadge').classList.remove('hidden'); renderLedger(); startAutoExit(); }); }, 2500); };
-            el.onpointerup = () => clearTimeout(holdTimer);
-        }
+    const el = document.getElementById('secretTrigger');
+    el.onpointerdown = () => {
+        holdTimer = setTimeout(() => {
+            askPin(() => {
+                // ১. মোড পরিবর্তন করা
+                db.secret = true;
+
+                // ২. ইউআই এলিমেন্টগুলো আপডেট করা (এরর প্রোটেকশন সহ)
+                const tag = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
+                if(tag) tag.classList.remove('hidden');
+
+                const trigger = document.getElementById('secretTrigger');
+                if(trigger) trigger.classList.add('text-rose-500');
+
+                const label = document.getElementById('balHeader') || document.getElementById('balLabel') || document.getElementById('balTypeLabel');
+                if(label) label.innerText = "Net Balance (Secret)";
+
+                // ৩. সবচেয়ে গুরুত্বপূর্ণ: স্ক্রিন রিফ্রেশ ছাড়াই ডেটা আপডেট করা
+                if (!document.getElementById('pageLedger').classList.contains('hidden')) {
+                    renderLedger(); // এটি আপনার কাঁচা হিসাবের লিস্ট এখনই সামনে আনবে
+                } else {
+                    renderHome();
+                }
+
+                // ৪. ১০ সেকেন্ডের টাইমার শুরু করা
+                startAutoExitTimer(); 
+                alert("Secret Mode Activated");
+            });
+        }, 2500);
+    };
+    el.onpointerup = () => clearTimeout(holdTimer);
+}
         function startAutoExit() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(() => { db.secret = false; document.getElementById('secretBadge').classList.add('hidden'); renderLedger(); }, 10000); }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
@@ -412,6 +440,33 @@
     });
 
     doc.save(`${p.name}_Report.pdf`);
+}
+        function startAutoExitTimer() {
+    clearTimeout(autoExitTimer); // আগের কোনো টাইমার চললে তা ক্লিয়ার করবে
+    autoExitTimer = setTimeout(() => {
+        exitSecretMode();
+    }, 10000); // ১০ সেকেন্ড
+}
+
+function exitSecretMode() {
+    db.secret = false;
+
+    // ইউআই পাক্কা মোডে ফিরিয়ে আনা
+    const tag = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
+    if(tag) tag.classList.add('hidden');
+
+    const trigger = document.getElementById('secretTrigger');
+    if(trigger) trigger.classList.remove('text-rose-500');
+
+    const label = document.getElementById('balHeader') || document.getElementById('balLabel') || document.getElementById('balTypeLabel');
+    if(label) label.innerText = "Net Balance (Pakka)";
+
+    // স্ক্রিন আবার আপডেট করা
+    if (!document.getElementById('pageLedger').classList.contains('hidden')) {
+        renderLedger();
+    } else {
+        renderHome();
+    }
 }
     </script>
 </body>
