@@ -241,9 +241,12 @@
             renderHome();
         }
 
-  function calcBal(txs, isSec, pType) {
+function calcBal(txs, isSecMode, pType) {
     let b = 0;
-    txs.filter(t => t.status === 'active' && !!t.secret === !!isSec).forEach(t => {
+    // !! ব্যবহার করা হয়েছে যাতে Boolean (true/false) একদম ১০০% নিখুঁতভাবে ম্যাচ করে
+    const filtered = txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode);
+    
+    filtered.forEach(t => {
         if (pType === 'CUSTOMER') {
             // কাস্টমার: দিয়েছি (+) মানে পাওনা, নিয়েছি (-) মানে জমা
             b += (t.type === 'GIVEN' ? t.amount : -t.amount);
@@ -356,23 +359,38 @@
         function handleImageFile(f) { if(!f) return; capturedImgFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); }
         function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedImgFile = null; }
 
-        async function preSave(type) {
-            const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Amount!");
-            const action = async () => {
-                document.getElementById('mainConfirmBtn').innerText = "SAVING...";
-                let imgUrl = "";
-                if(capturedImgFile) {
-                    const fd = new FormData(); fd.append('image', capturedImgFile);
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json(); if(dat.success) imgUrl = dat.data.url;
-                }
-                const p = db.people.find(x => x.id === db.activeId);
-                p.transactions.push({ id:Date.now(), amount:amt, type, secret:!!db.secret, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, imgUrl, status:'active' });
-                saveDB(); renderLedger(); closeDrawer();
-                document.getElementById('mainConfirmBtn').innerText = "CONFIRM TRANSACTION";
-            };
-            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
-        }
+      async function preSave(type) {
+    const amtInput = document.getElementById('txAmt');
+    const amt = parseFloat(amtInput.value);
+    if(!amt) return alert("Enter Amount!");
+
+    const action = async () => {
+        const p = db.people.find(x => x.id === db.activeId);
+        
+        // বর্তমান মোডটি একটি ভেরিয়েবলে লক করে নেওয়া হলো
+        const modeAtTimeOfEntry = !!db.secret; 
+
+        p.transactions.push({
+            id: Date.now(),
+            amount: amt,
+            type: type,
+            secret: modeAtTimeOfEntry, // এটিই আপনার 'কাঁচা' নাকি 'পাকা' তা নির্ধারণ করবে
+            date: new Date().toLocaleDateString('en-GB'),
+            note: document.getElementById('txNote').value,
+            status: 'active'
+        });
+
+        saveDB(); 
+        renderLedger(); 
+        closeDrawer();
+
+        // যদি কাঁচা মোড হয় তবে ১০ সেকেন্ডের টাইমার আবার শুরু হবে
+        if(modeAtTimeOfEntry) resetAutoExitTimer(); 
+    };
+
+    // আপনার পিন লজিক (শুধুমাত্র কাঁচা মোডে কাস্টমার পেমেন্টে)
+    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
+}
 
         // --- UTILS ---
         function initSecretGesture() {
@@ -464,18 +482,17 @@
 function exitSecretMode() {
     db.secret = false;
     clearTimeout(autoExitTimer);
+
+    // আইডিগুলো না থাকলেও কোড এরর দিবে না (Optional Chaining)
+    document.getElementById('kacchaTag')?.classList.add('hidden');
+    document.getElementById('secretBadge')?.classList.add('hidden');
+    document.getElementById('secretTrigger')?.classList.remove('text-rose-500');
     
-    // UI রিসেট
-    const badge = document.getElementById('kacchaTag') || document.getElementById('secretBadge');
-    if(badge) {
-        badge.classList.add('hidden');
-        badge.classList.remove('blink-mode');
-    }
-    document.getElementById('secretTrigger').classList.remove('text-rose-500');
-    document.getElementById('balHeader').innerText = "Total Net Portfolio (Pakka)";
-    
-    renderAll(); // স্ক্রিন রিফ্রেশ
-    console.log("Exited to Pakka Mode");
+    const label = document.getElementById('balHeader') || document.getElementById('balLabel') || document.getElementById('balTypeLabel');
+    if(label) label.innerText = "Total Net Portfolio (Pakka)";
+
+    renderLedger(); // পাকা হিসাবের লিস্ট সামনে আনবে
+    renderHome();   // ড্যাশবোর্ড আপডেট করবে
 }
 
 // ২. টাইমার শুরু বা রিসেট করার ফাংশন
