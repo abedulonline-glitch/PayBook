@@ -26,7 +26,14 @@
         .bubble-right { align-self: flex-end; border-radius: 1.5rem 0 1.5rem 1.5rem; border-right: 5px solid #10b981; }
 
         /* Full Screen Data Entry */
-        #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 600; }
+       /* এন্ট্রি ড্রয়ারের ইনডেক্স */
+        #entryDrawer { z-index: 1000 !important; }
+
+     /* মিডিয়া শিট (ক্যামেরা/গ্যালারি) এর ইনডেক্স ড্রয়ারের চেয়ে বেশি হতে হবে */
+       #mediaSheet { 
+      z-index: 2000 !important; /* এটি ড্রয়ারের উপরে আসবে */
+      background: rgba(0,0,0,0.6); /* ব্যাকগ্রাউন্ড আরও ডার্ক হবে যাতে ইউজার বুঝতে পারে */
+   }
         #entryDrawer.open { transform: translateY(0); }
 
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
@@ -128,11 +135,6 @@
     </div>
 
     <!-- 4. MODALS -->
-    <div id="mediaSheet" class="fixed inset-0 bg-black/40 hidden">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.5rem] p-10 flex justify-around">
-            <button onclick="triggerCamera()" class="flex flex-col items-center gap-2"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl"><i class="fas fa-camera"></i></div><span class="text-xs font-bold">Camera</span></button>
-            <button onclick="triggerGallery()" class="flex flex-col items-center gap-2"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl"><i class="fas fa-image"></i></div><span class="text-xs font-bold">Gallery</span></button>
-        </div>
         <input type="file" id="camInp" accept="image/*" capture="camera" class="hidden">
         <input type="file" id="galInp" accept="image/*" class="hidden">
     </div>
@@ -153,6 +155,20 @@
             <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="w-full py-4 font-bold text-slate-400">Close</button>
         </div>
     </div>
+
+    <!-- এই বক্সটি ড্রয়ারের বাইরে বডির একদম শেষে রাখুন -->
+<div id="mediaSheet" class="fixed inset-0 hidden">
+    <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-10 flex justify-around shadow-[0_-20px_50px_rgba(0,0,0,0.2)]">
+        <button onclick="triggerCamera()" class="flex flex-col items-center gap-3">
+            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-3xl shadow-inner"><i class="fas fa-camera"></i></div>
+            <span class="text-sm font-bold text-slate-600">Camera</span>
+        </button>
+        <button onclick="triggerGallery()" class="flex flex-col items-center gap-3">
+            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-3xl shadow-inner"><i class="fas fa-image"></i></div>
+            <span class="text-sm font-bold text-slate-600">Gallery</span>
+        </button>
+    </div>
+</div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab" };
