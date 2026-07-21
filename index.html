@@ -229,11 +229,15 @@
             renderHome();
         }
 
-        function calcBal(txs, isSec) {
-            let b = 0;
-            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => { b += (t.type==='RECEIVED'?t.amount:-t.amount); });
-            return b;
-        }
+       function calcBal(txs, isSec) {
+    let b = 0;
+    // শুধুমাত্র বর্তমান মোড (পাকা বা কাঁচা) অনুযায়ী ফিল্টার এবং যোগ-বিয়োগ
+    txs.filter(t => t.status === 'active' && !!t.secret === !!isSec).forEach(t => {
+        // লজিক: RECEIVED মানে টাকা ঢুকছে (+), GIVEN মানে টাকা বের হচ্ছে (-)
+        b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+    });
+    return b; 
+}
 
         function renderHome() {
             const list = document.getElementById('contactList'); list.innerHTML = "";
@@ -263,30 +267,51 @@
         }
 
         function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList'); list.innerHTML = "";
-            const net = calcBal(p.transactions, db.secret);
-            const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-            document.getElementById('mainTotal').innerText = dNet;
-            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); 
+    list.innerHTML = "";
+    
+    const net = calcBal(p.transactions, db.secret);
+    
+    // ১০০ দিয়ে ভাগ করার লজিক (শুধুমাত্র সিক্রেট মোডে)
+    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    document.getElementById('mainTotal').innerText = "₹ " + displayHeaderTotal;
 
-            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-                const dAmt = t.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                let isRedCol = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-                list.innerHTML += `
-                    <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                        <div class="text-[8px] font-black text-slate-300 uppercase mb-2">${t.date}</div>
-                        <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                            ${t.imgUrl ? `<img src="${t.imgUrl}" class="w-full h-44 object-cover rounded-xl mb-3 shadow-inner" onclick="window.open(this.src)">` : ''}
-                            <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRedCol?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300">${t.type}</p></div>
-                            <p class="text-[10px] text-slate-500 italic mt-1">${t.note || 'Ref: PB-00'+t.id.toString().slice(-4)}</p>
-                            <div class="flex gap-4 mt-4 pt-3 border-t"><i class="fas fa-edit text-indigo-200 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i></div>
-                        </div>
-                    </div>`;
-            });
-            setTimeout(() => { document.getElementById('mainViewport').scrollTop = list.scrollHeight; }, 100);
+    // মেইন ব্যালেন্স কালার: বকেয়া বা দেনা থাকলে লাল (Positive Balance = Due/Red)
+    document.getElementById('mainTotal').style.color = net > 0 ? '#e11d48' : '#059669';
+
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isDel = t.status === 'deleted';
+        const isLeft = t.type === 'GIVEN';
+        
+        // ট্রানজ্যাকশন ১০০ দিয়ে ভাগ (সিক্রেট মোডে)
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+
+        // --- আপনার কালার লজিক শুরু ---
+        let isRedCol = false;
+        if (p.type === 'CUSTOMER') {
+            // কাস্টমারকে মাল দিলে (GIVEN) = লাল
+            if (t.type === 'GIVEN') isRedCol = true;
+        } else {
+            // সাপ্লায়ারের থেকে মাল নিলে (RECEIVED) = লাল
+            if (t.type === 'RECEIVED') isRedCol = true;
         }
+        const txColor = isRedCol ? 'text-rose-600' : 'text-emerald-600';
+        // --- আপনার কালার লজিক শেষ ---
+
+        list.innerHTML += `
+            <div class="flex flex-col ${isLeft ? 'items-start pl-2' : 'items-end pr-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="bubble ${isLeft ? 'bubble-left' : 'bubble-right'}">
+                    ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="window.open(this.src)">` : ''}
+                    <div class="flex justify-between items-center gap-6">
+                        <h3 class="text-xl font-black ${txColor}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3>
+                        <p class="text-[8px] font-bold text-slate-300">${t.type}</p>
+                    </div>
+                    <p class="text-[10px] text-slate-500 italic mt-2">${t.note || 'Ref: PB-'+t.id.toString().slice(-4)}</p>
+                </div>
+            </div>`;
+    });
+}
 
         // --- DATA ENTRY ---
         function triggerDrawer(type) {
@@ -337,7 +362,42 @@
         function showSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
         function changePinProcess() { const p = prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin = p; saveDB(); alert("Updated!"); } }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('Manage your business with PayBook Pro: ' + window.location.href)}`); }
-        function handleSmartPdfDownload() { /* PDF Logic from previous code */ alert("Generating PDF..."); }
+        function handleSmartPdfDownload() {
+    const { jsPDF } = window.jspdf; 
+    const doc = new jsPDF(); 
+    const isSec = db.secret; // বর্তমানে কোন মোডে আছেন?
+    const p = db.people.find(x => x.id === db.activeId);
+
+    doc.setFontSize(18);
+    doc.text(`Ledger Report: ${p.name}`, 14, 20);
+    
+    // কলাম নির্ধারণ: সিক্রেট মোডে থাকলে পাকা ও কাঁচা পাশাপাশি কলাম আসবে
+    const head = isSec 
+        ? [['Date', 'Ref', 'Pakka Amt (Rs)', 'Kaccha Amt (Rs)']] 
+        : [['Date', 'Ref', 'Pakka Balance (Rs)']];
+
+    const rows = p.transactions.filter(t => t.status === 'active').map(t => {
+        // যদি পাকা মোডে থাকেন, তবে কাঁচা এন্ট্রি ভ্যানিশ থাকবে
+        if (!isSec && t.secret) return null;
+
+        const amtStr = t.amount.toLocaleString('en-IN'); // অরিジナル অ্যামাউন্ট (ভাগ হবে না)
+        if (isSec) {
+            // সিক্রেট মোড: পাকা ও কাঁচা আলাদা কলামে বসানো
+            return [t.date, t.note || 'Ref', t.secret ? '-' : amtStr, t.secret ? amtStr : '-'];
+        } else {
+            return [t.date, t.note || 'Ref', amtStr];
+        }
+    }).filter(x => x !== null);
+
+    doc.autoTable({ 
+        startY: 30, 
+        head: head, 
+        body: rows, 
+        headStyles: { fillColor: isSec ? [134, 31, 65] : [15, 23, 42] } 
+    });
+
+    doc.save(`${p.name}_Report.pdf`);
+}
     </script>
 </body>
 </html>
