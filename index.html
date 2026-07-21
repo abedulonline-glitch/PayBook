@@ -191,7 +191,7 @@
 
         let db = { admin: null, people: [], secret: false, tab: 'CUSTOMER', activeId: null };
         let holdTimer, autoExitTimer, capturedImgFile = null;
-
+        let autoExitTimer;
         window.onload = () => {
             const data = localStorage.getItem('paybook_v10_final');
             if(data) {
@@ -459,8 +459,6 @@
         exitSecretMode();
     }, 10000); // ১০ সেকেন্ড
 }
-
-let autoExitTimer;
 
 // ১. সিক্রেট মোড থেকে এক্সিট করার ফাংশন
 function exitSecretMode() {
