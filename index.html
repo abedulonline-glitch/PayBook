@@ -275,27 +275,44 @@
     const list = document.getElementById('ledgerList'); 
     list.innerHTML = "";
     
-    // সঠিক টাইপ (Customer/Supplier) পাঠিয়ে ব্যালেন্স বের করা
+    // ১. সঠিক টাইপ (Customer/Supplier) পাঠিয়ে ব্যালেন্স বের করা
     const net = calcBal(p.transactions, db.secret, p.type);
     
+    // ২. ১০০ দিয়ে ভাগ করার লজিক (শুধুমাত্র সিক্রেট মোডে)
     const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
     const balEl = document.getElementById('mainTotal');
     balEl.innerText = "₹ " + displayHeaderTotal;
 
-    // --- কালার লজিক ফিক্স ---
+    // ৩. মেইন ব্যালেন্স কালার লজিক: রেজাল্ট পজিটিভ মানেই বকেয়া বা দেনা (লাল)
     if (net > 0) {
-        balEl.style.color = '#f43f5e'; // লাল (বকেয়া/পাওনা/দেনা)
-        document.getElementById('balTypeLabel').innerText = (p.type === 'CUSTOMER' ? "YOU GET" : "YOU PAY");
+        balEl.style.color = '#f43f5e'; // Rose-500 (Red)
+        if(document.getElementById('balTypeLabel')) {
+            document.getElementById('balTypeLabel').innerText = (p.type === 'CUSTOMER' ? "YOU GET" : "YOU PAY");
+        }
     } else if (net < 0) {
-        balEl.style.color = '#10b981'; // সবুজ (অ্যাডভান্স/অতিরিক্ত জমা)
-        document.getElementById('balTypeLabel').innerText = "ADVANCE";
+        balEl.style.color = '#10b981'; // Emerald-500 (Green - Advance)
+        if(document.getElementById('balTypeLabel')) document.getElementById('balTypeLabel').innerText = "ADVANCE";
     } else {
-        balEl.style.color = '#94a3b8'; // ধূসর (হিসাব নীল বা জিরো)
-        document.getElementById('balTypeLabel').innerText = "SETTLED";
+        balEl.style.color = '#94a3b8'; // Settled
+        if(document.getElementById('balTypeLabel')) document.getElementById('balTypeLabel').innerText = "SETTLED";
     }
-    
-    // বাকি রেন্ডারিং কোড যা আছে তাই থাকবে...
-}
+
+    // ৪. ট্রানজ্যাকশন ফিল্টারিং ও রেন্ডারিং
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isDel = t.status === 'deleted';
+        const isLeft = t.type === 'GIVEN';
+        
+        // ট্রানজ্যাকশন ১০০ দিয়ে ভাগ (সিক্রেট মোডে)
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+
+        // ৫. ট্রানজ্যাকশন কালার লজিক (আপনার শর্ত অনুযায়ী)
+        let isRedCol = false;
+        if (p.type === 'CUSTOMER') {
+            if (t.type === 'GIVEN') isRedCol = true; // কাস্টমারকে মাল দিলে লাল
+        } else {
+            if (t.type === 'RECEIVED') isRedCol = true; // সাপ্লাইয়ারের থেকে নিলে লাল
+        }
+        const txColor = isRedCol ? 'text-rose-600' : 'text-emerald-600';
 
         list.innerHTML += `
             <div class="flex flex-col ${isLeft ? 'items-start pl-2' : 'items-end pr-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
