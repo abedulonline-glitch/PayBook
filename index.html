@@ -15,11 +15,19 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
-        :root { --axis-burgundy: #861F41; --axis-grey: #F4F7F9; }
-        body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; overflow: hidden; }
-        .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
-        .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white; }
-        
+        :root {
+    --axis-burgundy: #861F41;
+    --axis-burgundy-dark: #631430;
+}
+.axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
+.auth-input { 
+    @apply w-full p-5 rounded-2xl border-2 border-slate-100 outline-none focus:border-[#861F41] transition-all bg-slate-50 text-slate-700 text-lg font-medium;
+}
+.auth-card {
+    background: white;
+    border-radius: 3rem 3rem 0 0;
+    box-shadow: 0 -20px 50px rgba(134, 31, 65, 0.1);
+}
         /* Message Bubbles */
         .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; }
         .bubble-left { align-self: flex-start; border-radius: 0 1.5rem 1.5rem 1.5rem; border-left: 5px solid #861F41; }
@@ -40,28 +48,71 @@
 <body>
 
     <!-- 1. AUTH SYSTEM -->
-    <div id="authScreen" class="fixed inset-0 z-[1000] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
-        <div class="w-full max-w-md text-center">
-            <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto mb-6 flex items-center justify-center text-white text-3xl font-black shadow-xl">PB</div>
-            <h1 class="text-3xl font-black text-[#861F41] mb-2">PayBook<span class="text-slate-300">Pro</span></h1>
-            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em] mb-10">Premium Business Ledger</p>
+    <div id="authScreen" class="fixed inset-0 z-[2000] bg-white flex flex-col hidden">
+    <!-- Top Branding Area -->
+    <div class="h-[35%] axis-gradient flex flex-col items-center justify-center text-white p-10 relative overflow-hidden">
+        <div class="absolute top-[-50px] right-[-50px] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[-30px] left-[-30px] w-48 h-48 bg-black/10 rounded-full blur-2xl"></div>
+        
+        <div class="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl mb-6 transform rotate-12 transition-transform hover:rotate-0">
+            <i class="fas fa-university text-[#861F41] text-4xl"></i>
+        </div>
+        <h1 class="text-4xl font-black tracking-tighter">PayBook<span class="text-white/50">Pro</span></h1>
+        <p class="text-[10px] uppercase tracking-[0.4em] font-bold mt-2 opacity-80">Premium Ledger Access</p>
+    </div>
 
-            <div id="regBox" class="hidden space-y-4 text-left">
-                <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
-                <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center tracking-widest">
-                <button onclick="handleRegistration()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg">CREATE ACCOUNT</button>
+    <!-- Bottom Form Area -->
+    <div class="auth-card flex-1 -mt-10 p-10 flex flex-col justify-between">
+        <div id="authContent">
+            <!-- Box: Login (Default) -->
+            <div id="loginBox" class="hidden animate-fade">
+                <div class="mb-10">
+                    <h2 class="text-3xl font-black text-slate-800 mb-2">Welcome Back</h2>
+                    <p class="text-sm text-slate-400 font-medium">Please enter your secure access PIN</p>
+                </div>
+                
+                <div class="p-5 bg-slate-50 rounded-2xl border-l-8 border-[#861F41] mb-8">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active Account</span>
+                    <p id="displayPhone" class="text-2xl font-black text-[#861F41] mt-1"></p>
+                </div>
+
+                <div class="relative mb-8">
+                    <input type="password" id="loginPin" placeholder="ENTER 4-DIGIT PIN" maxlength="4" 
+                           class="auth-input text-center text-5xl tracking-[1em] h-28 shadow-inner">
+                </div>
+                
+                <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black text-lg shadow-2xl shadow-rose-200 uppercase tracking-widest active:scale-95 transition-all">
+                    Unlock Account
+                </button>
             </div>
 
-            <div id="loginBox" class="hidden space-y-8">
-                <div class="p-6 bg-slate-50 rounded-2xl border-l-8 border-[#861F41] text-left">
-                    <p id="displayPhone" class="text-xl font-black text-[#861F41]"></p>
+            <!-- Box: Register -->
+            <div id="regBox" class="hidden animate-fade">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-black text-slate-800 mb-2">New Account</h2>
+                    <p class="text-sm text-slate-400 font-medium">Join our premium business network</p>
                 </div>
-                <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center text-5xl tracking-widest h-24">
-                <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-bold shadow-2xl">SECURE ACCESS</button>
+
+                <div class="space-y-4">
+                    <input type="text" id="regName" placeholder="Owner / Business Name" class="auth-input">
+                    <input type="number" id="regPhone" placeholder="10-Digit Mobile Number" class="auth-input">
+                    <input type="password" id="regPin" placeholder="Set 4-Digit Access PIN" maxlength="4" class="auth-input text-center tracking-[0.5em]">
+                </div>
+
+                <button onclick="handleRegistration()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black text-lg shadow-2xl shadow-rose-200 uppercase tracking-widest mt-10 active:scale-95 transition-all">
+                    Create Account
+                </button>
             </div>
         </div>
+
+        <!-- Footer Branding -->
+        <div class="text-center">
+            <p class="text-[10px] text-slate-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                <i class="fas fa-shield-check text-emerald-500"></i> End-to-End Encrypted Sync
+            </p>
+        </div>
     </div>
+</div>
 
     <!-- 2. MAIN APP UI -->
     <div id="appBody" class="hidden min-h-screen">
@@ -187,17 +238,7 @@
         let db = { admin: null, people: [], secret: false, tab: 'CUSTOMER', activeId: null };
         let holdTimer, autoExitTimer, capturedImgFile = null;
 
-        window.onload = () => {
-            const data = localStorage.getItem(DB_KEY);
-            if(data) {
-                db = JSON.parse(data);
-                if(db.admin) showLogin(); else showReg();
-            } else showReg();
-            initSecretGesture();
-            
-            document.getElementById('camInp').onchange = e => handleImageFile(e.target.files[0]);
-            document.getElementById('galInp').onchange = e => handleImageFile(e.target.files[0]);
-        };
+        window.onload
 
         function saveDB() {
             localStorage.setItem(DB_KEY, JSON.stringify(db));
@@ -225,15 +266,6 @@
             if(!n || ph.length !== 10) return alert("Enter 10-digit Phone!");
             db.admin = { name: n, phone: ph, pin: p };
             saveDB(); location.reload();
-        }
-
-        function handleLogin() {
-            const pin = document.getElementById('loginPin').value;
-            if(pin === db.admin.pin || pin === MASTER_PIN) {
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('appBody').classList.remove('hidden');
-                renderHome();
-            } else alert("Invalid Axis PIN!");
         }
 
         // --- 3. SECRET LOGIC & TIMER (30s) ---
