@@ -217,7 +217,7 @@
                 document.getElementById('authScreen').style.transform = "translateY(-100%)";
                 document.getElementById('authScreen').style.transition = "transform 0.5s ease-in";
                 setTimeout(() => { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); renderHome(); }, 500);
-            } else alert("Invalid Axis PIN!");
+            } else alert("Invalid PIN!");
         }
 
         function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
