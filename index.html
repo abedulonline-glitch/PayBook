@@ -238,17 +238,44 @@
 
         // --- 3. SECRET LOGIC & TIMER (30s) ---
         function initSecretGesture() {
-            const el = document.getElementById('secretTrigger');
-            el.onpointerdown = () => { holdTimer = setTimeout(() => {
+    const el = document.getElementById('secretTrigger');
+
+    // ১. কুইক এক্সিট: জাস্ট টাচ করলে (যদি অলরেডি সিক্রেট মোডে থাকে)
+    el.onclick = () => {
+        if (db.secret) {
+            exitSecretManually();
+        }
+    };
+
+    // ২. হোল্ড করে এন্টার: ২.৫ সেকেন্ড চেপে ধরলে (যদি পাক্কা মোডে থাকে)
+    el.onpointerdown = () => {
+        if (!db.secret) {
+            holdTimer = setTimeout(() => {
                 askPin(() => { 
                     db.secret = true; 
                     document.getElementById('secretTrigger').classList.add('blink-secret'); 
                     renderAll(); 
-                    startAutoExit(); 
+                    startAutoExit(); // ৩০ সেকেন্ডের টাইমার শুরু হবে
                 });
-            }, 2500); };
-            el.onpointerup = () => clearTimeout(holdTimer);
+            }, 2500);
         }
+    };
+
+    el.onpointerup = () => clearTimeout(holdTimer);
+    el.onpointerleave = () => clearTimeout(holdTimer);
+}
+
+// ৩. ম্যানুয়ালি বের হওয়ার ফাংশন
+function exitSecretManually() {
+    db.secret = false;
+    clearTimeout(autoExitTimer); // টাইমার বন্ধ হবে
+    
+    // UI থেকে সিক্রেট ইফেক্ট সরানো
+    document.getElementById('secretTrigger').classList.remove('blink-secret');
+    
+    renderAll(); // সাথে সাথে পাক্কা মোড রেন্ডার হবে
+    console.log("Quick Exited to Pakka Mode");
+}
 
         function startAutoExit() {
             clearTimeout(autoExitTimer);
