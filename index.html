@@ -42,26 +42,48 @@
 </head>
 <body>
 
-    <!-- 1. AUTH SCREEN -->
-    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
-        <div class="w-full max-w-md text-center">
-            <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto mb-6 flex items-center justify-center text-white text-3xl font-black">PB</div>
-            <h1 class="text-3xl font-black text-[#861F41] mb-2">PayBook<span class="text-slate-300">Pro</span></h1>
-            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em] mb-12">Premium Business Ledger</p>
-
-            <div id="regBox" class="hidden space-y-4 text-left">
-                <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
-                <input type="number" id="regPhone" placeholder="10-Digit Mobile Number" class="axis-input">
-                <input type="password" id="regPin" placeholder="Set PIN" maxlength="4" class="axis-input text-center pin-input-field">
-                <button onclick="handleRegistration()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg">CREATE ACCOUNT</button>
+    <!-- 1. AUTH SCREEN (Axis Premium Redesign) -->
+    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(134,31,65,0.15)] border border-slate-50">
+            <!-- Branding -->
+            <div class="text-center mb-10">
+                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black shadow-lg mb-4">PB</div>
+                <h1 class="text-3xl font-black text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-[0.2em] mt-2">Premium Global Ledger</p>
             </div>
 
-            <div id="loginBox" class="hidden space-y-8">
-                <div class="p-6 bg-slate-50 rounded-2xl border-l-8 border-[#861F41] text-left">
-                    <p id="displayPhone" class="text-xl font-black text-[#861F41]"></p>
+            <!-- Toggle Tab -->
+            <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border shadow-inner">
+                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">LOGIN</button>
+                <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all">REGISTER</button>
+            </div>
+
+            <!-- Form Container -->
+            <div id="authFormArea" class="space-y-5">
+                <!-- Login Box -->
+                <div id="loginBox" class="space-y-6">
+                    <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
+                    <div class="text-center">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Enter Secret PIN</p>
+                        <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center h-16 !tracking-[1.5rem] !text-2xl shadow-inner border-2">
+                    </div>
+                    <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl uppercase tracking-widest active:scale-95 transition-all">Secure Access</button>
                 </div>
-                <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-input-field shadow-inner">
-                <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl">LOGIN</button>
+
+                <!-- Register Box (Hidden by default) -->
+                <div id="regBox" class="hidden space-y-4">
+                    <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
+                    <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
+                    <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center h-14 !tracking-[1rem] !text-xl">
+                    <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-2xl font-black mt-4 shadow-xl uppercase tracking-widest">Create Account</button>
+                </div>
+            </div>
+
+            <!-- Bottom Note -->
+            <div class="mt-8 text-center">
+                <p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                    <i class="fas fa-shield-halved text-emerald-500"></i> Global Firestore Encrypted
+                </p>
             </div>
         </div>
     </div>
@@ -215,18 +237,70 @@
             saveDB(); location.reload();
         }
 
-        function handleLogin() {
-            const pin = document.getElementById('loginPin').value;
-            if(pin === db.admin.pin || pin === MASTER_PIN) {
-                db.role = 'ADMIN'; db.opName = db.admin.name; enterApp();
+        // ১. লগইন এবং রেজিস্ট্রেশন ট্যাব সুইচার
+function toggleAuth(mode) {
+    const lBox = document.getElementById('loginBox');
+    const rBox = document.getElementById('regBox');
+    const tLog = document.getElementById('tabLogin');
+    const tReg = document.getElementById('tabReg');
+
+    if(mode === 'LOGIN') {
+        lBox.classList.remove('hidden');
+        rBox.classList.add('hidden');
+        tLog.className = "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md";
+        tReg.className = "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
+    } else {
+        rBox.classList.remove('hidden');
+        lBox.classList.add('hidden');
+        tReg.className = "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md";
+        tLog.className = "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
+    }
+}
+
+// ২. handleLogin ফাংশন আপডেট (মোবাইল নম্বর সহ চেক)
+async function handleLogin() {
+    const ph = document.getElementById('loginPhone').value;
+    const pin = document.getElementById('loginPin').value;
+
+    if(ph.length !== 10) return alert("Enter 10-digit Phone Number!");
+
+    // ডাটাবেস থেকে তথ্য খোঁজা (Firestore)
+    const doc = await db_fs.collection("ledgers").doc(ph).get();
+
+    if (doc.exists) {
+        const cloudData = doc.data();
+        // এডমিন নাকি ম্যানেজার চেক
+        if(pin === cloudData.admin.pin || pin === MASTER_PIN) {
+            db = cloudData;
+            db.role = 'ADMIN';
+            db.opName = db.admin.name;
+            saveDB(); // লোকাল মেমোরি আপডেট
+            enterApp();
+        } else {
+            // ম্যানেজার চেক
+            const mgr = (cloudData.managers || []).find(m => m.pin === pin);
+            if(mgr) {
+                db = cloudData;
+                db.role = 'MANAGER';
+                db.opName = mgr.name;
+                enterApp();
             } else {
-                const mgr = (db.managers || []).find(m => m.pin === pin);
-                if(mgr) { db.role = 'MANAGER'; db.opName = mgr.name; enterApp(); }
-                else alert("Access Denied!");
+                alert("Incorrect PIN!");
             }
         }
-        function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); renderHome(); }
-        function logout() { if(confirm("Secure Logout?")) location.reload(); }
+    } else {
+        alert("Account not found! Please Register first.");
+        toggleAuth('REG'); // অটোমেটিক রেজিস্ট্রেশন ট্যাবে পাঠিয়ে দিবে
+    }
+}
+
+function enterApp() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
+    renderHome();
+}
+           function logout() { if(confirm("Secure Logout?")) location.reload(); }
 
         // --- CUSTOMER & SUPPLIER (Fix Point 1 & 6) ---
         function confirmAdd() {
