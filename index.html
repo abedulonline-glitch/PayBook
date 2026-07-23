@@ -259,6 +259,15 @@
         console.log("Session locked successfully.");
     }
 }
+        // ফোন মিনিমাইজ করলে বা অন্য অ্যাপে গেলে অটো লক হবে
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && !document.getElementById('appBody').classList.contains('hidden')) {
+        // অটোমেটিক লগআউট লজিক (নিরাপত্তার জন্য)
+        db.secret = false;
+        document.getElementById('appBody').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+    }
+});
 
         // --- SECRET MODE & GESTURE ---
         function initSecretGesture() {
