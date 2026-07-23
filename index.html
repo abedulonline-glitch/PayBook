@@ -235,6 +235,30 @@
             if(doc.exists) { db = doc.data(); renderHome(); }
         }
 
+        function confirmAdd() {
+    const n = document.getElementById('newPName').value.trim();
+    const ph = document.getElementById('newPPhone').value.trim();
+    
+    // কাস্টমার নাকি সাপ্লায়ার তা db.tab থেকে নিশ্চিত হওয়া
+    if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
+    
+    // নম্বর ইউনিক কি না চেক করা
+    if(db.people.some(x => x.phone === ph)) return alert("This number already exists in your list!");
+
+    db.people.unshift({ 
+        id: Date.now(), 
+        name: n, 
+        phone: ph, 
+        type: db.tab, // এটি আপনার সিলেক্ট করা ট্যাব অনুযায়ী হবে
+        transactions: [] 
+    });
+    
+    saveDB(); 
+    document.getElementById('addModal').classList.add('hidden'); // মোডাল বন্ধ
+    renderHome(); // হোম স্ক্রিন আপডেট
+    alert(db.tab + " added successfully!");
+}
+
         // --- AUTH & MANAGER LOGIC ---
         function showReg() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('regBox').classList.remove('hidden'); }
         function showLogin() { 
