@@ -165,6 +165,9 @@
             <button onclick="askPin(changePinProcess)" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3">Change Security PIN <i class="fas fa-key"></i></button>
             <button onclick="transferAccProcess()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-8">Transfer Account <i class="fas fa-exchange"></i></button>
             <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold">CLOSE</button>
+            <button onclick="handleLogout()" class="w-full p-6 bg-rose-50 rounded-3xl flex justify-between font-bold text-rose-600 mt-3 border border-rose-100">
+            <span>Secure Logout</span> <i class="fas fa-power-off"></i>
+            </button>
         </div>
     </div>
 
@@ -235,6 +238,27 @@
                 saveDB(); alert("Manager Added Successfully!");
             }
         }
+
+        function handleLogout() {
+    if(confirm("Are you sure you want to secure logout?")) {
+        // ১. সিক্রেট মোড অফ করা (নিরাপত্তার জন্য)
+        db.secret = false;
+        document.getElementById('secretTrigger').classList.remove('blink-secret');
+
+        // ২. মেইন অ্যাপ হাইড করা এবং লগইন স্ক্রিন শো করা
+        document.getElementById('appBody').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+        
+        // ৩. পিন ইনপুট বক্স খালি করা
+        if(document.getElementById('loginPin')) {
+            document.getElementById('loginPin').value = "";
+        }
+
+        // ৪. মেমোরি থেকে সেশন ক্লিয়ার করা (অপশনাল - যদি আপনি চান প্রতিবার পিন চাইবে)
+        // আমরা এখানে ডাটা ডিলিট করছি না, শুধু লক করছি
+        console.log("Session locked successfully.");
+    }
+}
 
         // --- SECRET MODE & GESTURE ---
         function initSecretGesture() {
