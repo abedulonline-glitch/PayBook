@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PayBook Pro | Axis Premium Verified</title>
     
-    <!-- Comprehensive Dependencies -->
+    <!-- External Dependencies -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -15,75 +15,71 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
-        :root { --axis-burgundy: #861F41; --axis-burgundy-dark: #631430; --axis-grey: #F4F7F9; }
-        
+        :root { --axis-burgundy: #861F41; --axis-grey: #F4F7F9; }
         body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; overflow: hidden; user-select: none; }
         .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
-        .axis-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
-        .axis-input { @apply w-full p-4 rounded-xl border-2 border-slate-100 outline-none focus:border-[#861F41] bg-white text-slate-700 text-lg; }
+        .axis-card { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white text-slate-700; }
         
-        /* Bubble Styles */
+        /* Premium Message Bubbles */
         .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; border-radius: 1.2rem; border: 1px solid #eee; }
         .bubble-left { align-self: flex-start; border-left: 5px solid #861F41; border-top-left-radius: 0; }
         .bubble-right { align-self: flex-end; border-right: 5px solid #10b981; border-top-right-radius: 0; }
 
-        /* Drawer & Transition System */
+        /* Full Screen Drawer */
         #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
         #entryDrawer.open { transform: translateY(0); }
-        
+        #mediaSheet { z-index: 2500 !important; }
+
+        .pin-input-field { height: 55px !important; font-size: 1.5rem !important; letter-spacing: 1.2rem !important; }
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
         #mainViewport { height: calc(100vh - 65px); overflow-y: auto; scroll-behavior: smooth; }
         
-        /* Security Features */
+        /* Secret Blink */
         .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
         @keyframes blinker { 50% { opacity: 0.2; } }
-        .pin-field { height: 60px !important; font-size: 2rem !important; letter-spacing: 1.5rem !important; }
-        
-        /* Zoom Image */
-        #zoomModal img { max-width: 95%; max-height: 90vh; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <!-- 1. AUTH SCREEN (Tabbed Interface) -->
-    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
-        <div class="w-full max-w-md bg-white p-8 rounded-[3.5rem] shadow-[0_30px_60px_rgba(134,31,65,0.2)] border">
-            <div class="text-center mb-10">
-                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black mb-4">PB</div>
+    <!-- 1. AUTH SCREEN (Login/Register Tabs) -->
+    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div class="w-full max-w-md bg-white p-8 rounded-[3.5rem] shadow-2xl border border-slate-50 text-center">
+            <div class="mb-8">
+                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black shadow-lg mb-4">PB</div>
                 <h1 class="text-3xl font-black text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
-                <p id="appVerLabel" class="text-[8px] uppercase tracking-widest text-slate-400 font-bold">Ver 1.3 Stable</p>
+                <p class="text-[8px] uppercase tracking-widest text-slate-400 font-bold mt-1">Global Secure Ledger | v1.3</p>
             </div>
 
             <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border shadow-inner">
-                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">LOGIN</button>
+                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md">LOGIN</button>
                 <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
             </div>
 
-            <div id="authFormArea" class="space-y-6">
-                <div id="loginBox">
-                    <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input mb-5 shadow-sm">
-                    <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-field shadow-inner mb-6">
-                    <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl uppercase tracking-widest active:scale-95 transition-all">Access Vault</button>
+            <div id="authFormArea">
+                <div id="loginBox" class="space-y-6">
+                    <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
+                    <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-input-field shadow-inner">
+                    <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold uppercase shadow-xl">Secure Login</button>
                 </div>
 
                 <div id="regBox" class="hidden space-y-4">
-                    <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
+                    <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
                     <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                    <input type="password" id="regPin" placeholder="Set PIN" maxlength="4" class="axis-input text-center pin-field">
+                    <input type="password" id="regPin" placeholder="4-Digit PIN" maxlength="4" class="axis-input text-center pin-input-field">
                     <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-xl uppercase">Create Profile</button>
                 </div>
             </div>
-            <div class="mt-8 text-center"><p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest"><i class="fas fa-shield-halved text-emerald-500"></i> Encrypted Cloud Sync Active</p></div>
         </div>
     </div>
 
-    <!-- 2. MAIN APPLICATION -->
+    <!-- 2. MAIN APP UI -->
     <div id="appBody" class="hidden min-h-screen">
         <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
             <div id="headerMain" class="flex justify-between items-center w-full">
                 <div class="flex items-center gap-3">
-                    <div id="userInitials" class="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/30">AD</div>
+                    <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border">AD</div>
                     <h1 class="text-xl font-black italic">PayBook</h1>
                 </div>
                 <div class="flex gap-5 items-center">
@@ -95,11 +91,11 @@
             <div id="headerLedger" class="hidden flex justify-between items-center w-full">
                 <div class="flex items-center gap-4">
                     <i class="fas fa-arrow-left" onclick="goHome()"></i>
-                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Global Record</p></div>
+                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase">Portfolio</p></div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <i class="fas fa-file-pdf opacity-70" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
+                    <span id="mainTotal" class="font-black text-lg">0.00</span>
                     <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
                 </div>
             </div>
@@ -108,12 +104,12 @@
         <div id="mainViewport" class="bg-slate-50">
             <!-- Home -->
             <div id="pageHome" class="p-5">
-                <div class="flex bg-white p-1.5 rounded-2xl border mb-6 shadow-sm">
-                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-lg transition-all">CUSTOMERS</button>
-                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">SUPPLIERS</button>
+                <div class="flex bg-white p-1 rounded-xl border mb-6 shadow-sm">
+                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
+                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400">SUPPLIERS</button>
                 </div>
-                <div id="contactList" class="space-y-4"></div>
-                <button onclick="openAddModal()" class="fixed bottom-8 right-6 w-16 h-16 axis-gradient text-white rounded-[2rem] shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
+                <div id="contactList" class="space-y-3"></div>
+                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white"><i class="fas fa-plus"></i></button>
             </div>
 
             <!-- Ledger -->
@@ -127,225 +123,144 @@
         </div>
     </div>
 
-    <!-- 3. INPUT DRAWER & MEDIA -->
+    <!-- 3. DATA ENTRY DRAWER -->
     <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[4rem] p-10 shadow-2xl">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-10 shadow-2xl">
             <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
-            <div class="text-center mb-10">
-                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entry Amount</p>
-                <input type="number" id="txAmt" placeholder="0.00" class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-full text-center border-b-2 focus:border-[#861F41] pb-3">
+            <div class="text-center mb-8">
+                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase">Input Amount</p>
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <span class="text-4xl font-black text-slate-300">₹</span>
+                    <input type="number" id="txAmt" placeholder="0.00" class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2">
+                </div>
             </div>
             <div class="space-y-4 mb-10">
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-invoice text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Details)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-day text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
-                <div class="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border">
-                    <p class="text-xs font-black text-slate-400 uppercase">Attach Bill Image</p>
-                    <div class="flex gap-2 items-center">
-                        <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-12 h-12 rounded-xl object-cover border shadow-sm"><i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full" onclick="clearImage()"></i></div>
-                        <button onclick="openMediaSelector()" class="w-12 h-12 bg-white border-2 border-dashed rounded-xl flex items-center justify-center text-slate-300 active:bg-slate-100 transition-all"><i class="fas fa-camera"></i></button>
+                <input type="text" id="txNote" placeholder="Notes (Bill/Ref)" class="axis-input bg-slate-50 border-none">
+                <input type="date" id="txDate" class="axis-input bg-slate-50 border-none">
+                <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
+                    <p class="text-sm font-bold text-slate-500">Bill Attachment</p>
+                    <div class="flex gap-2">
+                        <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-10 h-10 rounded object-cover shadow-sm"><i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full" onclick="clearImage()"></i></div>
+                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300"><i class="fas fa-camera"></i></button>
                     </div>
                 </div>
             </div>
-            <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black shadow-2xl uppercase tracking-widest">Confirm Transaction</button>
+            <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-xl uppercase tracking-widest">Confirm Transaction</button>
         </div>
     </div>
 
-    <!-- Media Sheet -->
-    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[2500]">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-12 flex justify-around shadow-2xl">
-            <button onclick="triggerCamera()" class="flex flex-col items-center gap-4"><div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-3xl shadow-inner border"><i class="fas fa-camera"></i></div><span class="text-xs font-black uppercase tracking-tighter">Capture</span></button>
-            <button onclick="triggerGallery()" class="flex flex-col items-center gap-4"><div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-3xl shadow-inner border"><i class="fas fa-image"></i></div><span class="text-xs font-black uppercase tracking-tighter">Library</span></button>
+    <!-- 4. MODALS -->
+    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.5rem] p-10 flex justify-around shadow-2xl">
+            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div><span class="text-xs font-bold uppercase">Camera</span></button>
+            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div><span class="text-xs font-bold uppercase">Gallery</span></button>
         </div>
         <input type="file" id="camInp" accept="image/*" capture="camera" class="hidden">
         <input type="file" id="galInp" accept="image/*" class="hidden">
     </div>
 
-    <!-- PIN Modal -->
     <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/95 z-[4000] flex items-center justify-center p-8 backdrop-blur-md">
-        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-12 text-center shadow-2xl">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl">
             <i class="fas fa-shield-halved text-5xl text-[#861F41] mb-8"></i>
-            <h3 class="text-xl font-black mb-8 text-[#861F41] uppercase tracking-widest">Secure PIN</h3>
-            <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center pin-field shadow-inner mb-10">
-            <button id="pinSubmitBtn" class="w-full py-5 bg-[#861F41] text-white rounded-[1.5rem] font-black shadow-2xl uppercase tracking-widest">Authorize</button>
+            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest">Verify PIN</h3>
+            <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center text-4xl tracking-widest h-14 mb-8">
+            <button id="pinSubmitBtn" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-xl">CONFIRM</button>
         </div>
     </div>
 
-    <!-- Image Zoom Modal -->
-    <div id="zoomModal" class="hidden fixed inset-0 bg-black/95 z-[5000] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
-        <img id="zoomImg" src="" class="shadow-2xl border-4 border-white/10">
-        <div class="absolute top-10 right-10 text-white text-3xl"><i class="fas fa-times"></i></div>
+    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl">
+            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Add New Profile</h3>
+            <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-4">
+            <input id="newPPhone" type="number" placeholder="10-Digit Mobile Number" class="axis-input mb-8">
+            <div class="flex gap-4">
+                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400 uppercase">Discard</button>
+                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold">SAVE PROFILE</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Settings Modal -->
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[4rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="w-16 h-1.5 bg-slate-200 rounded-full mx-auto mb-10"></div>
-            <h3 class="text-2xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Security Center</h3>
-            
-            <div id="adminControls" class="space-y-4 mb-10">
-                <button onclick="hireManager()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold border">Hire Entry Manager <i class="fas fa-user-plus text-[#861F41]"></i></button>
+        <div class="bg-white w-full rounded-t-[4rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto text-left">
+            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase">Management Center</h3>
+            <div id="adminControls" class="space-y-4">
+                <button onclick="hireManager()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold italic">Hire Entry Manager <i class="fas fa-user-plus"></i></button>
                 <div id="mgrList" class="space-y-2 px-2"></div>
-                <button onclick="askPin(changePinProcess)" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold">Change Admin PIN <i class="fas fa-key text-slate-300"></i></button>
-                <button onclick="transferAccProcess()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold">Transfer Number <i class="fas fa-exchange-alt text-slate-300"></i></button>
+                <button onclick="askPin(changePin)" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold">Change Admin PIN <i class="fas fa-key"></i></button>
+                <button onclick="transferAcc()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold">Transfer Number <i class="fas fa-exchange-alt"></i></button>
             </div>
-            
-            <!-- Factory Reset (New Point) -->
-            <button onclick="factoryReset()" class="w-full py-4 text-rose-500 font-bold border-2 border-rose-100 rounded-2xl mb-5 bg-rose-50 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                <i class="fas fa-trash-arrow-up"></i> Factory Reset (Erase Everything)
-            </button>
-            
-            <button onclick="logout()" class="w-full py-5 bg-rose-600 text-white rounded-3xl font-black shadow-xl uppercase mb-10 tracking-widest"><i class="fas fa-power-off"></i> Secure Logout</button>
+            <button onclick="factoryReset()" class="w-full py-4 text-rose-500 font-bold border-2 border-rose-100 rounded-2xl my-5 bg-rose-50 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"><i class="fas fa-trash-can"></i> Factory Reset</button>
+            <button onclick="logout()" class="w-full py-5 bg-rose-600 text-white rounded-2xl font-black mb-8 uppercase tracking-widest"><i class="fas fa-power-off"></i> Secure Logout</button>
             <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase tracking-widest">Back</button>
         </div>
     </div>
 
-    <!-- Contact Modal -->
-    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[4rem] p-10 shadow-2xl">
-            <h3 class="text-2xl font-black text-[#861F41] mb-10 text-center uppercase">Add New Account</h3>
-            <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-5">
-            <input id="newPPhone" type="number" placeholder="10-Digit Mobile" class="axis-input mb-10">
-            <div class="flex gap-4">
-                <button onclick="document.getElementById('addModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase tracking-widest text-xs">Exit</button>
-                <button onclick="confirmAdd()" class="flex-1 py-5 bg-[#861F41] text-white rounded-[2rem] font-black shadow-xl uppercase text-xs">Save Account</button>
-            </div>
-        </div>
+    <!-- Zoom Modal -->
+    <div id="zoomModal" class="hidden fixed inset-0 bg-black/95 z-[5000] flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
+        <img id="zoomImg" src="" class="shadow-2xl">
     </div>
 
     <script>
-        // --- 1. CORE CONFIG & VERSIONING ---
-        const CURRENT_VERSION = "1.3";
         const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab" };
         firebase.initializeApp(firebaseConfig);
         const db_fs = firebase.firestore();
         const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
         const MASTER_PIN = "5000";
-        const DB_KEY = 'PB_ULTIMATE_STABLE_V1.3';
+        const STORAGE_KEY = 'PayBook_Pro_Final_V1.3_Axis';
 
         let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '' };
-        let holdTimer, autoExitTimer, capturedImgFile = null;
+        let holdTimer, autoExitTimer, capturedFile = null;
 
+        // --- STARTUP & SYNC ---
         window.onload = () => {
-            // Version Control Cleanup
-            const savedVer = localStorage.getItem('PAYBOOK_VER');
-            if (savedVer !== CURRENT_VERSION) {
-                localStorage.clear();
-                localStorage.setItem('PAYBOOK_VER', CURRENT_VERSION);
-                console.log("App Updated to v" + CURRENT_VERSION);
-            }
-
-            const data = localStorage.getItem(DB_KEY);
+            const savedVer = localStorage.getItem('PB_STABLE_VER');
+            if(savedVer !== '1.3') { localStorage.clear(); localStorage.setItem('PB_STABLE_VER', '1.3'); }
+            const data = localStorage.getItem(STORAGE_KEY);
             if(data) {
                 db = JSON.parse(data);
-                db.secret = false; // Always Pakka on start
+                db.secret = false;
                 if(db.admin) showLogin(); else showReg();
             } else showReg();
-            
             initSecretGesture();
-            initHistoryState();
-            
-            document.getElementById('camInp').onchange = e => handleImageFile(e.target.files[0]);
-            document.getElementById('galInp').onchange = e => handleImageFile(e.target.files[0]);
+            document.getElementById('camInp').onchange = e => handleImg(e.target.files[0]);
+            document.getElementById('galInp').onchange = e => handleImg(e.target.files[0]);
         };
 
-        // --- 2. AUTH & MANAGER SYNC ---
-        async function syncCloud() { if(db.admin) { const doc = await db_fs.collection("global_ledgers").doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } } }
-        
+        function saveDB() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); if(db.admin) db_fs.collection("global_ledgers").doc(db.admin.phone).set(db); }
+        async function sync() { if(db.admin) { const doc = await db_fs.collection("global_ledgers").doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } } }
+
+        // --- AUTH LOGIC ---
         function toggleAuth(mode) {
             const lBox = document.getElementById('loginBox'), rBox = document.getElementById('regBox'), tL = document.getElementById('tabLogin'), tR = document.getElementById('tabReg');
             if(mode==='LOGIN') { lBox.classList.remove('hidden'); rBox.classList.add('hidden'); tL.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tR.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
             else { rBox.classList.remove('hidden'); lBox.classList.add('hidden'); tR.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tL.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
         }
-      const DB_KEY = 'PayBook_Pro_Stable_V13'; // একটি নির্দিষ্ট নাম ব্যবহার করুন
 
-function saveDB() {
-    // ১. ফোনের মেমোরিতে সেভ
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
-
-    // ২. ক্লাউডে সেভ (Firestore)
-    if(db.admin && db.admin.phone) {
-        db_fs.collection("global_ledgers").doc(db.admin.phone).set(db)
-            .then(() => console.log("Cloud Updated"))
-            .catch(err => {
-                console.error("Firebase Error:", err);
-                alert("Cloud Sync Failed! Check Firebase Rules.");
-            });
-    }
-}
-
-// ২. লগইন করার সময়
-async function handleLogin() {
-    const ph = document.getElementById('loginPhone').value;
-    const pin = document.getElementById('loginPin').value;
-
-    if(ph.length !== 10) return alert("Enter 10-digit Phone!");
-
-    // এখানেও 'global_ledgers' ব্যবহার করুন
-    const doc = await db_fs.collection("global_ledgers").doc(ph).get();
-
-    if (doc.exists) {
-        const cloudData = doc.data();
-        if(pin === cloudData.admin.pin || pin === MASTER_PIN) {
-            db = cloudData;
-            enterApp();
-        } else {
-            alert("Wrong PIN!");
+        async function handleLogin() {
+            const ph = document.getElementById('loginPhone').value, pin = document.getElementById('loginPin').value;
+            if(ph.length !== 10) return alert("Enter 10-digit Phone!");
+            const doc = await db_fs.collection("global_ledgers").doc(ph).get();
+            if (doc.exists) {
+                const cloud = doc.data();
+                if(pin === cloud.admin.pin || pin === MASTER_PIN) { db = cloud; db.role='ADMIN'; db.opName=db.admin.name; enterApp(); }
+                else {
+                    const mgr = (cloud.managers || []).find(m => m.pin === pin);
+                    if(mgr) { db = cloud; db.role='MANAGER'; db.opName=mgr.name; enterApp(); } else alert("PIN Incorrect!");
+                }
+            } else { alert("Not registered!"); toggleAuth('REG'); }
         }
-    } else {
-        alert("Not registered!");
-        toggleAuth('REG'); // রেজিস্টার ট্যাবে পাঠিয়ে দিবে
-    }
-}
-       function handleRegistration() {
-    // ইনপুট ভ্যালু সংগ্রহ
-    const n = document.getElementById('regName').value.trim();
-    const ph = document.getElementById('regPhone').value.trim();
-    const p = document.getElementById('regPin').value.trim();
+        function handleRegistration() { const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value; if(!n || ph.length !== 10) return alert("Data Invalid!"); db.admin = { name: n, phone: ph, pin: p }; saveDB(); location.reload(); }
+        function enterApp() { saveDB(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase(); renderHome(); }
+        function logout() { if(confirm("Terminate Session?")) location.reload(); }
 
-    // ভ্যালিডেশন চেক (এটি খুব জরুরি)
-    if (!n) {
-        alert("Please enter Owner Name!");
-        return;
-    }
-    if (ph.length !== 10) {
-        alert("Mobile Number must be exactly 10 digits!");
-        return;
-    }
-    if (p.length < 4) {
-        alert("PIN must be at least 4 digits!");
-        return;
-    }
-
-    // ডাটা অবজেক্ট তৈরি
-    db.admin = { name: n, phone: ph, pin: p };
-    db.people = []; // নতুন ইউজারের জন্য কন্টাক্ট লিস্ট ক্লিয়ার
-    db.managers = [];
-    
-    console.log("Registering user:", db.admin);
-
-    // ডাটা সেভ করা
-    saveDB();
-
-    // সাকসেস মেসেজ এবং অটো-লগইন
-    alert("Account Created Successfully!");
-    
-    // সরাসরি অ্যাপের ভেতরে নিয়ে যাওয়া
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appBody').classList.remove('hidden');
-    document.getElementById('userInitials').innerText = n.substring(0,2).toUpperCase();
-    
-    renderHome();
-}
-        function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase(); renderHome(); }
-        function logout() { if(confirm("Terminate Secure Session?")) location.reload(); }
-
-        // --- 3. CORE LOGIC (Isolation Fix) ---
-        function calcBal(txs, isSecMode, pType) {
+        // --- CORE UI ---
+        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(!n || ph.length !== 10) return alert("Enter Details!"); if(db.people.some(x => x.phone === ph)) return alert("Number Exists!"); db.people.unshift({ id: Date.now(), name: n, phone: ph, type: db.tab, transactions: [] }); saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome(); }
+        
+        function calcBal(txs, isSec, pType) {
             let b = 0;
-            // Strict Separation: Pakka and Kaccha never mix
-            txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode).forEach(t => {
-                if (pType === 'CUSTOMER') b += (t.type === 'GIVEN' ? t.amount : -t.amount);
-                else b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
+                if (pType === 'CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount);
+                else b += (t.type==='RECEIVED' ? t.amount : -t.amount);
             });
             return b;
         }
@@ -356,128 +271,96 @@ async function handleLogin() {
             db.people.filter(p => p.type === db.tab).forEach(p => {
                 const bal = calcBal(p.transactions, db.secret, p.type);
                 const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-                list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-6 flex justify-between items-center active:scale-95 transition-all">
-                    <div class="flex items-center gap-4"><div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
+                list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
+                    <div class="flex items-center gap-3"><div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${p.name[0]}</div>
                     <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase">${p.phone}</p></div></div>
-                    <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'YOU GET' : 'CLEAR'}</p></div></div>`;
+                    <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'DUE' : 'CLEAR'}</p></div></div>`;
             });
         }
+
+        function openLedger(id) { db.activeId = id; const p = db.people.find(x => x.id === id); document.getElementById('lName').innerText = p.name; document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden'); document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden'); renderLedger(); }
+        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
 
         function renderLedger() {
             const p = db.people.find(x => x.id === db.activeId);
             const list = document.getElementById('ledgerList'); list.innerHTML = "";
             const net = calcBal(p.transactions, db.secret, p.type);
-            const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-            document.getElementById('mainTotal').innerText = dNet;
+            document.getElementById('mainTotal').innerText = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
             document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
 
             p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
                 const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
                 const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
                 let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-
                 list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
                     <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
                     <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                        ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="zoomImage(this.src)">` : ''}
-                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300">${t.type}</p></div>
-                        <p class="text-[10px] text-slate-500 italic mt-1 font-medium">${t.note || ''}</p>
-                        <p class="text-[7px] text-slate-300 mt-2 uppercase font-black tracking-tighter border-t pt-1 border-slate-50">By: ${t.by || 'Owner'}</p>
-                        <div class="flex gap-5 mt-4 pt-2"><i class="fas fa-edit text-indigo-200 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                        ${t.history ? `<i class="fas fa-history text-slate-200 text-[10px]" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
+                        ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img" onclick="zoomImage(this.src)">` : ''}
+                        <div class="flex justify-between items-center gap-6"><h3 class="text-lg font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3></div>
+                        <p class="text-[9px] text-slate-500 italic mt-1">${t.note || ''}</p>
+                        <p class="text-[7px] text-slate-300 border-t mt-1">By: ${t.by || 'Owner'}</p>
+                        <div class="flex gap-6 mt-3 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i></div>
                     </div></div>`;
             });
             document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
 
-        // --- 4. DATA ENTRY & SAVE ---
-        async function preSave(type) {
-            const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Amount Required!");
-            const action = async () => {
-                document.getElementById('mainConfirmBtn').innerText = "AUTHORIZING..."; let imgUrl = "";
-                if(capturedImgFile) {
-                    const fd = new FormData(); fd.append('image', capturedImgFile);
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json(); if(dat.success) imgUrl = dat.data.url;
-                }
-                const p = db.people.find(x => x.id === db.activeId);
-                const modeSave = !!db.secret;
-                p.transactions.push({ id:Date.now(), amount:amt, type, secret:modeSave, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, imgUrl, by: db.opName, status:'active' });
-                saveDB(); renderLedger(); closeDrawer();
-                document.getElementById('mainConfirmBtn').innerText = "CONFIRM TRANSACTION";
-                if(modeSave) resetSecretTimer();
-            };
-            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
-        }
-
-        // --- 5. SECRET MODE & GESTURE (Quick Exit) ---
-        function initSecretGesture() {
-            const el = document.getElementById('secretTrigger');
-            el.onclick = () => { if(db.secret) exitSecret(); };
-            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); resetSecretTimer(); }); }, 2500); };
-            el.onpointerup = () => clearTimeout(holdTimer);
-        }
-        function resetSecretTimer() { clearTimeout(autoExitTimer); if(db.secret) autoExitTimer = setTimeout(exitSecret, 60000); } // 60s
+        // --- SECRET & ACTIONS ---
+        function initSecretGesture() { const el = document.getElementById('secretTrigger'); el.onclick = () => { if(db.secret) exitSecret(); }; el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); }; el.onpointerup = () => clearTimeout(holdTimer); }
+        function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); }
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
-        // --- 6. SMART PDF LOGIC ---
-        function handleSmartPdfDownload() {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const isSec = db.secret;
-            if(!document.getElementById('pageLedger').classList.contains('hidden')) {
-                const p = db.people.find(x => x.id === db.activeId); doc.text(`Ledger Statement: ${p.name}`, 14, 20);
-                const head = isSec ? [['Date', 'Note', 'Pakka Rs.', 'Kaccha Rs.', 'By']] : [['Date', 'Note', 'Amount Rs.', 'By']];
-                const rows = p.transactions.filter(t => t.status === 'active').map(t => {
-                    if(!isSec && t.secret) return null;
-                    const aS = t.amount.toLocaleString('en-IN');
-                    return isSec ? [t.date, t.note, t.secret?'-':aS, t.secret?aS:'-', t.by] : [t.date, t.note, aS, t.by];
-                }).filter(x => x);
-                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save(`${p.name}_Ledger.pdf`);
-            } else {
-                doc.text(`Full Portfolio Summary`, 14, 20);
-                const head = isSec ? [['Name', 'Phone', 'Pakka Bal', 'Kaccha Bal']] : [['Name', 'Phone', 'Balance (Pakka)']];
-                const rows = db.people.map(p => {
-                    let pb = 0, kb = 0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; });
-                    return isSec ? [p.name, p.phone, pb, kb] : [p.name, p.phone, pb];
-                });
-                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("PayBook_Summary.pdf");
-            }
+        async function preSave(t) {
+            const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Enter Amt!");
+            const act = async () => {
+                document.getElementById('mainConfirmBtn').innerText = "AUTHORIZING..."; let imgUrl = "";
+                if(capturedFile) { const fd = new FormData(); fd.append('image', capturedFile); const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd }); const dat = await res.json(); if(dat.success) imgUrl = dat.data.url; }
+                const p = db.people.find(x => x.id === db.activeId);
+                p.transactions.push({ id:Date.now(), amount:amt, type:t, secret:!!db.secret, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, imgUrl, by: db.opName, status:'active' });
+                saveDB(); renderLedger(); closeDrawer();
+            };
+            if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
         }
 
-        // --- 7. BACK BUTTON & UTILS ---
-        function initHistoryState() { pushHistory(); window.addEventListener('popstate', (e) => {
-            if(!document.getElementById('entryDrawer').classList.contains('hidden')) closeDrawer();
-            else if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome();
-            pushHistory();
-        });}
-        function pushHistory() { history.pushState(null, null, window.location.pathname); }
-        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Invalid PIN!"); }; }
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
-        function openLedger(id) { pushHistory(); db.activeId = id; const p = db.people.find(x => x.id === id); document.getElementById('lName').innerText = p.name; document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden'); document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden'); renderLedger(); }
+        // --- UTILS ---
+        function triggerDrawer(t) { document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
+        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFile=null; document.getElementById('imgPreview').classList.add('hidden');}, 400); }
+        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
         function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
-        function triggerDrawer(t) { pushHistory(); document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedImgFile=null; document.getElementById('imgPreview').classList.add('hidden');}, 400); }
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
-        function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function handleImageFile(f) { if(!f) return; capturedImgFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('imgPreview').classList.remove('hidden'); }
-        function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedImgFile = null; }
+        function triggerCamera() { document.getElementById('camInp').click(); }
+        function triggerGallery() { document.getElementById('galInp').click(); }
+        function handleImg(f) { capturedFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('imgPreview').classList.remove('hidden'); document.getElementById('mediaSheet').classList.add('hidden'); }
+        function clearImage() { capturedFile = null; document.getElementById('billPreviewArea').classList.add('hidden'); }
         function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
         function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
-        function confirmAdd() { const n = document.getElementById('newPName').value.trim(), ph = document.getElementById('newPPhone').value.trim(); if(n && ph.length===10) { if(db.people.some(x=>x.phone===ph)) return alert("Exists!"); db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); closeAddModal(); renderHome(); } else alert("Error!"); }
-        function showSettings() { if(db.role==='MANAGER') return alert("Admin Only!"); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
+        function showSettings() { if(db.role==='MANAGER') document.getElementById('adminControls').classList.add('hidden'); else document.getElementById('adminControls').classList.remove('hidden'); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
         function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n&&ph.length===10&&p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
-        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-3 bg-slate-50 rounded-xl mb-2 flex justify-between font-bold text-xs"><span>${m.name} (${m.phone})</span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
-        function delMgr(ph) { if(confirm("Remove?")) { db.managers=db.managers.filter(x=>x.phone!==ph); saveDB(); renderManagers(); } }
-        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(()=>{ const n=parseFloat(prompt("New Original Amt:", t.amount)), note=prompt("Note:", t.note); if(n) { if(!t.history) t.history=[]; t.history.push({amt:t.amount, note:t.note, date:new Date().toLocaleString()}); t.amount=n; t.note=note; saveDB(); renderLedger(); } }); }
+        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-100 rounded-xl mb-2 flex justify-between font-bold text-xs shadow-sm"><span>${m.name} (${m.phone})</span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+        function delMgr(ph) { if(confirm("Remove Manager?")) { db.managers=db.managers.filter(x=>x.phone!==ph); saveDB(); renderManagers(); } }
+        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(()=>{ const n=parseFloat(prompt("New Amt:", t.amount)); if(n) { if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; saveDB(); renderLedger(); } }); }
         function deleteTx(tid) { askPin(()=>{ const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(x=>x.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
-        function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); let m="History:\n\n"; (t.history||[]).forEach(h=>m+=`${h.date}: Rs.${h.amt} (${h.note})\n`); alert(m); }
-        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('Manage business with PayBook Pro: '+window.location.href)}`); }
-        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
-        function changePin() { const n=prompt("New 4-Digit PIN:"); if(n&&n.length===4) { db.admin.pin=n; saveDB(); alert("PIN Updated!"); } }
-        function transferAcc() { const v=prompt("Current Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n&&n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
-        function factoryReset() { if(confirm("DANGER! This will delete ALL cloud and local data permanently. Continue?")) { if(db.admin) db_fs.collection("global_ledgers").doc(db.admin.phone).delete(); localStorage.clear(); location.reload(); } }
+        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('Manage with PayBook Pro: '+window.location.href)}`); }
+        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
+        function changePin() { const n=prompt("New 4 Digit PIN:"); if(n&&n.length===4) { db.admin.pin=n; saveDB(); alert("PIN Updated!"); } }
+        function transferAcc() { const v=prompt("Current Phone:"); if(v===db.admin.phone) { const n=prompt("New Phone:"); if(n&&n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
+        function factoryReset() { if(confirm("Delete Everything?")) { if(db.admin) db_fs.collection("global_ledgers").doc(db.admin.phone).delete(); localStorage.clear(); location.reload(); } }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function zoomImage(src) { const m = document.getElementById('zoomModal'); document.getElementById('zoomImg').src = src; m.classList.remove('hidden'); }
+        function zoomImage(src) { const m=document.getElementById('zoomModal'); document.getElementById('zoomImg').src=src; m.classList.remove('hidden'); }
+        function handleSmartPdfDownload() { 
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const isSec = db.secret;
+            if(!document.getElementById('pageLedger').classList.contains('hidden')) {
+                const p = db.people.find(x => x.id === db.activeId); doc.text(`Ledger Report: ${p.name}`, 14, 20);
+                const head = isSec ? [['Date', 'Pakka Rs.', 'Kaccha Rs.', 'By']] : [['Date', 'Amount Rs.', 'By']];
+                const rows = p.transactions.filter(t => t.status === 'active').map(t => { if(!isSec && t.secret) return null; return isSec ? [t.date, t.secret?'-':t.amount, t.secret?t.amount:'-', t.by] : [t.date, t.amount, t.by]; }).filter(x => x);
+                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save(`${p.name}.pdf`);
+            } else {
+                doc.text(`Full Summary`, 14, 20);
+                const head = isSec ? [['Name', 'Pakka', 'Kaccha']] : [['Name', 'Balance']];
+                const rows = db.people.map(p => { let pb=0, kb=0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; }); return isSec ? [p.name, pb, kb] : [p.name, pb]; });
+                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("Summary.pdf");
+            }
+        }
     </script>
 </body>
 </html>
