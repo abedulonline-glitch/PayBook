@@ -39,37 +39,73 @@
 </head>
 <body>
 
-    <!-- 1. AUTH SYSTEM -->
-    <div id="authScreen" class="fixed inset-0 z-[1000] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
-        <div class="w-full max-w-md text-center">
-            <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto mb-6 flex items-center justify-center text-white text-3xl font-black shadow-xl">PB</div>
-            <h1 class="text-3xl font-black text-[#861F41] mb-2">PayBook<span class="text-slate-300">Pro</span></h1>
-            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em] mb-10">Premium Business Ledger</p>
-
-            <div id="regBox" class="hidden space-y-4 text-left">
-                <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
-                <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center tracking-widest">
-                <button onclick="handleRegistration()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg">CREATE ACCOUNT</button>
+   <!-- 1. AUTH SYSTEM (Axis Premium Redesign) -->
+    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(134,31,65,0.12)] border border-slate-50">
+            
+            <!-- Branding Area -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 axis-gradient rounded-[1.2rem] mx-auto flex items-center justify-center text-white text-2xl font-black shadow-lg mb-4">PB</div>
+                <h1 class="text-3xl font-black text-[#861F41] leading-none">PayBook<span class="text-slate-300">Pro</span></h1>
+                <p class="text-[8px] uppercase font-bold text-slate-400 tracking-[0.3em] mt-2">Premium Business Ledger</p>
             </div>
 
-            <!-- loginBox এর ভেতরের অংশটি এভাবে আপডেট করুন -->
-<div id="loginBox" class="space-y-6">
-    <div class="mb-4 text-left">
-        <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Mobile Number</label>
-        <input type="number" id="loginPhone" placeholder="Enter 10-digit Number" class="axis-input">
-    </div>
-    
-    <div class="text-center">
-        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Enter Security PIN</label>
-        <input type="password" id="loginPin" placeholder="••••" maxlength="4" 
-               class="axis-input text-center h-16 !tracking-[1.5rem] !text-2xl shadow-inner border-2">
-    </div>
+            <!-- Switcher Tabs (Point 8: Modern & Compact) -->
+            <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border shadow-inner">
+                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all duration-300 uppercase tracking-widest">Login</button>
+                <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all duration-300 uppercase tracking-widest">Register</button>
+            </div>
 
-    <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl uppercase tracking-widest active:scale-95 transition-all">
-        Secure Access
-    </button>
-</div>
+            <!-- Content Area -->
+            <div id="authFormContent">
+                
+                <!-- Box: Login (Default) -->
+                <div id="loginBox" class="space-y-5 animate-fade">
+                    <div class="text-left">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Phone Number</label>
+                        <input type="number" id="loginPhone" placeholder="Enter 10-digit Mobile" class="axis-input shadow-sm">
+                    </div>
+                    
+                    <div class="text-center">
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Secure Access PIN</label>
+                        <!-- Point 8: Small & Smart PIN Input -->
+                        <input type="password" id="loginPin" placeholder="••••" maxlength="4" 
+                               class="axis-input text-center h-14 !text-xl !tracking-[1rem] shadow-inner border-2 border-slate-100 focus:border-[#861F41]">
+                    </div>
+
+                    <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl uppercase tracking-widest active:scale-95 transition-all mt-4">
+                        Secure Access
+                    </button>
+                    
+                    <div class="text-center pt-2">
+                        <p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                            <i class="fas fa-lock text-emerald-500"></i> Cloud Firestore Encrypted
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Box: Register (Hidden by default) -->
+                <div id="regBox" class="hidden space-y-4 animate-fade">
+                    <div class="text-left">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Your Name</label>
+                        <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
+                    </div>
+                    <div class="text-left">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Mobile Number</label>
+                        <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
+                    </div>
+                    <div class="text-left">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Set PIN</label>
+                        <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" 
+                               class="axis-input text-center h-14 !text-xl !tracking-[1rem]">
+                    </div>
+                    
+                    <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-2xl font-black shadow-lg mt-6 uppercase tracking-widest">
+                        Create Account
+                    </button>
+                </div>
+
+            </div>
         </div>
     </div>
 
@@ -200,17 +236,54 @@
         let db = { admin: null, people: [], secret: false, tab: 'CUSTOMER', activeId: null };
         let holdTimer, autoExitTimer, capturedImgFile = null;
 
-        window.onload = () => {
-            const data = localStorage.getItem(DB_KEY);
-            if(data) {
-                db = JSON.parse(data);
-                if(db.admin) showLogin(); else showReg();
-            } else showReg();
-            initSecretGesture();
-            
-            document.getElementById('camInp').onchange = e => handleImageFile(e.target.files[0]);
-            document.getElementById('galInp').onchange = e => handleImageFile(e.target.files[0]);
-        };
+       window.onload = () => {
+    // আপনার আগের কোডের STORAGE_KEY বা DB_KEY ভেরিয়েবলটি ব্যবহার করুন
+    const data = localStorage.getItem('PB_Ultimate_V12_Axis'); 
+    
+    if(data) {
+        db = JSON.parse(data);
+        if(db.admin && db.admin.phone) {
+            toggleAuth('LOGIN'); // রেজিস্টার করা থাকলে লগইন দেখাবে
+        } else {
+            toggleAuth('REG');
+        }
+    } else {
+        toggleAuth('REG'); // একদম নতুন হলে রেজিস্ট্রেশন দেখাবে
+    }
+};
+
+// এই ফাংশনটি ট্যাব পরিবর্তন করে (লগইন বা রেজিস্ট্রেশন)
+function toggleAuth(mode) {
+    const lBox = document.getElementById('loginBox');
+    const rBox = document.getElementById('regBox');
+    const tLog = document.getElementById('tabLogin');
+    const tReg = document.getElementById('tabReg');
+
+    // আইডিগুলো আছে কি না চেক করে এরর বন্ধ করা
+    if(!lBox || !rBox) return;
+
+    if(mode === 'LOGIN') {
+        lBox.classList.remove('hidden');
+        rBox.classList.add('hidden');
+        if(tLog) tLog.className = "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
+        if(tReg) tReg.className = "flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all";
+    } else {
+        rBox.classList.remove('hidden');
+        lBox.classList.add('hidden');
+        if(tReg) tReg.className = "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
+        if(tLog) tLog.className = "flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all";
+    }
+}
+        
+function handleLogout() {
+    if(confirm("Secure Logout?")) {
+        document.getElementById('appBody').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+        
+        // লগআউট করার পর ডিফল্টভাবে লগইন ট্যাব দেখাবে যাতে ইউজার আবার ঢুকতে পারে
+        toggleAuth('LOGIN'); 
+    }
+}
 
         function saveDB() {
             localStorage.setItem(DB_KEY, JSON.stringify(db));
