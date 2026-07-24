@@ -141,65 +141,33 @@
     </div>
 
     <!-- 4. MODALS & TOOLS -->
-    <!-- Media Sheet (Camera/Gallery Picker) -->
     <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[3000]">
         <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.5rem] p-10 flex justify-around shadow-2xl">
-            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3">
-                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div>
-                <span class="text-xs font-bold uppercase tracking-tighter">Camera</span>
-            </button>
-            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3">
-                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div>
-                <span class="text-xs font-bold uppercase tracking-tighter">Gallery</span>
-            </button>
+            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div><span class="text-xs font-bold uppercase">Camera</span></button>
+            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div><span class="text-xs font-bold uppercase">Gallery</span></button>
         </div>
         <input type="file" id="camInp" accept="image/*" capture="camera" class="hidden">
         <input type="file" id="galInp" accept="image/*" class="hidden">
     </div>
 
-    <!-- PIN Modal (Global Security) -->
     <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/95 z-[4000] flex items-center justify-center p-8">
-        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl">
-            <i class="fas fa-shield-halved text-5xl text-[#861F41] mb-8"></i>
-            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest">Verify Admin PIN</h3>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl">
+            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest">Verify PIN</h3>
             <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center text-4xl tracking-widest h-16 mb-8">
-            <button id="pinSubmitBtn" class="w-full py-4 axis-gradient text-white rounded-xl font-bold uppercase tracking-widest">Confirm Access</button>
+            <button id="pinSubmitBtn" class="w-full py-4 axis-gradient text-white rounded-xl font-bold">CONFIRM</button>
         </div>
     </div>
 
-    <!-- Updated Management Center (Settings Modal) -->
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3.5rem] p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <!-- Top Handle -->
-            <div class="w-16 h-1 bg-slate-200 rounded-full mx-auto mb-8"></div>
-            
-            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase tracking-widest">Management Center</h3>
-            
-            <!-- Quick Actions Grid -->
-            <div class="grid grid-cols-1 gap-3 mb-10">
-                <button onclick="openAddManagerModal()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between items-center font-bold">
-                    <span>Hire Entry Manager</span> <i class="fas fa-user-plus text-[#861F41]"></i>
-                </button>
-                <button onclick="askPin(changePinProcess)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between items-center font-bold">
-                    <span>Change Admin PIN</span> <i class="fas fa-key text-slate-400"></i>
-                </button>
-                <button onclick="shareApp()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between items-center font-bold text-emerald-600">
-                    <span>Share PayBook Pro</span> <i class="fas fa-share-nodes"></i>
-                </button>
-                <button onclick="handleLogout()" class="w-full p-5 bg-rose-50 rounded-2xl flex justify-between items-center font-bold text-rose-600 border border-rose-100">
-                    <span>Secure Logout</span> <i class="fas fa-power-off"></i>
-                </button>
-            </div>
-
-            <!-- Manager List (New Feature Section) -->
-            <div class="mb-10">
-                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 pl-2">Appointed Managers</h4>
-                <div id="managerListContainer" class="space-y-3 px-1">
-                    <!-- ম্যানেজার লিস্ট জাভাস্ক্রিপ্ট দিয়ে এখানে লোড হবে -->
-                </div>
-            </div>
-
-            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl">Back to Ledger</button>
+        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl">
+            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">Management Center</h3>
+            <button onclick="addManager()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3">Add Entry Manager <i class="fas fa-user-plus"></i></button>
+            <button onclick="askPin(changePinProcess)" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3">Change Security PIN <i class="fas fa-key"></i></button>
+            <button onclick="transferAccProcess()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-8">Transfer Account <i class="fas fa-exchange"></i></button>
+            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold">CLOSE</button>
+            <button onclick="handleLogout()" class="w-full p-6 bg-rose-50 rounded-3xl flex justify-between font-bold text-rose-600 mt-3 border border-rose-100">
+            <span>Secure Logout</span> <i class="fas fa-power-off"></i>
+            </button>
         </div>
     </div>
 
@@ -235,30 +203,6 @@
             if(doc.exists) { db = doc.data(); renderHome(); }
         }
 
-        function confirmAdd() {
-    const n = document.getElementById('newPName').value.trim();
-    const ph = document.getElementById('newPPhone').value.trim();
-    
-    // কাস্টমার নাকি সাপ্লায়ার তা db.tab থেকে নিশ্চিত হওয়া
-    if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
-    
-    // নম্বর ইউনিক কি না চেক করা
-    if(db.people.some(x => x.phone === ph)) return alert("This number already exists in your list!");
-
-    db.people.unshift({ 
-        id: Date.now(), 
-        name: n, 
-        phone: ph, 
-        type: db.tab, // এটি আপনার সিলেক্ট করা ট্যাব অনুযায়ী হবে
-        transactions: [] 
-    });
-    
-    saveDB(); 
-    document.getElementById('addModal').classList.add('hidden'); // মোডাল বন্ধ
-    renderHome(); // হোম স্ক্রিন আপডেট
-    alert(db.tab + " added successfully!");
-}
-
         // --- AUTH & MANAGER LOGIC ---
         function showReg() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('regBox').classList.remove('hidden'); }
         function showLogin() { 
@@ -276,104 +220,24 @@
         }
 
         function handleLogin() {
-    const enteredPin = document.getElementById('loginPin').value;
-    
-    // ১. এডমিন হিসেবে চেক (গ্লোবাল পিন বা এডমিন পিন)
-    if(enteredPin === db.admin.pin || enteredPin === MASTER_PIN) {
-        completeLogin(db.admin.name);
-    } 
-    // ২. ম্যানেজার হিসেবে চেক (যদি ম্যানেজার লিস্ট থাকে)
-    else if(db.managers && db.managers.length > 0) {
-        const manager = db.managers.find(m => m.pin === enteredPin);
-        if(manager) {
-            db.currentOperator = manager.name; // বর্তমানে কে এন্ট্রি করছে তা ট্র্যাক রাখা
-            completeLogin(manager.name);
-            alert("Logged in as Manager: " + manager.name);
-        } else {
-            alert("Invalid PIN! Please check with Admin.");
+            const pinVal = document.getElementById('loginPin').value;
+            if(pinVal === db.admin.pin || pinVal === MASTER_PIN) {
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('appBody').classList.remove('hidden');
+                document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
+                renderHome();
+            } else alert("Invalid PIN!");
         }
-    } else {
-        alert("Incorrect PIN!");
-    }
-}
 
-function completeLogin(name) {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appBody').classList.remove('hidden');
-    document.getElementById('ownerName').innerText = name;
-    renderHome();
-}
-
-        // ১. নতুন ম্যানেজার অ্যাড করার প্রসেস (পিন সহ)
-function openAddManagerModal() {
-    const mName = prompt("Enter Manager Name:");
-    if(!mName) return;
-    const mPhone = prompt("Enter Manager 10-Digit Mobile:");
-    if(!mPhone || mPhone.length !== 10) return alert("Invalid Phone Number!");
-    const mPin = prompt("Set a 4-Digit Secure PIN for this Manager:");
-    if(!mPin || mPin.length !== 4) return alert("PIN must be 4 digits!");
-
-    if(!db.managers) db.managers = [];
-    
-    // নতুন ম্যানেজার অবজেক্ট
-    db.managers.push({
-        id: Date.now(),
-        name: mName,
-        phone: mPhone,
-        pin: mPin
-    });
-
-    saveDB();
-    renderManagersList(); // লিস্ট আপডেট
-    alert("Manager " + mName + " hired successfully!");
-}
-
-// ২. ম্যানেজারদের লিস্ট দেখানোর ফাংশন
-function renderManagersList() {
-    const container = document.getElementById('managerListContainer');
-    if(!container) return;
-    container.innerHTML = "";
-
-    if(!db.managers || db.managers.length === 0) {
-        container.innerHTML = `<p class="text-center text-xs text-slate-300 py-4 italic font-medium">No managers appointed yet.</p>`;
-        return;
-    }
-
-    db.managers.forEach(m => {
-        container.innerHTML += `
-            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#861F41] font-black shadow-sm border border-slate-100 text-xs">
-                        ${m.name.substring(0,2).toUpperCase()}
-                    </div>
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">${m.name}</p>
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">PH: ${m.phone} | PIN: ${m.pin}</p>
-                    </div>
-                </div>
-                <button onclick="deleteManager(${m.id})" class="w-8 h-8 flex items-center justify-center text-rose-300 hover:text-rose-600 transition-colors">
-                    <i class="fas fa-trash-can text-sm"></i>
-                </button>
-            </div>
-        `;
-    });
-}
-
-// ৩. ম্যানেজার ডিলিট করার ফাংশন
-function deleteManager(id) {
-    if(confirm("Are you sure you want to remove this manager's access?")) {
-        db.managers = db.managers.filter(m => m.id !== id);
-        saveDB();
-        renderManagersList();
-        alert("Manager access revoked.");
-    }
-}
-
-// ৪. সেটিংস ওপেন করার সময় লিস্ট লোড করা
-function showSettings() {
-    renderManagersList(); // লিস্ট আগে লোড হবে
-    document.getElementById('settingsModal').classList.remove('hidden');
-}
+        function addManager() {
+            const mName = prompt("Manager Name:");
+            const mPhone = prompt("Manager 10-Digit Phone:");
+            if(mName && mPhone.length === 10) {
+                if(!db.managers) db.managers = [];
+                db.managers.push({ name: mName, phone: mPhone });
+                saveDB(); alert("Manager Added Successfully!");
+            }
+        }
 
         function handleLogout() {
     if(confirm("Are you sure you want to secure logout?")) {
@@ -395,15 +259,6 @@ function showSettings() {
         console.log("Session locked successfully.");
     }
 }
-        // ফোন মিনিমাইজ করলে বা অন্য অ্যাপে গেলে অটো লক হবে
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden && !document.getElementById('appBody').classList.contains('hidden')) {
-        // অটোমেটিক লগআউট লজিক (নিরাপত্তার জন্য)
-        db.secret = false;
-        document.getElementById('appBody').classList.add('hidden');
-        document.getElementById('authScreen').classList.remove('hidden');
-    }
-});
 
         // --- SECRET MODE & GESTURE ---
         function initSecretGesture() {
