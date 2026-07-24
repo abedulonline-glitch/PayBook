@@ -155,31 +155,72 @@
         </div>
     </div>
 
-    <!-- 3. DATA ENTRY DRAWER (Smart Entry) -->
-    <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-8 shadow-2xl">
-            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
-            <div class="text-center mb-8">
-                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entry Amount</p>
-                <div class="flex items-center justify-center gap-2 mt-2">
-                    <span class="text-4xl font-black text-slate-300">₹</span>
-                    <input type="number" id="txAmt" placeholder="0.00" class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2 border-slate-100 focus:border-[#861F41] pb-2">
-                </div>
+    <!-- 3. DATA ENTRY DRAWER (Smart Multi-Image Entry) -->
+<div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
+    <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
+        <!-- Top Slim Handle -->
+        <div class="w-16 h-1.5 bg-slate-100 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
+        
+        <!-- Amount Entry Section -->
+        <div class="text-center mb-10">
+            <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Amount to Add</p>
+            <div class="flex items-center justify-center gap-3 mt-4">
+                <span class="text-4xl font-black text-slate-200">₹</span>
+                <input type="number" id="txAmt" placeholder="0.00" 
+                       class="text-6xl font-black text-[#861F41] bg-transparent outline-none w-3/4 text-center border-b-4 border-slate-50 focus:border-[#861F41] pb-4 transition-all">
             </div>
-            <div class="space-y-4 mb-10">
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes / Reference" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
-                <div class="bg-slate-50 p-4 rounded-2xl flex items-center justify-between">
-                    <p class="text-sm font-bold text-slate-500">Bill Receipt</p>
-                    <div class="flex gap-2">
-                        <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-10 h-10 rounded-lg object-cover border shadow-sm"><i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full" onclick="clearImage()"></i></div>
-                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300"><i class="fas fa-plus"></i></button>
-                    </div>
-                </div>
-            </div>
-            <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-xl uppercase tracking-widest">Confirm Transaction</button>
         </div>
+
+        <!-- Details Area -->
+        <div class="space-y-4 mb-10">
+            <!-- Notes Input -->
+            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100">
+                <i class="fas fa-file-lines text-slate-300 text-xl"></i>
+                <input type="text" id="txNote" placeholder="Add Notes (What is this for?)" 
+                       class="bg-transparent outline-none flex-1 text-md text-slate-700 font-medium">
+            </div>
+
+            <!-- Date Picker -->
+            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100" 
+                 onclick="document.getElementById('txDate').showPicker()">
+                <i class="fas fa-calendar-day text-slate-300 text-xl"></i>
+                <div class="flex-1">
+                    <p class="text-[10px] font-black text-slate-400 uppercase">Transaction Date</p>
+                    <input type="date" id="txDate" class="bg-transparent outline-none w-full text-md font-bold text-[#861F41]">
+                </div>
+                <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
+            </div>
+
+            <!-- Multiple Bills Attachment Area (Point 5 Implementation) -->
+            <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100">
+                <div class="flex justify-between items-center mb-4 px-1">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-images text-slate-400"></i>
+                        <p class="text-sm font-black text-slate-500 uppercase tracking-tighter">Attach Bill Receipts</p>
+                    </div>
+                    <span id="imgCounter" class="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-full shadow-sm">0 Files</span>
+                </div>
+                
+                <div id="multiImgPreviewContainer" class="flex gap-4 flex-wrap">
+                    <!-- Thumbnails with red X icons will appear here -->
+                    
+                    <!-- Add Image Button -->
+                    <button onclick="openMediaSelector()" 
+                            class="w-16 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300 active:scale-90 transition-all hover:border-[#861F41] hover:text-[#861F41]">
+                        <i class="fas fa-plus-circle text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Action Button -->
+        <button id="mainConfirmBtn" 
+                class="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black shadow-2xl shadow-emerald-100 uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-4">
+            <i class="fas fa-check-circle text-xl"></i>
+            Confirm Transaction
+        </button>
     </div>
+</div>
 
     <!-- 4. MODALS & SHEETS -->
     <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[2000]">
@@ -454,43 +495,91 @@ function exitSecretManually() {
             renderLedger();
         }
 
-        function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList'); list.innerHTML = "";
-            const net = calcBal(p.transactions, db.secret, p.type);
-            
-            // Header display: ১০০ দিয়ে ভাগ (Secret)
-            const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-            document.getElementById('mainTotal').innerText = dNet;
-            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+       function renderLedger() {
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); 
+    list.innerHTML = "";
+    
+    // ১. সঠিক টাইপ (Customer/Supplier) পাঠিয়ে ব্যালেন্স বের করা
+    const net = calcBal(p.transactions, db.secret, p.type);
+    
+    // ২. ১০০ দিয়ে ভাগ করার লজিক (শুধুমাত্র সিক্রেট মোডে)
+    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    const balEl = document.getElementById('mainTotal');
+    balEl.innerText = "₹ " + displayHeaderTotal;
 
-            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                let isRedCol = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+    // ৩. হেডার কালার ও লেবেল আপডেট
+    if (net > 0) {
+        balEl.style.color = '#f43f5e'; // Red (Due)
+        document.getElementById('balTypeLabel').innerText = (p.type === 'CUSTOMER' ? "YOU GET" : "YOU PAY");
+    } else {
+        balEl.style.color = '#10b981'; // Green (Clear/Advance)
+        document.getElementById('balTypeLabel').innerText = (net === 0 ? "SETTLED" : "ADVANCE");
+    }
 
-                list.innerHTML += `
-                    <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                        <div class="text-[8px] font-black text-slate-300 uppercase mb-2">${t.date}</div>
-                        <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                            ${t.imgUrl ? `<img src="${t.imgUrl}" class="w-full h-44 object-cover rounded-xl mb-3 shadow-inner" onclick="window.open(this.src)">` : ''}
-                            <div class="flex justify-between items-center gap-6">
-                                <h3 class="text-xl font-black ${isRedCol?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3>
-                                <p class="text-[8px] font-bold text-slate-300">${t.type}</p>
-                            </div>
-                            <p class="text-[10px] text-slate-500 italic mt-1 font-medium">${t.note || ''}</p>
-                            <div class="flex gap-5 mt-4 pt-3 border-t">
-                                <i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i>
-                                <i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i>
-                                <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                                ${t.history ? `<i class="fas fa-history text-slate-200 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}
-                            </div>
-                        </div>
+    // ৪. ট্রানজ্যাকশন ফিল্টারিং ও রেন্ডারিং
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+        
+        // ৫. মাল্টি-ইমেজ গ্যালারি জেনারেটর (Point 5 Update)
+        let imagesHTML = "";
+        if (t.images && t.images.length > 0) {
+            imagesHTML = `<div class="flex gap-2 overflow-x-auto pb-3 mb-2 snap-x no-scrollbar">`;
+            t.images.forEach(imgUrl => {
+                imagesHTML += `
+                    <div class="snap-start flex-shrink-0 w-44 h-32 bg-slate-50 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+                        <img src="${imgUrl}" class="w-full h-full object-cover" onclick="window.open('${imgUrl}')">
                     </div>`;
             });
-            document.getElementById('mainViewport').scrollTop = list.scrollHeight;
+            imagesHTML += `</div>`;
+        } else if (t.imgUrl) { // পুরাতন সিঙ্গেল ইমেজ সাপোর্ট
+            imagesHTML = `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="window.open(this.src)">`;
         }
 
+        // ৬. কালার লজিক (বকেয়া লাল)
+        let isRedCol = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
+
+        list.innerHTML += `
+            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-1 tracking-tighter">${t.date}</div>
+                
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                    <!-- Images Area -->
+                    ${imagesHTML}
+                    
+                    <div class="flex justify-between items-center gap-6 mt-1 px-1">
+                        <h3 class="text-xl font-black ${isRedCol ? 'text-rose-600' : 'text-emerald-600'} tracking-tighter">
+                            ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
+                        </h3>
+                        <p class="text-[8px] font-bold text-slate-300 uppercase tracking-widest">${t.type}</p>
+                    </div>
+
+                    <!-- Note & Managed By (Point 9) -->
+                    <div class="mt-3 px-1 border-t border-slate-50 pt-2">
+                        <p class="text-[10px] text-slate-500 italic font-medium leading-tight">${t.note || 'Reference Entry'}</p>
+                        <p class="text-[7px] text-slate-400 mt-2 uppercase font-black tracking-[0.1em] flex items-center gap-1">
+                            <i class="fas fa-user-check text-[6px]"></i> By: ${t.by || 'Owner'}
+                        </p>
+                    </div>
+
+                    <!-- Action Icons -->
+                    <div class="flex gap-5 mt-4 pt-3 border-t border-slate-50">
+                        <i class="fas fa-edit text-indigo-200 text-xs active:text-indigo-500" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash text-rose-200 text-xs active:text-rose-500" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto active:text-emerald-600" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-200 text-[10px]" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
+                    </div>
+                </div>
+            </div>`;
+    });
+
+    // ৫. কন্টেইনার স্ক্রোল করা একদম নিচে (লেটেস্ট ট্রানজ্যাকশন দেখার জন্য)
+    setTimeout(() => {
+        const viewport = document.getElementById('mainViewport');
+        viewport.scrollTop = viewport.scrollHeight;
+    }, 100);
+}
         // --- 5. DATA ENTRY & MEDIA ---
         function triggerDrawer(type) {
             const drawer = document.getElementById('entryDrawer'); drawer.classList.remove('hidden');
@@ -499,33 +588,96 @@ function exitSecretManually() {
             document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('mainConfirmBtn').onclick = () => preSave(type);
         }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(() => { document.getElementById('entryDrawer').classList.add('hidden'); clearImage(); }, 400); }
+        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(() => { document.getElementById('entryDrawer').classList.add('hidden'); clearImage(); }, 400);
+                               tempImageFiles = []; // ছবি লিস্ট খালি করা
+    document.getElementById('multiImgPreviewContainer').innerHTML = ""; // প্রিভিউ খালি করা
+ }
 
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function handleImageFile(f) { if(!f) return; capturedImgFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('imgPreview').classList.remove('hidden'); }
         function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedImgFile = null; }
 
+        let tempImageFiles = []; // সাময়িকভাবে ছবি রাখার জন্য
+
+function handleImageFile(file) {
+    if(!file) return;
+    tempImageFiles.push(file); // নতুন ছবি যোগ করা
+    renderMultiThumbnails();
+    document.getElementById('mediaSheet').classList.add('hidden'); // মিডিয়া শিট বন্ধ
+}
+
+function renderMultiThumbnails() {
+    const container = document.getElementById('multiImgPreviewContainer');
+    container.innerHTML = "";
+    
+    tempImageFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        container.innerHTML += `
+            <div class="relative w-14 h-14 animate-fade">
+                <img src="${url}" class="w-full h-full object-cover rounded-2xl border shadow-sm">
+                <i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full text-sm shadow-md" 
+                   onclick="removeTempImage(${index})"></i>
+            </div>
+        `;
+    });
+    
+    // প্লাস বাটন যোগ করা (যাতে আরও ছবি তোলা যায়)
+    container.innerHTML += `
+        <button onclick="openMediaSelector()" class="w-14 h-14 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300">
+            <i class="fas fa-plus text-lg"></i>
+        </button>
+    `;
+}
+
+function removeTempImage(index) {
+    tempImageFiles.splice(index, 1);
+    renderMultiThumbnails();
+}
         async function preSave(type) {
-            const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Enter Amount!");
-            const saveAction = async () => {
-                document.getElementById('mainConfirmBtn').innerText = "UPLOADING...";
-                let imgUrl = "";
-                if(capturedImgFile) {
-                    const fd = new FormData(); fd.append('image', capturedImgFile);
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json(); if(dat.success) imgUrl = dat.data.url;
-                }
-                const p = db.people.find(x => x.id === db.activeId);
-                p.transactions.push({ id:Date.now(), amount:amt, type, secret:!!db.secret, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, imgUrl, status:'active' });
-                saveDB(); renderLedger(); closeDrawer();
-                document.getElementById('mainConfirmBtn').innerText = "CONFIRM TRANSACTION";
-                if(db.secret) startAutoExit();
-            };
-            // পিন চেক (শুধুমাত্র সিক্রেট মোডে কাস্টমার পেমেন্টে)
-            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(saveAction); else saveAction();
+    const amt = parseFloat(document.getElementById('txAmt').value);
+    if(!amt) return alert("Please enter amount!");
+
+    const action = async () => {
+        document.getElementById('mainConfirmBtn').innerText = "UPLOADING " + tempImageFiles.length + " IMAGES...";
+        document.getElementById('mainConfirmBtn').disabled = true;
+
+        let uploadedUrls = [];
+        
+        // সব ছবি লুপ চালিয়ে আপলোড করা
+        for (let file of tempImageFiles) {
+            const fd = new FormData();
+            fd.append('image', file);
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+            const dat = await res.json();
+            if(dat.success) uploadedUrls.push(dat.data.url);
         }
+
+        const p = db.people.find(x => x.id === db.activeId);
+        p.transactions.push({
+            id: Date.now(),
+            amount: amt,
+            type: type,
+            secret: !!db.secret,
+            date: document.getElementById('txDate').value,
+            note: document.getElementById('txNote').value,
+            images: uploadedUrls, // এখানে ছবির লিস্ট সেভ হচ্ছে
+            by: db.opName || db.admin.name,
+            status: 'active'
+        });
+
+        saveDB(); 
+        renderLedger(); 
+        closeDrawer();
+        
+        // সব রিসেট করা
+        tempImageFiles = [];
+        document.getElementById('mainConfirmBtn').innerText = "CONFIRM TRANSACTION";
+        document.getElementById('mainConfirmBtn').disabled = false;
+    };
+
+    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
+}
 
         // --- 6. SMART PDF & SHARE ---
         function handleSmartPdfDownload() {
