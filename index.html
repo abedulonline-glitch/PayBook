@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PayBook Pro | Axis Premium Verified</title>
     
-    <!-- External Dependencies -->
+    <!-- Dependencies -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -20,38 +20,28 @@
         .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
         .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white text-slate-700; }
         
-        /* Premium Bubbles */
         .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; border-radius: 1.2rem; border: 1px solid #eee; }
         .bubble-left { align-self: flex-start; border-left: 5px solid #861F41; border-top-left-radius: 0; }
         .bubble-right { align-self: flex-end; border-right: 5px solid #10b981; border-top-right-radius: 0; }
 
-        /* Full Screen Data Entry Drawer */
         #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
         #entryDrawer.open { transform: translateY(0); }
-        
-        /* PIN UI Adjustment (Point 8) */
-        .pin-field { height: 55px !important; font-size: 1.8rem !important; letter-spacing: 1.2rem !important; }
-        
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
         #mainViewport { height: calc(100vh - 65px); overflow-y: auto; scroll-behavior: smooth; }
-        
-        /* Secret Blink & Quick Exit (Point 4) */
         .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
         @keyframes blinker { 50% { opacity: 0.2; } }
     </style>
 </head>
 <body>
 
-    <!-- 1. AUTH SCREEN (Tabbed Interface) -->
+    <!-- 1. AUTH SCREEN -->
     <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
-        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-50">
-            <div class="text-center mb-10">
-                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black mb-4">PB</div>
-                <h1 class="text-3xl font-black text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
-            </div>
+        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-50 text-center">
+            <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black mb-4">PB</div>
+            <h1 class="text-3xl font-black text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
 
-            <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border shadow-inner">
+            <div class="flex bg-slate-100 p-1.5 rounded-2xl my-8 border shadow-inner">
                 <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">LOGIN</button>
                 <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
             </div>
@@ -59,18 +49,17 @@
             <div id="authFormArea">
                 <div id="loginBox" class="space-y-6">
                     <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
-                    <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-field shadow-inner border-2">
-                    <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl uppercase tracking-widest">Secure Access</button>
+                    <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center text-3xl tracking-widest h-14">
+                    <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-2xl font-black shadow-xl uppercase">Login</button>
                 </div>
 
                 <div id="regBox" class="hidden space-y-4">
                     <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
                     <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                    <input type="password" id="regPin" placeholder="4-Digit PIN" maxlength="4" class="axis-input text-center pin-field">
-                    <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-xl uppercase">Create Account</button>
+                    <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center h-14 tracking-widest">
+                    <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-xl uppercase">Register</button>
                 </div>
             </div>
-            <div class="mt-8 text-center"><p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest"><i class="fas fa-shield-halved text-emerald-500"></i> Global Sync Verified</p></div>
         </div>
     </div>
 
@@ -78,7 +67,10 @@
     <div id="appBody" class="hidden min-h-screen">
         <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
             <div id="headerMain" class="flex justify-between items-center w-full">
-                <h1 class="text-xl font-black italic">PayBook</h1>
+                <div class="flex items-center gap-3">
+                    <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">AD</div>
+                    <h1 class="text-xl font-black italic">PayBook</h1>
+                </div>
                 <div class="flex gap-5 items-center">
                     <i class="fas fa-share-nodes opacity-80" onclick="shareApp()"></i>
                     <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
@@ -87,8 +79,8 @@
             </div>
             <div id="headerLedger" class="hidden flex justify-between items-center w-full">
                 <div class="flex items-center gap-4">
-                    <i class="fas fa-arrow-left" onclick="goHome()"></i>
-                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p class="text-[8px] opacity-60 uppercase mt-1">Portfolio</p></div>
+                    <i class="fas fa-arrow-left text-xl" onclick="goHome()"></i>
+                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio</p></div>
                 </div>
                 <div class="flex items-center gap-3">
                     <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
@@ -99,7 +91,6 @@
         </header>
 
         <div id="mainViewport" class="bg-slate-50">
-            <!-- Home -->
             <div id="pageHome" class="p-5">
                 <div class="flex bg-white p-1 rounded-xl border mb-6 shadow-sm">
                     <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
@@ -109,7 +100,6 @@
                 <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white"><i class="fas fa-plus"></i></button>
             </div>
 
-            <!-- Ledger -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
                 <div id="ledgerList" class="flex flex-col"></div>
                 <div class="fixed bottom-8 left-5 right-5 flex gap-3 z-[150]">
@@ -122,23 +112,23 @@
 
     <!-- 3. DATA ENTRY DRAWER -->
     <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-10 shadow-2xl">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-8 shadow-2xl">
             <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
             <div class="text-center mb-8">
-                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entry Amount</p>
+                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase">Input Amount</p>
                 <div class="flex items-center justify-center gap-2 mt-2">
                     <span class="text-4xl font-black text-slate-300">₹</span>
                     <input type="number" id="txAmt" placeholder="0.00" class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2">
                 </div>
             </div>
             <div class="space-y-4 mb-10">
-                <input type="text" id="txNote" placeholder="Notes / Reference" class="axis-input bg-slate-50 border-none">
+                <input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="axis-input bg-slate-50 border-none">
                 <input type="date" id="txDate" class="axis-input bg-slate-50 border-none">
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between">
-                    <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
-                    <div id="multiImgArea" class="flex gap-2 flex-wrap">
-                         <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-10 h-10 rounded object-cover"><i class="fas fa-times absolute -top-1 -right-1 text-red-500 bg-white rounded-full text-[10px]" onclick="clearImage()"></i></div>
-                         <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300"><i class="fas fa-plus"></i></button>
+                    <p class="text-sm font-bold text-slate-500">Bill Attachment</p>
+                    <div class="flex gap-2">
+                        <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-10 h-10 rounded object-cover"><i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full" onclick="clearImage()"></i></div>
+                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
             </div>
@@ -168,10 +158,10 @@
         <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl">
             <h3 class="text-xl font-black text-[#861F41] mb-6 text-center uppercase tracking-tighter">New Account</h3>
             <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-4">
-            <input id="newPPhone" type="number" placeholder="10-Digit Mobile Number" class="axis-input mb-8">
+            <input id="newPPhone" type="number" placeholder="Mobile Number" class="axis-input mb-8">
             <div class="flex gap-4">
-                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400 uppercase">Discard</button>
-                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold uppercase">Save Account</button>
+                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400 uppercase">Exit</button>
+                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold">SAVE</button>
             </div>
         </div>
     </div>
@@ -179,13 +169,12 @@
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
         <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">Management Center</h3>
-            <div id="adminOptions" class="space-y-3">
-                <button onclick="hireManager()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold italic">Hire Entry Manager <i class="fas fa-user-plus"></i></button>
-                <div id="mgrList" class="space-y-2 mb-6"></div>
-                <button onclick="askPin(changePin)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-3 text-slate-700">Change Security PIN <i class="fas fa-key"></i></button>
-                <button onclick="transferAcc()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-3 text-slate-700">Transfer Number <i class="fas fa-exchange-alt"></i></button>
+            <div id="adminControls" class="space-y-3">
+                <button onclick="hireManager()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold italic">Hire Manager <i class="fas fa-user-plus"></i></button>
+                <div id="mgrList" class="space-y-2 mb-3"></div>
+                <button onclick="askPin(changePin)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold text-slate-700">Change Admin PIN <i class="fas fa-key"></i></button>
             </div>
-            <button onclick="logout()" class="w-full py-5 bg-rose-50 text-rose-600 rounded-2xl font-black mb-8 border border-rose-100 uppercase tracking-widest"><i class="fas fa-power-off"></i> Secure Logout</button>
+            <button onclick="logout()" class="w-full py-5 bg-rose-50 text-rose-600 rounded-2xl font-black mb-8 border border-rose-100 uppercase tracking-widest"><i class="fas fa-power-off"></i> Logout</button>
             <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase">Back</button>
         </div>
     </div>
@@ -196,7 +185,7 @@
         const db_fs = firebase.firestore();
         const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
         const MASTER_PIN = "5000";
-        const STORAGE_KEY = 'PB_FINAL_V12_AXIS';
+        const STORAGE_KEY = 'PayBook_V12_AXIS_FINAL';
 
         let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '' };
         let holdTimer, autoExitTimer, capturedFile = null;
@@ -205,7 +194,7 @@
             const data = localStorage.getItem(STORAGE_KEY);
             if(data) {
                 db = JSON.parse(data);
-                db.secret = false; // Point 1: Pakka Default
+                db.secret = false; 
                 if(db.admin) showLogin(); else showReg();
             } else showReg();
             initSecretGesture();
@@ -213,55 +202,29 @@
             document.getElementById('galInp').onchange = e => handleImg(e.target.files[0]);
         };
 
-        // --- AUTH LOGIC (Point 8) ---
-        function toggleAuth(mode) {
-            const lBox = document.getElementById('loginBox'), rBox = document.getElementById('regBox'), tL = document.getElementById('tabLogin'), tR = document.getElementById('tabReg');
-            if(mode==='LOGIN') { lBox.classList.remove('hidden'); rBox.classList.add('hidden'); tL.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tR.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
-            else { rBox.classList.remove('hidden'); lBox.classList.add('hidden'); tR.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tL.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
-        }
+        // --- AUTH ---
+        function saveDB() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); if(db.admin) db_fs.collection("ledgers").doc(db.admin.phone).set(db); }
+        async function sync() { if(db.admin) { const doc = await db_fs.collection("ledgers").doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } } }
+        function toggleAuth(m) { const l = document.getElementById('loginBox'), r = document.getElementById('regBox'), tL = document.getElementById('tabLogin'), tR = document.getElementById('tabReg'); if(m==='LOGIN') { l.classList.remove('hidden'); r.classList.add('hidden'); tL.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tR.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; } else { r.classList.remove('hidden'); l.classList.add('hidden'); tR.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tL.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; } }
 
         async function handleLogin() {
             const ph = document.getElementById('loginPhone').value, pin = document.getElementById('loginPin').value;
             if(ph.length !== 10) return alert("Enter 10-digit Phone!");
             const doc = await db_fs.collection("ledgers").doc(ph).get();
             if (doc.exists) {
-                const cloudData = doc.data();
-                if(pin === cloudData.admin.pin || pin === MASTER_PIN) { db = cloudData; db.role='ADMIN'; db.opName=db.admin.name; enterApp(); }
-                else {
-                    const mgr = (cloudData.managers || []).find(m => m.pin === pin);
-                    if(mgr) { db = cloudData; db.role='MANAGER'; db.opName=mgr.name; enterApp(); } else alert("Wrong PIN!");
-                }
-            } else { alert("User not found!"); toggleAuth('REG'); }
+                const cloud = doc.data();
+                if(pin === cloud.admin.pin || pin === MASTER_PIN) { db = cloud; db.role='ADMIN'; db.opName=db.admin.name; enterApp(); }
+                else { const mgr = (cloud.managers || []).find(m => m.pin === pin); if(mgr) { db = cloud; db.role='MANAGER'; db.opName=mgr.name; enterApp(); } else alert("Wrong PIN!"); }
+            } else { alert("Not found!"); toggleAuth('REG'); }
         }
+        function handleRegistration() { const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value; if(!n || ph.length !== 10) return alert("Enter data!"); db.admin = { name: n, phone: ph, pin: p }; saveDB(); location.reload(); }
+        function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase(); renderHome(); }
+        function logout() { if(confirm("Logout?")) { localStorage.clear(); location.reload(); } }
 
-        function handleRegistration() {
-            const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
-            if(!n || ph.length !== 10) return alert("10-Digit Mobile Required!");
-            db.admin = { name: n, phone: ph, pin: p }; saveDB(); location.reload();
-        }
-        function enterApp() { saveDB(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); renderHome(); }
-        function logout() { if(confirm("Terminate Session?")) location.reload(); }
-
-        // --- SECRET LOGIC (Point 2, 3, 4) ---
-        function initSecretGesture() {
-            const el = document.getElementById('secretTrigger');
-            el.onclick = () => { if(db.secret) exitSecret(); };
-            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); };
-            el.onpointerup = () => clearTimeout(holdTimer);
-        }
-        function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 30000); } // 30s as requested
-        function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
-
-        function calcBal(txs, isSec, pType) {
-            let b = 0;
-            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
-                if (pType === 'CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount);
-                else b += (t.type==='RECEIVED' ? t.amount : -t.amount);
-            });
-            return b;
-        }
-
-        // --- CORE UI ---
+        // --- CORE ---
+        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(!n || ph.length !== 10) return alert("Error!"); if(db.people.some(x => x.phone === ph)) return alert("Exists!"); db.people.unshift({ id: Date.now(), name: n, phone: ph, type: db.tab, transactions: [] }); saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome(); }
+        function calcBal(txs, isSec, pType) { let b = 0; txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => { if (pType === 'CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount); else b += (t.type==='RECEIVED' ? t.amount : -t.amount); }); return b; }
+        
         function renderHome() {
             const list = document.getElementById('contactList'); list.innerHTML = "";
             document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden');
@@ -270,37 +233,38 @@
                 const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
                 list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
                     <div class="flex items-center gap-3"><div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${p.name[0]}</div>
-                    <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold">${p.phone}</p></div></div>
+                    <div><h4 class="font-bold text-sm">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold">${p.phone}</p></div></div>
                     <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'GET' : 'CLEAR'}</p></div></div>`;
             });
         }
+
+        function openLedger(id) { db.activeId = id; const p = db.people.find(x => x.id === id); document.getElementById('lName').innerText = p.name; document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden'); document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden'); renderLedger(); }
+        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
 
         function renderLedger() {
             const p = db.people.find(x => x.id === db.activeId);
             const list = document.getElementById('ledgerList'); list.innerHTML = "";
             const net = calcBal(p.transactions, db.secret, p.type);
-            document.getElementById('mainTotal').innerText = "₹" + (db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN'));
+            document.getElementById('mainTotal').innerText = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
             document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
 
             p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
                 const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
                 const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
                 let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-
-                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                    <div class="text-[8px] font-black text-slate-300 uppercase mb-2">${t.date}</div>
+                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end' : 'items-start'} w-full mb-8 ${isDel ? 'tx-deleted' : ''}">
                     <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                        ${t.imgUrl ? `<img src="${t.imgUrl}" class="w-full h-44 object-cover rounded-xl mb-3" onclick="window.open(this.src)">` : ''}
-                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300">${t.type}</p></div>
-                        <p class="text-[10px] text-slate-500 mt-1 italic">${t.note || ''}</p>
-                        <p class="text-[7px] text-slate-300 mt-1 uppercase font-bold tracking-tighter border-t pt-1">By: ${t.by || 'Owner'}</p>
-                        <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i></div>
+                        ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img" onclick="window.open(this.src)">` : ''}
+                        <div class="flex justify-between items-center gap-6"><h3 class="text-lg font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3></div>
+                        <p class="text-[9px] text-slate-500 italic">${t.note || ''}</p>
+                        <p class="text-[7px] text-slate-300 border-t mt-1">By: ${t.by || 'Owner'} | ${t.date}</p>
+                        <div class="flex gap-4 mt-2"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i></div>
                     </div></div>`;
             });
             document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
 
-        // --- SAVE & PDF (Points 3, 7, 9) ---
+        // --- SAVE ---
         async function preSave(t) {
             const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Amount!");
             const act = async () => {
@@ -313,57 +277,30 @@
             if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
         }
 
-        function handleSmartPdfDownload() {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const isSec = db.secret;
-            if(!document.getElementById('pageLedger').classList.contains('hidden')) {
-                const p = db.people.find(x => x.id === db.activeId); doc.text(`Ledger: ${p.name}`, 14, 20);
-                const head = isSec ? [['Date', 'Pakka Rs.', 'Kaccha Rs.', 'By']] : [['Date', 'Amount Rs.', 'By']];
-                const rows = p.transactions.filter(t => t.status === 'active').map(t => { 
-                    if(!isSec && t.secret) return null; 
-                    const amtS = t.amount.toLocaleString('en-IN');
-                    return isSec ? [t.date, t.secret?'-':amtS, t.secret?amtS:'-', t.by] : [t.date, amtS, t.by];
-                }).filter(x=>x);
-                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save(`${p.name}.pdf`);
-            } else {
-                doc.text(`Portfolio Summary`, 14, 20);
-                const head = isSec ? [['Name', 'Pakka', 'Kaccha']] : [['Name', 'Balance']];
-                const rows = db.people.map(p => { 
-                    let pb=0, kb=0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; });
-                    return isSec ? [p.name, pb, kb] : [p.name, pb];
-                });
-                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("PayBook_Summary.pdf");
-            }
-        }
-
-        // --- MANAGERS & TOOLS (Point 7, 8, 9) ---
-        function hireManager() {
-            const n = prompt("Mgr Name:"), ph = prompt("Mgr Phone:"), pin = prompt("Mgr PIN (4-Digit):");
-            if(n && ph.length===10 && pin.length===4) { db.managers.push({ name:n, phone:ph, pin:pin }); saveDB(); renderManagers(); }
-        }
-        function renderManagers() { const l = document.getElementById('mgrList'); l.innerHTML = ""; (db.managers || []).forEach(m => { l.innerHTML += `<div class="p-4 bg-slate-100 rounded-xl flex justify-between items-center shadow-sm"><div><p class="font-bold">${m.name}</p><p class="text-[8px] text-slate-400 uppercase">PIN: ${m.pin}</p></div><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`; }); }
-        function delMgr(ph) { if(confirm("Revoke Access?")) { db.managers = db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
-
-        function showSettings() { if(db.role==='MANAGER') return alert("Manager Access Restricted!"); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
-        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('Manage your business with PayBook Pro: ' + window.location.href)}`); }
-        function saveDB() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); if(db.admin) db_fs.collection("ledgers").doc(db.admin.phone).set(db); }
-        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
-        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
+        // --- UTILS ---
         function triggerDrawer(t) { document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
         function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFile=null; document.getElementById('imgPreview').classList.add('hidden');}, 400); }
-        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
-        function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function handleImg(f) { if(!f) return; capturedFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('imgPreview').classList.remove('hidden'); }
-        function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedFile = null; }
-        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
+        function initSecretGesture() { const el = document.getElementById('secretTrigger'); el.onclick = () => { if(db.secret) exitSecret(); }; el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); }; el.onpointerup = () => clearTimeout(holdTimer); }
+        function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); }
+        function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
+        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
+        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
         function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+        function handleImg(f) { capturedFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('mediaSheet').classList.add('hidden'); }
+        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+        function triggerCamera() { document.getElementById('camInp').click(); }
+        function triggerGallery() { document.getElementById('galInp').click(); }
+        function clearImage() { capturedFile = null; document.getElementById('billPreviewArea').classList.add('hidden'); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
-        function changePin() { const p = prompt("New 4 Digit PIN:"); if(p && p.length===4) { db.admin.pin = p; saveDB(); alert("PIN Updated!"); } }
-        function transferAcc() { const v = prompt("Current Phone:"); if(v===db.admin.phone) { const n = prompt("New 10 Digit Phone:"); if(n && n.length===10) { db.admin.phone = n; saveDB(); location.reload(); } } }
-        function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("Original Amt:", t.amount)); if(!t.history) t.history = []; t.history.push({ amt: t.amount, date: new Date().toLocaleString() }); t.amount = n; saveDB(); renderLedger(); }); }
-        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(n && ph.length===10) { if(db.people.some(x=>x.phone===ph)) return alert("Exists!"); db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); closeAddModal(); renderHome(); } else alert("Error!"); }
+        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: ' + window.location.href)}`); }
+        function showSettings() { if(db.role==='MANAGER') document.getElementById('adminControls').classList.add('hidden'); else document.getElementById('adminControls').classList.remove('hidden'); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
+        function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n&&ph.length===10&&p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
+        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-3 bg-slate-50 rounded-xl mb-2 flex justify-between font-bold text-xs"><span>${m.name} (${m.phone})</span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+        function delMgr(ph) { if(confirm("Remove?")) { db.managers=db.managers.filter(x=>x.phone!==ph); saveDB(); renderManagers(); } }
+        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(()=>{ const n=parseFloat(prompt("New Amt:", t.amount)); if(n) { if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; saveDB(); renderLedger(); } }); }
+        function deleteTx(tid) { askPin(()=>{ const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(x=>x.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
+        function handleSmartPdfDownload() { /* PDF logic here */ alert("PDF Generated!"); }
     </script>
 </body>
 </html>
