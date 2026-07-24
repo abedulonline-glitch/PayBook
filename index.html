@@ -596,84 +596,106 @@ function exitSecretManually() {
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedImgFile = null; }
+        let tempImageFiles = []; // সাময়িকভাবে ছবি রাখার অ্যারে
 
-        let tempImageFiles = []; // সাময়িকভাবে ছবি রাখার জন্য
-
+// ১. ক্যামেরা বা গ্যালারি থেকে ছবি সিলেক্ট করলে এটি কল হবে
 function handleImageFile(file) {
     if(!file) return;
-    tempImageFiles.push(file); // নতুন ছবি যোগ করা
-    renderMultiThumbnails();
+    tempImageFiles.push(file); // নতুন ছবি যোগ করা হলো
+    renderMultiThumbnails(); // স্ক্রিনে ছোট ছবি (থাম্বনেইল) দেখানো
     document.getElementById('mediaSheet').classList.add('hidden'); // মিডিয়া শিট বন্ধ
 }
 
+// ২. ড্রয়ারের ভেতর ছোট ছোট থাম্বনেইল দেখানোর ফাংশন
 function renderMultiThumbnails() {
     const container = document.getElementById('multiImgPreviewContainer');
+    if(!container) return;
     container.innerHTML = "";
     
     tempImageFiles.forEach((file, index) => {
         const url = URL.createObjectURL(file);
         container.innerHTML += `
-            <div class="relative w-14 h-14 animate-fade">
+            <div class="relative w-16 h-16 animate-fade">
                 <img src="${url}" class="w-full h-full object-cover rounded-2xl border shadow-sm">
-                <i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full text-sm shadow-md" 
+                <i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full text-lg shadow-md cursor-pointer" 
                    onclick="removeTempImage(${index})"></i>
             </div>
         `;
     });
     
-    // প্লাস বাটন যোগ করা (যাতে আরও ছবি তোলা যায়)
+    // প্লাস বাটন যোগ করা যাতে আরও ছবি তোলা যায়
     container.innerHTML += `
-        <button onclick="openMediaSelector()" class="w-14 h-14 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300">
-            <i class="fas fa-plus text-lg"></i>
+        <button onclick="openMediaSelector()" class="w-16 h-16 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300">
+            <i class="fas fa-plus"></i>
         </button>
     `;
+    
+    // ইমেজ কাউন্টার আপডেট (যদি থাকে)
+    const counter = document.getElementById('imgCounter');
+    if(counter) counter.innerText = tempImageFiles.length + " Files";
 }
 
+// ৩. ছবি ডিলিট করার ফাংশন (এরর ফিক্সড)
 function removeTempImage(index) {
     tempImageFiles.splice(index, 1);
     renderMultiThumbnails();
 }
-        async function preSave(type) {
-    const amt = parseFloat(document.getElementById('txAmt').value);
+
+// ৪. ভুল ডাটা ক্লিন করার ফাংশন (এরর ফিক্সড)
+function clearImage() {
+    tempImageFiles = [];
+    renderMultiThumbnails();
+}
+       async function preSave(type) {
+    const amtInput = document.getElementById('txAmt');
+    const amt = parseFloat(amtInput.value);
     if(!amt) return alert("Please enter amount!");
 
     const action = async () => {
-        document.getElementById('mainConfirmBtn').innerText = "UPLOADING " + tempImageFiles.length + " IMAGES...";
-        document.getElementById('mainConfirmBtn').disabled = true;
+        const confirmBtn = document.getElementById('mainConfirmBtn');
+        confirmBtn.innerText = "UPLOADING " + tempImageFiles.length + " IMAGES...";
+        confirmBtn.disabled = true;
 
         let uploadedUrls = [];
         
-        // সব ছবি লুপ চালিয়ে আপলোড করা
-        for (let file of tempImageFiles) {
-            const fd = new FormData();
-            fd.append('image', file);
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-            const dat = await res.json();
-            if(dat.success) uploadedUrls.push(dat.data.url);
+        try {
+            // সব ছবি লুপ চালিয়ে আপলোড করা
+            for (let file of tempImageFiles) {
+                const fd = new FormData();
+                fd.append('image', file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) uploadedUrls.push(dat.data.url);
+            }
+
+            const p = db.people.find(x => x.id === db.activeId);
+            p.transactions.push({
+                id: Date.now(),
+                amount: amt,
+                type: type,
+                secret: !!db.secret,
+                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'),
+                note: document.getElementById('txNote').value,
+                images: uploadedUrls, // সব ছবির লিঙ্ক সেভ হলো
+                by: db.opName || 'Owner',
+                status: 'active'
+            });
+
+            saveDB(); 
+            renderLedger(); 
+            closeDrawer();
+            
+            // সব ক্লিয়ার করা
+            tempImageFiles = [];
+            confirmBtn.innerText = "CONFIRM TRANSACTION";
+            confirmBtn.disabled = false;
+            alert("Transaction saved with " + uploadedUrls.length + " images!");
+
+        } catch (err) {
+            console.error("Upload Error:", err);
+            alert("Upload failed. Check your internet.");
+            confirmBtn.disabled = false;
         }
-
-        const p = db.people.find(x => x.id === db.activeId);
-        p.transactions.push({
-            id: Date.now(),
-            amount: amt,
-            type: type,
-            secret: !!db.secret,
-            date: document.getElementById('txDate').value,
-            note: document.getElementById('txNote').value,
-            images: uploadedUrls, // এখানে ছবির লিস্ট সেভ হচ্ছে
-            by: db.opName || db.admin.name,
-            status: 'active'
-        });
-
-        saveDB(); 
-        renderLedger(); 
-        closeDrawer();
-        
-        // সব রিসেট করা
-        tempImageFiles = [];
-        document.getElementById('mainConfirmBtn').innerText = "CONFIRM TRANSACTION";
-        document.getElementById('mainConfirmBtn').disabled = false;
     };
 
     if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
