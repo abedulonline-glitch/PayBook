@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PayBook Pro | Axis Premium Edition</title>
+    <title>PayBook Pro | Axis Premium Verified</title>
     
     <!-- External Dependencies -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -19,47 +19,48 @@
         body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; overflow: hidden; user-select: none; }
         .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
         .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white text-slate-700; }
+        
+        /* Premium Bubbles */
         .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; border-radius: 1.2rem; border: 1px solid #eee; }
         .bubble-left { align-self: flex-start; border-left: 5px solid #861F41; border-top-left-radius: 0; }
         .bubble-right { align-self: flex-end; border-right: 5px solid #10b981; border-top-right-radius: 0; }
+
+        /* Drawer System */
         #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
         #entryDrawer.open { transform: translateY(0); }
-        .pin-field { height: 55px !important; font-size: 1.8rem !important; letter-spacing: 1.2rem !important; }
+        
+        #pinInputBox { height: 60px !important; font-size: 2rem !important; letter-spacing: 1.5rem !important; }
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
         #mainViewport { height: calc(100vh - 65px); overflow-y: auto; scroll-behavior: smooth; }
-        .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
+        
+        /* Secret Blink */
+        .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; opacity: 1 !important; }
         @keyframes blinker { 50% { opacity: 0.2; } }
     </style>
 </head>
 <body>
 
     <!-- 1. AUTH SCREEN -->
-    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
-        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-50">
-            <div class="text-center mb-10">
-                <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto flex items-center justify-center text-white text-3xl font-black mb-4 shadow-lg">PB</div>
-                <h1 class="text-3xl font-black text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
+    <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
+        <div class="w-full max-w-md text-center">
+            <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto mb-6 flex items-center justify-center text-white text-3xl font-black shadow-xl">PB</div>
+            <h1 class="text-3xl font-black text-[#861F41] mb-2">PayBook<span class="text-slate-300">Pro</span></h1>
+            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-[0.3em] mb-12">Premium Business Ledger</p>
+
+            <div id="regBox" class="hidden space-y-4 text-left">
+                <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
+                <input type="number" id="regPhone" placeholder="10-Digit Phone Number" class="axis-input">
+                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center tracking-widest">
+                <button onclick="handleRegistration()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg">OPEN ACCOUNT</button>
             </div>
 
-            <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border shadow-inner">
-                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md">LOGIN</button>
-                <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
-            </div>
-
-            <div id="authFormArea">
-                <div id="loginBox" class="space-y-6">
-                    <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
-                    <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-field shadow-inner border-2">
-                    <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl uppercase tracking-widest active:scale-95 transition-all">Secure Access</button>
+            <div id="loginBox" class="hidden space-y-8">
+                <div class="p-6 bg-slate-50 rounded-2xl border-l-8 border-[#861F41] text-left">
+                    <p id="displayPhone" class="text-xl font-black text-[#861F41]"></p>
                 </div>
-
-                <div id="regBox" class="hidden space-y-4">
-                    <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
-                    <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                    <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center pin-field">
-                    <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-xl uppercase">Create Account</button>
-                </div>
+                <input type="password" id="loginPin" placeholder="PIN" maxlength="4" id="pinInputBox" class="axis-input text-center h-16 shadow-inner">
+                <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-2xl uppercase tracking-widest">Login</button>
             </div>
         </div>
     </div>
@@ -81,25 +82,28 @@
             <div id="headerLedger" class="hidden flex justify-between items-center w-full">
                 <div class="flex items-center gap-4">
                     <i class="fas fa-arrow-left" onclick="goHome()"></i>
-                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio</p></div>
+                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio Balance</p></div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <i class="fas fa-file-pdf opacity-70" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
+                    <span id="mainTotal" class="font-black text-lg">0.00</span>
                     <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
                 </div>
             </div>
         </header>
 
         <div id="mainViewport" class="bg-slate-50">
+            <!-- Home -->
             <div id="pageHome" class="p-5">
                 <div class="flex bg-white p-1 rounded-xl border mb-6 shadow-sm">
                     <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
                     <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400">SUPPLIERS</button>
                 </div>
                 <div id="contactList" class="space-y-3"></div>
-                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
+                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white"><i class="fas fa-plus"></i></button>
             </div>
+
+            <!-- Ledger -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
                 <div id="ledgerList" class="flex flex-col"></div>
                 <div class="fixed bottom-8 left-5 right-5 flex gap-3 z-[150]">
@@ -110,72 +114,92 @@
         </div>
     </div>
 
-    <!-- 3. ENTRY DRAWER -->
+    <!-- 3. DATA ENTRY DRAWER -->
     <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-10 shadow-2xl">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-8 shadow-2xl">
             <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
             <div class="text-center mb-8">
-                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entry Amount</p>
+                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase">Input Amount</p>
                 <div class="flex items-center justify-center gap-2 mt-2">
                     <span class="text-4xl font-black text-slate-300">₹</span>
                     <input type="number" id="txAmt" placeholder="0.00" class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2">
                 </div>
             </div>
             <div class="space-y-4 mb-10">
-                <input type="text" id="txNote" placeholder="Notes / Ref" class="axis-input bg-slate-50 border-none">
-                <input type="date" id="txDate" class="axis-input bg-slate-50 border-none">
-                <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
-                    <p class="text-sm font-bold text-slate-500">Attachment</p>
-                    <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-12 h-12 rounded object-cover"><i class="fas fa-times absolute -top-1 -right-1 text-red-500 bg-white rounded-full text-[10px]" onclick="clearImage()"></i></div>
-                    <i class="fas fa-camera text-2xl text-slate-300" onclick="openMediaSelector()"></i>
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill/Ref)" class="bg-transparent outline-none flex-1 text-sm"></div>
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold"></div>
+                <div class="bg-slate-50 p-4 rounded-2xl flex items-center justify-between">
+                    <p class="text-sm font-bold text-slate-500">Bill Attachment</p>
+                    <div class="flex gap-2">
+                        <div id="billPreviewArea" class="hidden relative"><img id="imgPreview" class="w-10 h-10 rounded object-cover"><i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full" onclick="clearImage()"></i></div>
+                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300"><i class="fas fa-plus"></i></button>
+                    </div>
                 </div>
             </div>
             <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-xl uppercase">Confirm Transaction</button>
         </div>
     </div>
 
-    <!-- Modals -->
-    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[2500]">
+    <!-- 4. MODALS & TOOLS -->
+    <!-- Media Sheet (Camera/Gallery Picker) -->
+    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[3000]">
         <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.5rem] p-10 flex justify-around shadow-2xl">
-            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div><span class="text-xs font-bold uppercase">Camera</span></button>
-            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div><span class="text-xs font-bold uppercase">Gallery</span></button>
+            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div>
+                <span class="text-xs font-bold uppercase tracking-tighter">Camera</span>
+            </button>
+            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div>
+                <span class="text-xs font-bold uppercase tracking-tighter">Gallery</span>
+            </button>
         </div>
         <input type="file" id="camInp" accept="image/*" capture="camera" class="hidden">
         <input type="file" id="galInp" accept="image/*" class="hidden">
     </div>
 
-    <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/95 z-[4000] flex items-center justify-center p-8 backdrop-blur-md">
-        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl">
-            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest">Verify PIN</h3>
-            <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center pin-field shadow-inner mb-10">
-            <button id="pinSubmitBtn" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold uppercase">Confirm</button>
+    <!-- PIN Modal (Global Security) -->
+    <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/95 z-[4000] flex items-center justify-center p-8">
+        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl">
+            <i class="fas fa-shield-halved text-5xl text-[#861F41] mb-8"></i>
+            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest">Verify Admin PIN</h3>
+            <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center text-4xl tracking-widest h-16 mb-8">
+            <button id="pinSubmitBtn" class="w-full py-4 axis-gradient text-white rounded-xl font-bold uppercase tracking-widest">Confirm Access</button>
         </div>
     </div>
 
+    <!-- Updated Management Center (Settings Modal) -->
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">Management</h3>
-            <div id="adminControls" class="space-y-3">
-                <button onclick="hireManager()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold italic">Hire Manager <i class="fas fa-user-plus"></i></button>
-                <div id="mgrList" class="space-y-2 mb-6"></div>
-                <button onclick="askPin(changePin)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold">Change Admin PIN <i class="fas fa-key"></i></button>
-                <button onclick="transferAcc()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold">Transfer Phone <i class="fas fa-exchange"></i></button>
-                <button onclick="factoryReset()" class="w-full py-4 text-rose-500 font-bold border-2 border-rose-100 rounded-2xl mb-5 bg-rose-50 text-[9px] uppercase"><i class="fas fa-trash-arrow-up"></i> Factory Reset</button>
+        <div class="bg-white w-full rounded-t-[3.5rem] p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <!-- Top Handle -->
+            <div class="w-16 h-1 bg-slate-200 rounded-full mx-auto mb-8"></div>
+            
+            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase tracking-widest">Management Center</h3>
+            
+            <!-- Quick Actions Grid -->
+            <div class="grid grid-cols-1 gap-3 mb-10">
+                <button onclick="openAddManagerModal()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between items-center font-bold">
+                    <span>Hire Entry Manager</span> <i class="fas fa-user-plus text-[#861F41]"></i>
+                </button>
+                <button onclick="askPin(changePinProcess)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between items-center font-bold">
+                    <span>Change Admin PIN</span> <i class="fas fa-key text-slate-400"></i>
+                </button>
+                <button onclick="shareApp()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between items-center font-bold text-emerald-600">
+                    <span>Share PayBook Pro</span> <i class="fas fa-share-nodes"></i>
+                </button>
+                <button onclick="handleLogout()" class="w-full p-5 bg-rose-50 rounded-2xl flex justify-between items-center font-bold text-rose-600 border border-rose-100">
+                    <span>Secure Logout</span> <i class="fas fa-power-off"></i>
+                </button>
             </div>
-            <button onclick="logout()" class="w-full py-5 bg-rose-600 text-white rounded-2xl font-black mb-8 border shadow-xl"><i class="fas fa-power-off"></i> Secure Logout</button>
-            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase">Back</button>
-        </div>
-    </div>
 
-    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl">
-            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase">Add New Account</h3>
-            <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-4">
-            <input id="newPPhone" type="number" placeholder="10-Digit Mobile Number" class="axis-input mb-8">
-            <div class="flex gap-4">
-                <button onclick="document.getElementById('addModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase tracking-widest text-xs">Exit</button>
-                <button onclick="confirmAdd()" class="flex-1 py-5 bg-[#861F41] text-white rounded-[2rem] font-black shadow-xl uppercase text-xs">Save Account</button>
+            <!-- Manager List (New Feature Section) -->
+            <div class="mb-10">
+                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 pl-2">Appointed Managers</h4>
+                <div id="managerListContainer" class="space-y-3 px-1">
+                    <!-- ম্যানেজার লিস্ট জাভাস্ক্রিপ্ট দিয়ে এখানে লোড হবে -->
+                </div>
             </div>
+
+            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl">Back to Ledger</button>
         </div>
     </div>
 
@@ -185,63 +209,223 @@
         const db_fs = firebase.firestore();
         const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
         const MASTER_PIN = "5000";
-        const STORAGE_KEY = 'PAYBOOK_ULTIMATE_V1.4';
+        const DB_KEY = 'PB_Ultimate_V12_Axis';
 
-        let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '' };
-        let holdTimer, autoExitTimer, capturedFile = null;
+        let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null };
+        let holdTimer, autoExitTimer, capturedImgFile = null;
 
         window.onload = () => {
-            const data = localStorage.getItem(STORAGE_KEY);
+            const data = localStorage.getItem(DB_KEY);
             if(data) {
                 db = JSON.parse(data);
-                db.secret = false; 
-                if(db.admin) toggleAuth('LOGIN'); else toggleAuth('REG');
-            } else toggleAuth('REG');
+                if(db.admin) showLogin(); else showReg();
+            } else showReg();
             initSecretGesture();
-            initHistoryState();
-            document.getElementById('camInp').onchange = e => handleImg(e.target.files[0]);
-            document.getElementById('galInp').onchange = e => handleImg(e.target.files[0]);
+            document.getElementById('camInp').onchange = e => handleImageFile(e.target.files[0]);
+            document.getElementById('galInp').onchange = e => handleImageFile(e.target.files[0]);
         };
 
-        // --- AUTH ---
-        function saveDB() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); if(db.admin) db_fs.collection("ledgers").doc(db.admin.phone).set(db); }
-        async function sync() { if(db.admin) { const doc = await db_fs.collection("ledgers").doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } } }
-        function toggleAuth(mode) { 
-            const lBox = document.getElementById('loginBox'), rBox = document.getElementById('regBox'), tL = document.getElementById('tabLogin'), tR = document.getElementById('tabReg'); 
-            if(mode==='LOGIN') { lBox.classList.remove('hidden'); rBox.classList.add('hidden'); tL.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tR.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; } 
-            else { rBox.classList.remove('hidden'); lBox.classList.add('hidden'); tR.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tL.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
+        function saveDB() {
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+            if(db.admin) db_fs.collection("global_ledgers").doc(db.admin.phone).set(db);
         }
 
-        async function handleLogin() {
-            const ph = document.getElementById('loginPhone').value, pin = document.getElementById('loginPin').value;
-            if(ph.length !== 10) return alert("Enter 10-digit Phone!");
-            const doc = await db_fs.collection("ledgers").doc(ph).get();
-            if (doc.exists) {
-                const cloud = doc.data();
-                if(pin === cloud.admin.pin || pin === MASTER_PIN) { db = cloud; db.role='ADMIN'; db.opName=db.admin.name; enterApp(); }
-                else { const mgr = (cloud.managers || []).find(m => m.pin === pin); if(mgr) { db = cloud; db.role='MANAGER'; db.opName=mgr.name; enterApp(); } else alert("Wrong PIN!"); }
-            } else { alert("User not found!"); toggleAuth('REG'); document.getElementById('regPhone').value = ph; }
+        async function syncCloud() {
+            const doc = await db_fs.collection("global_ledgers").doc(db.admin.phone).get();
+            if(doc.exists) { db = doc.data(); renderHome(); }
         }
-        function handleRegistration() { const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value; if(!n || ph.length !== 10) return alert("Enter data correctly!"); db.admin = { name: n, phone: ph, pin: p }; saveDB(); location.reload(); }
-        function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase(); renderHome(); }
-        function logout() { if(confirm("Terminate Session?")) location.reload(); }
 
-        // --- CORE ---
-        function confirmAdd() { 
-            const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; 
-            if(!n || ph.length !== 10) return alert("Error!"); 
-            if(db.people.some(x => x.phone === ph)) return alert("Exists!"); 
-            db.people.unshift({ id: Date.now(), name: n, phone: ph, type: db.tab, transactions: [] }); 
-            saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome(); 
+        function confirmAdd() {
+    const n = document.getElementById('newPName').value.trim();
+    const ph = document.getElementById('newPPhone').value.trim();
+    
+    // কাস্টমার নাকি সাপ্লায়ার তা db.tab থেকে নিশ্চিত হওয়া
+    if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
+    
+    // নম্বর ইউনিক কি না চেক করা
+    if(db.people.some(x => x.phone === ph)) return alert("This number already exists in your list!");
+
+    db.people.unshift({ 
+        id: Date.now(), 
+        name: n, 
+        phone: ph, 
+        type: db.tab, // এটি আপনার সিলেক্ট করা ট্যাব অনুযায়ী হবে
+        transactions: [] 
+    });
+    
+    saveDB(); 
+    document.getElementById('addModal').classList.add('hidden'); // মোডাল বন্ধ
+    renderHome(); // হোম স্ক্রিন আপডেট
+    alert(db.tab + " added successfully!");
+}
+
+        // --- AUTH & MANAGER LOGIC ---
+        function showReg() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('regBox').classList.remove('hidden'); }
+        function showLogin() { 
+            document.getElementById('authScreen').classList.remove('hidden'); 
+            document.getElementById('loginBox').classList.remove('hidden'); 
+            document.getElementById('displayPhone').innerText = "+91 " + db.admin.phone;
+            syncCloud();
         }
-        function calcBal(txs, isSec, pType) { 
-            let b = 0; 
-            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => { 
-                if (pType === 'CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount); 
-                else b += (t.type==='RECEIVED' ? t.amount : -t.amount); 
-            }); 
-            return b; 
+
+        function handleRegistration() {
+            const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
+            if(!n || ph.length !== 10) return alert("Valid data required!");
+            db.admin = { name: n, phone: ph, pin: p };
+            saveDB(); location.reload();
         }
+
+        function handleLogin() {
+    const enteredPin = document.getElementById('loginPin').value;
+    
+    // ১. এডমিন হিসেবে চেক (গ্লোবাল পিন বা এডমিন পিন)
+    if(enteredPin === db.admin.pin || enteredPin === MASTER_PIN) {
+        completeLogin(db.admin.name);
+    } 
+    // ২. ম্যানেজার হিসেবে চেক (যদি ম্যানেজার লিস্ট থাকে)
+    else if(db.managers && db.managers.length > 0) {
+        const manager = db.managers.find(m => m.pin === enteredPin);
+        if(manager) {
+            db.currentOperator = manager.name; // বর্তমানে কে এন্ট্রি করছে তা ট্র্যাক রাখা
+            completeLogin(manager.name);
+            alert("Logged in as Manager: " + manager.name);
+        } else {
+            alert("Invalid PIN! Please check with Admin.");
+        }
+    } else {
+        alert("Incorrect PIN!");
+    }
+}
+
+function completeLogin(name) {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    document.getElementById('ownerName').innerText = name;
+    renderHome();
+}
+
+        // ১. নতুন ম্যানেজার অ্যাড করার প্রসেস (পিন সহ)
+function openAddManagerModal() {
+    const mName = prompt("Enter Manager Name:");
+    if(!mName) return;
+    const mPhone = prompt("Enter Manager 10-Digit Mobile:");
+    if(!mPhone || mPhone.length !== 10) return alert("Invalid Phone Number!");
+    const mPin = prompt("Set a 4-Digit Secure PIN for this Manager:");
+    if(!mPin || mPin.length !== 4) return alert("PIN must be 4 digits!");
+
+    if(!db.managers) db.managers = [];
+    
+    // নতুন ম্যানেজার অবজেক্ট
+    db.managers.push({
+        id: Date.now(),
+        name: mName,
+        phone: mPhone,
+        pin: mPin
+    });
+
+    saveDB();
+    renderManagersList(); // লিস্ট আপডেট
+    alert("Manager " + mName + " hired successfully!");
+}
+
+// ২. ম্যানেজারদের লিস্ট দেখানোর ফাংশন
+function renderManagersList() {
+    const container = document.getElementById('managerListContainer');
+    if(!container) return;
+    container.innerHTML = "";
+
+    if(!db.managers || db.managers.length === 0) {
+        container.innerHTML = `<p class="text-center text-xs text-slate-300 py-4 italic font-medium">No managers appointed yet.</p>`;
+        return;
+    }
+
+    db.managers.forEach(m => {
+        container.innerHTML += `
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#861F41] font-black shadow-sm border border-slate-100 text-xs">
+                        ${m.name.substring(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">${m.name}</p>
+                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">PH: ${m.phone} | PIN: ${m.pin}</p>
+                    </div>
+                </div>
+                <button onclick="deleteManager(${m.id})" class="w-8 h-8 flex items-center justify-center text-rose-300 hover:text-rose-600 transition-colors">
+                    <i class="fas fa-trash-can text-sm"></i>
+                </button>
+            </div>
+        `;
+    });
+}
+
+// ৩. ম্যানেজার ডিলিট করার ফাংশন
+function deleteManager(id) {
+    if(confirm("Are you sure you want to remove this manager's access?")) {
+        db.managers = db.managers.filter(m => m.id !== id);
+        saveDB();
+        renderManagersList();
+        alert("Manager access revoked.");
+    }
+}
+
+// ৪. সেটিংস ওপেন করার সময় লিস্ট লোড করা
+function showSettings() {
+    renderManagersList(); // লিস্ট আগে লোড হবে
+    document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+        function handleLogout() {
+    if(confirm("Are you sure you want to secure logout?")) {
+        // ১. সিক্রেট মোড অফ করা (নিরাপত্তার জন্য)
+        db.secret = false;
+        document.getElementById('secretTrigger').classList.remove('blink-secret');
+
+        // ২. মেইন অ্যাপ হাইড করা এবং লগইন স্ক্রিন শো করা
+        document.getElementById('appBody').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+        
+        // ৩. পিন ইনপুট বক্স খালি করা
+        if(document.getElementById('loginPin')) {
+            document.getElementById('loginPin').value = "";
+        }
+
+        // ৪. মেমোরি থেকে সেশন ক্লিয়ার করা (অপশনাল - যদি আপনি চান প্রতিবার পিন চাইবে)
+        // আমরা এখানে ডাটা ডিলিট করছি না, শুধু লক করছি
+        console.log("Session locked successfully.");
+    }
+}
+        // ফোন মিনিমাইজ করলে বা অন্য অ্যাপে গেলে অটো লক হবে
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && !document.getElementById('appBody').classList.contains('hidden')) {
+        // অটোমেটিক লগআউট লজিক (নিরাপত্তার জন্য)
+        db.secret = false;
+        document.getElementById('appBody').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+    }
+});
+
+        // --- SECRET MODE & GESTURE ---
+        function initSecretGesture() {
+            const el = document.getElementById('secretTrigger');
+            el.onclick = () => { if(db.secret) exitSecretMode(); };
+            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startAutoExit(); }); }, 2500); };
+            el.onpointerup = () => clearTimeout(holdTimer);
+        }
+
+        function startAutoExit() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecretMode, 30000); }
+        function exitSecretMode() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
+
+        // --- CALCULATION & UI ---
+        function calcBal(txs, isSec, pType) {
+            let b = 0;
+            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
+                if(pType==='CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount);
+                else b += (t.type==='RECEIVED' ? t.amount : -t.amount);
+            });
+            return b;
+        }
+
         function renderHome() {
             const list = document.getElementById('contactList'); list.innerHTML = "";
             document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden');
@@ -249,76 +433,115 @@
                 const bal = calcBal(p.transactions, db.secret, p.type);
                 const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
                 list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
-                    <div class="flex items-center gap-3"><div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${p.name[0]}</div>
-                    <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase">${p.phone}</p></div></div>
-                    <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'GET' : 'CLEAR'}</p></div></div>`;
+                    <div class="flex items-center gap-4"><div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
+                    <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p></div></div>
+                    <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'DUE' : 'CLEAR'}</p></div></div>`;
             });
         }
-        function openLedger(id) { db.activeId = id; const p = db.people.find(x => x.id === id); document.getElementById('lName').innerText = p.name; document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden'); document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden'); renderLedger(); }
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
+
+        function openLedger(id) {
+            db.activeId = id; const p = db.people.find(x => x.id === id);
+            document.getElementById('lName').innerText = p.name;
+            document.getElementById('headerMain').classList.add('hidden');
+            document.getElementById('headerLedger').classList.remove('hidden');
+            document.getElementById('pageHome').classList.add('hidden');
+            document.getElementById('pageLedger').classList.remove('hidden');
+            renderLedger();
+        }
+
         function renderLedger() {
             const p = db.people.find(x => x.id === db.activeId);
             const list = document.getElementById('ledgerList'); list.innerHTML = "";
             const net = calcBal(p.transactions, db.secret, p.type);
-            document.getElementById('mainTotal').innerText = "₹" + (db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN'));
+            const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+            document.getElementById('mainTotal').innerText = dNet;
             document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+
             p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
                 const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
                 const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
                 let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+
                 list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
                     <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
                     <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                        ${t.imgUrl ? `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="window.open(this.src)">` : ''}
+                        ${t.imgUrl ? `<img src="${t.imgUrl}" class="w-full h-44 object-cover rounded-xl mb-3 shadow-inner" onclick="window.open(this.src)">` : ''}
                         <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300">${t.type}</p></div>
-                        <p class="text-[10px] text-slate-500 italic mt-1 font-medium">${t.note || ''}</p>
-                        <p class="text-[7px] text-slate-300 mt-2 uppercase font-black tracking-tighter border-t pt-1 border-slate-50">By: ${t.by || 'Owner'}</p>
-                        <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i></div>
+                        <p class="text-[10px] text-slate-500 mt-1 italic">${t.note || ''}</p>
+                        <p class="text-[7px] text-slate-300 mt-1 uppercase font-bold tracking-tighter">By: ${t.by || db.admin.name}</p>
+                        <div class="flex gap-5 mt-4 pt-3 border-t"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
                     </div></div>`;
             });
             document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
 
-        // --- HELPERS & MODALS ---
-        async function preSave(t) {
+        // --- DATA ENTRY & SAVE ---
+        async function preSave(type) {
             const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Amount!");
-            const act = async () => {
-                document.getElementById('mainConfirmBtn').innerText = "SAVING..."; let imgUrl = "";
-                if(capturedFile) { const fd = new FormData(); fd.append('image', capturedFile); const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd }); const dat = await res.json(); if(dat.success) imgUrl = dat.data.url; }
+            const action = async () => {
+                document.getElementById('mainConfirmBtn').innerText = "UPLOADING...";
+                let imgUrl = "";
+                if(capturedImgFile) {
+                    const fd = new FormData(); fd.append('image', capturedImgFile);
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                    const dat = await res.json(); if(dat.success) imgUrl = dat.data.url;
+                }
                 const p = db.people.find(x => x.id === db.activeId);
-                p.transactions.push({ id:Date.now(), amount:amt, type:t, secret:!!db.secret, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, imgUrl, by: db.opName, status:'active' });
+                p.transactions.push({ id:Date.now(), amount:amt, type, secret:!!db.secret, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, imgUrl, by: db.admin.name, status:'active' });
                 saveDB(); renderLedger(); closeDrawer();
+                document.getElementById('mainConfirmBtn').innerText = "CONFIRM";
             };
-            if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
+            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
         }
-        function initSecretGesture() { const el = document.getElementById('secretTrigger'); el.onclick = () => { if(db.secret) exitSecret(); }; el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); }; el.onpointerup = () => clearTimeout(holdTimer); }
-        function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); }
-        function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
+
+        // --- PDF & SHARING ---
+        function handleSmartPdfDownload() {
+            const { jsPDF } = window.jspdf; const doc = new jsPDF(); const isSec = db.secret;
+            if(!document.getElementById('pageLedger').classList.contains('hidden')) {
+                const p = db.people.find(x => x.id === db.activeId); doc.text(`Ledger: ${p.name}`, 14, 20);
+                const head = isSec ? [['Date', 'Ref', 'Pakka Rs.', 'Kaccha Rs.']] : [['Date', 'Ref', 'Amount Rs.']];
+                const rows = p.transactions.filter(t => t.status==='active').map(t => { 
+                    if(!isSec && t.secret) return null; 
+                    const amtS = t.amount.toLocaleString('en-IN');
+                    return isSec ? [t.date, t.note||'Ref', t.secret?'-':amtS, t.secret?amtS:'-'] : [t.date, t.note||'Ref', amtS];
+                }).filter(x=>x);
+                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save(`${p.name}.pdf`);
+            } else {
+                doc.text(`Full Summary`, 14, 20);
+                const head = isSec ? [['Name', 'Pakka', 'Kaccha']] : [['Name', 'Balance']];
+                const rows = db.people.map(p => { 
+                    let pb=0, kb=0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; });
+                    return isSec ? [p.name, pb, kb] : [p.name, pb];
+                });
+                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("Summary.pdf");
+            }
+        }
+
+        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: '+n+'\n'+t+': Rs.'+amt)}`); }
+        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Smart Business Ledger. Join here: ' + window.location.href)}`); }
+
+        // --- UTILS ---
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong PIN!"); }; }
-        function initHistoryState() { history.pushState(null, null, window.location.pathname); window.addEventListener('popstate', () => { if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome(); else history.pushState(null, null, window.location.pathname); }); }
-        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
-        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
-        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
-        function showSettings() { if(db.role==='MANAGER') document.getElementById('adminControls').classList.add('hidden'); else document.getElementById('adminControls').classList.remove('hidden'); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
-        function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), pin=prompt("Set 4-Digit PIN:"); if(n&&ph.length===10&&pin.length===4) { if(!db.managers) db.managers=[]; db.managers.push({name:n,phone:ph,pin:pin}); saveDB(); renderManagers(); } }
-        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-3 bg-slate-50 rounded-xl mb-2 flex justify-between font-bold text-xs"><span>${m.name} (${m.phone})</span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
-        function delMgr(ph) { if(confirm("Revoke Access?")) { db.managers=db.managers.filter(x=>x.phone!==ph); saveDB(); renderManagers(); } }
-        function handleImg(f) { capturedFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
-        function triggerCamera() { document.getElementById('camInp').click(); }
-        function triggerGallery() { document.getElementById('galInp').click(); }
-        function clearImage() { capturedFile = null; document.getElementById('billPreviewArea').classList.add('hidden'); }
-        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(()=>{ const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(n) { if(!t.history) t.history=[]; t.history.push({amt:t.amount, note:t.note, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); } }); }
-        function deleteTx(tid) { askPin(()=>{ const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(x=>x.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
-        function triggerDrawer(t) { document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFile=null; document.getElementById('imgPreview').classList.add('hidden');}, 400); }
-        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
-        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: ' + window.location.href)}`); }
-        function changePin() { const n = prompt("New 4 Digit PIN:"); if(n && n.length===4) { db.admin.pin = n; saveDB(); alert("PIN Updated!"); } }
-        function transferAcc() { const v = prompt("Current Phone:"); if(v===db.admin.phone) { const n = prompt("New 10 Digit Phone:"); if(n && n.length===10) { db.admin.phone = n; saveDB(); location.reload(); } } }
-        function factoryReset() { if(confirm("Erase all data?")) { if(db.admin) db_fs.collection("ledgers").doc(db.admin.phone).delete(); localStorage.clear(); location.reload(); } }
-        function handleSmartPdfDownload() { /* Full PDF Logic integration */ alert("PDF system ready!"); }
+        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
+        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
+        function triggerDrawer(t) { document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
+        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedImgFile=null; document.getElementById('imgPreview').classList.add('hidden');}, 400); }
+        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+        function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
+        function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
+        function handleImageFile(f) { if(!f) return; capturedImgFile = f; document.getElementById('imgPreview').src = URL.createObjectURL(f); document.getElementById('billPreviewArea').classList.remove('hidden'); document.getElementById('imgPreview').classList.remove('hidden'); }
+        function clearImage() { document.getElementById('billPreviewArea').classList.add('hidden'); capturedImgFile = null; }
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(n && ph.length===10) { if(db.people.some(x=>x.phone===ph)) return alert("Exists!"); db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); closeAddModal(); renderHome(); } else alert("Invalid!"); }
+        function deleteTx(tid) { askPin(() => { const p = db.people.find(x => x.id === db.activeId); p.transactions.find(t => t.id === tid).status = 'deleted'; saveDB(); renderLedger(); }); }
+        function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("Original Amt:", t.amount)); if(!t.history) t.history = []; t.history.push({ amt: t.amount, date: new Date().toLocaleString() }); t.amount = n; saveDB(); renderLedger(); }); }
+        function showHistory(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); let h = "History:\n\n"; t.history.forEach(x=>h+=`${x.date}: Rs. ${x.amt}\n`); alert(h); }
+        function showSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        function changePinProcess() { const p = prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin = p; saveDB(); alert("PIN Updated!"); } }
+        function transferAccProcess() { const v = prompt("Current Phone:"); if(v===db.admin.phone) { const n = prompt("New 10 Digit Phone:"); if(n && n.length===10) { db.admin.phone = n; saveDB(); location.reload(); } } }
     </script>
 </body>
 </html>
