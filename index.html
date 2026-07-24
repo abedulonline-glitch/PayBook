@@ -353,15 +353,73 @@ function handleLogout() {
             db.admin = { name: n, phone: ph, pin: p };
             saveDB(); location.reload();
         }
+async function handleLogin() {
+    // ১. ইনপুট থেকে নম্বর এবং পিন নেওয়া
+    const ph = document.getElementById('loginPhone').value.trim();
+    const pin = document.getElementById('loginPin').value.trim();
 
-        function handleLogin() {
-            const pin = document.getElementById('loginPin').value;
-            if(pin === db.admin.pin || pin === MASTER_PIN) {
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('appBody').classList.remove('hidden');
-                renderHome();
-            } else alert("Invalid Axis PIN!");
+    if(ph.length !== 10) return alert("Please enter 10-digit Phone Number!");
+    if(!pin) return alert("Please enter PIN!");
+
+    try {
+        // ২. আপনার ফায়ারবেস কালেকশন 'global_ledgers' থেকে ডাটা চেক করা
+        // স্ক্রিনশট অনুযায়ী আপনার কালেকশন নাম: global_ledgers
+        const doc = await db_fs.collection("global_ledgers").doc(ph).get();
+
+        if (doc.exists) {
+            const cloudData = doc.data();
+            
+            // ডাটাবেসে পিন এবং আপনার দেওয়া পিন তুলনা করা (সবগুলো স্ট্রিং হিসেবে)
+            const dbPin = String(cloudData.admin.pin);
+            const userPin = String(pin);
+
+            // ৩. পিন চেক (আপনার এডমিন পিন অথবা মাস্টার পিন ৫০০০)
+            if(userPin === dbPin || userPin === MASTER_PIN) {
+                db = cloudData;
+                db.role = 'ADMIN';
+                db.opName = db.admin.name;
+                
+                // লোকাল মেমোরি আপডেট করা (STORAGE_KEY নিশ্চিত করুন)
+                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+                
+                // অ্যাপে প্রবেশ
+                enterApp();
+                console.log("Login Success: Admin Access");
+            } else {
+                // ম্যানেজার চেক (যদি থাকে)
+                const mgr = (cloudData.managers || []).find(m => String(m.pin) === userPin);
+                if(mgr) {
+                    db = cloudData;
+                    db.role = 'MANAGER';
+                    db.opName = mgr.name;
+                    enterApp();
+                } else {
+                    alert("Invalid Axis PIN!");
+                }
+            }
+        } else {
+            alert("No account found! Please switch to Register tab.");
         }
+    } catch (error) {
+        console.error("Login System Error:", error);
+        alert("Connection Error! Check your internet.");
+    }
+}
+
+function enterApp() {
+    // ইউআই আপডেট
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    
+    // উপরে ডানদিকের আইকন এবং নাম আপডেট
+    if(db.admin) {
+        document.getElementById('ownerName').innerText = db.opName || db.admin.name;
+        document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
+    }
+    
+    renderHome(); // কাস্টমার লিস্ট লোড করা
+}
+        
         // ১. লগআউট ফাংশন (এটি কল করলে সেশন ক্লিন হয়ে লগইন স্ক্রিনে যাবে)
 function handleLogout() {
     if(confirm("Are you sure you want to logout?")) {
