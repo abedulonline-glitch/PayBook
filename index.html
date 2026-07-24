@@ -256,12 +256,20 @@
             if(mode==='LOGIN') { lBox.classList.remove('hidden'); rBox.classList.add('hidden'); tL.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tR.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
             else { rBox.classList.remove('hidden'); lBox.classList.add('hidden'); tR.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tL.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
         }
-        // ১. সেভ করার সময়
+      const DB_KEY = 'PayBook_Pro_Stable_V13'; // একটি নির্দিষ্ট নাম ব্যবহার করুন
+
 function saveDB() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    // ১. ফোনের মেমোরিতে সেভ
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+
+    // ২. ক্লাউডে সেভ (Firestore)
     if(db.admin && db.admin.phone) {
-        // এখানে 'global_ledgers' ব্যবহার করুন
-        db_fs.collection("global_ledgers").doc(db.admin.phone).set(db);
+        db_fs.collection("global_ledgers").doc(db.admin.phone).set(db)
+            .then(() => console.log("Cloud Updated"))
+            .catch(err => {
+                console.error("Firebase Error:", err);
+                alert("Cloud Sync Failed! Check Firebase Rules.");
+            });
     }
 }
 
@@ -288,7 +296,46 @@ async function handleLogin() {
         toggleAuth('REG'); // রেজিস্টার ট্যাবে পাঠিয়ে দিবে
     }
 }
-        function handleRegistration() { const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value; if(!n || ph.length !== 10) return alert("Data Invalid!"); db.admin = { name: n, phone: ph, pin: p }; saveDB(); location.reload(); }
+       function handleRegistration() {
+    // ইনপুট ভ্যালু সংগ্রহ
+    const n = document.getElementById('regName').value.trim();
+    const ph = document.getElementById('regPhone').value.trim();
+    const p = document.getElementById('regPin').value.trim();
+
+    // ভ্যালিডেশন চেক (এটি খুব জরুরি)
+    if (!n) {
+        alert("Please enter Owner Name!");
+        return;
+    }
+    if (ph.length !== 10) {
+        alert("Mobile Number must be exactly 10 digits!");
+        return;
+    }
+    if (p.length < 4) {
+        alert("PIN must be at least 4 digits!");
+        return;
+    }
+
+    // ডাটা অবজেক্ট তৈরি
+    db.admin = { name: n, phone: ph, pin: p };
+    db.people = []; // নতুন ইউজারের জন্য কন্টাক্ট লিস্ট ক্লিয়ার
+    db.managers = [];
+    
+    console.log("Registering user:", db.admin);
+
+    // ডাটা সেভ করা
+    saveDB();
+
+    // সাকসেস মেসেজ এবং অটো-লগইন
+    alert("Account Created Successfully!");
+    
+    // সরাসরি অ্যাপের ভেতরে নিয়ে যাওয়া
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    document.getElementById('userInitials').innerText = n.substring(0,2).toUpperCase();
+    
+    renderHome();
+}
         function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase(); renderHome(); }
         function logout() { if(confirm("Terminate Secure Session?")) location.reload(); }
 
