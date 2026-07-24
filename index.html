@@ -665,35 +665,58 @@ function handleImageFile(file) {
 }
 
 // ২. ড্রয়ারের ভেতর ছোট ছোট থাম্বনেইল দেখানোর ফাংশন
-function renderMultiThumbnails() {
-    const container = document.getElementById('multiImgPreviewContainer');
-    if(!container) return;
-    container.innerHTML = "";
-    
-    tempImageFiles.forEach((file, index) => {
-        const url = URL.createObjectURL(file);
-        container.innerHTML += `
-            <div class="relative w-16 h-16 animate-fade">
-                <img src="${url}" class="w-full h-full object-cover rounded-2xl border shadow-sm">
-                <i class="fas fa-times-circle absolute -top-2 -right-2 text-rose-500 bg-white rounded-full text-lg shadow-md cursor-pointer" 
-                   onclick="removeTempImage(${index})"></i>
-            </div>
-        `;
-    });
-    
-    // প্লাস বাটন যোগ করা যাতে আরও ছবি তোলা যায়
-    container.innerHTML += `
-        <button onclick="openMediaSelector()" class="w-16 h-16 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300">
-            <i class="fas fa-plus"></i>
-        </button>
-    `;
-    
-    // ইমেজ কাউন্টার আপডেট (যদি থাকে)
-    const counter = document.getElementById('imgCounter');
-    if(counter) counter.innerText = tempImageFiles.length + " Files";
+let tempImageFiles = []; // ছবি জমা রাখার জন্য
+
+// ১. ক্যামেরা বা গ্যালারি থেকে ছবি আসলে এটি কল হবে
+async function preSave(type) {
+    const amt = parseFloat(document.getElementById('txAmt').value);
+    if(!amt) return alert("Please enter amount!");
+
+    const action = async () => {
+        const confirmBtn = document.getElementById('mainConfirmBtn');
+        confirmBtn.innerText = "UPLOADING...";
+        confirmBtn.disabled = true;
+
+        let uploadedUrls = [];
+        
+        try {
+            // লুপ চালিয়ে সব ছবি ImgBB-তে পাঠানো
+            for (let file of tempImageFiles) {
+                const fd = new FormData();
+                fd.append('image', file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) uploadedUrls.push(dat.data.url);
+            }
+
+            const p = db.people.find(x => x.id === db.activeId);
+            p.transactions.push({
+                id: Date.now(),
+                amount: amt,
+                type: type,
+                secret: !!db.secret,
+                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'),
+                note: document.getElementById('txNote').value,
+                images: uploadedUrls, // এখানে সব ছবির লিঙ্ক সেভ হচ্ছে
+                by: db.opName || 'Owner',
+                status: 'active'
+            });
+
+            saveDB(); renderLedger(); closeDrawer();
+            tempImageFiles = []; // ক্লিয়ার করা
+            alert("Success! Saved with " + uploadedUrls.length + " images.");
+
+        } catch (err) {
+            alert("Upload failed. Check Internet!");
+        } finally {
+            confirmBtn.innerText = "CONFIRM TRANSACTION";
+            confirmBtn.disabled = false;
+        }
+    };
+
+    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
 }
 
-// ৩. ছবি ডিলিট করার ফাংশন (এরর ফিক্সড)
 function removeTempImage(index) {
     tempImageFiles.splice(index, 1);
     renderMultiThumbnails();
