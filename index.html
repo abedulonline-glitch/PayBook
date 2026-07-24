@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PayBook Pro | Axis Premium Edition</title>
     
-    <!-- Dependencies -->
+    <!-- লাইব্রেরি সমূহ -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -16,106 +16,71 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
         :root { --axis-burgundy: #861F41; --axis-grey: #F4F7F9; }
-        body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; overflow: hidden; }
+        body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; overflow: hidden; user-select: none; }
         .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
-        .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white; }
+        .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white text-slate-700; }
         
-        /* Message Bubbles */
-        .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; }
-        .bubble-left { align-self: flex-start; border-radius: 0 1.5rem 1.5rem 1.5rem; border-left: 5px solid #861F41; }
-        .bubble-right { align-self: flex-end; border-radius: 1.5rem 0 1.5rem 1.5rem; border-right: 5px solid #10b981; }
+        /* পয়েন্ট ৫: মেসেজ বাবল স্টাইল (Given/Received চেনার জন্য) */
+        .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; border-radius: 1.2rem; }
+        .bubble-left { align-self: flex-start; border-left: 5px solid #861F41; border-top-left-radius: 0; }
+        .bubble-right { align-self: flex-end; border-right: 5px solid #10b981; border-top-right-radius: 0; }
 
-        /* Full Screen Data Entry Drawer */
-        #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 600; }
+        /* পয়েন্ট ৩: ড্রয়ার এবং ডাটা এন্ট্রি স্ক্রিন */
+        #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
         #entryDrawer.open { transform: translateY(0); }
-
+        
+        /* পয়েন্ট ৮: পিন এন্ট্রির ঘর ছোট ও স্মার্ট */
+        .pin-input-box { height: 50px !important; font-size: 1.5rem !important; letter-spacing: 1rem !important; }
+        
         .tx-deleted { opacity: 0.3; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
         #mainViewport { height: calc(100vh - 65px); overflow-y: auto; scroll-behavior: smooth; }
         
-        .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d; font-weight: 900; }
-        @keyframes blinker { 50% { opacity: 0; } }
+        /* পয়েন্ট ৪: সিক্রেট ব্লিনকিং আইকন */
+        .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
+        @keyframes blinker { 50% { opacity: 0.2; } }
     </style>
 </head>
 <body>
 
-   <!-- 1. AUTH SYSTEM (Axis Premium Redesign) -->
+    <!-- ১ (ক): রেজিস্ট্রেশন ও লগইন স্ক্রিন -->
     <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
-        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-[0_20px_60px_rgba(134,31,65,0.12)] border border-slate-50">
-            
-            <!-- Branding Area -->
+        <div class="w-full max-w-md bg-white p-8 rounded-[3rem] shadow-2xl border">
             <div class="text-center mb-8">
-                <div class="w-16 h-16 axis-gradient rounded-[1.2rem] mx-auto flex items-center justify-center text-white text-2xl font-black shadow-lg mb-4">PB</div>
-                <h1 class="text-3xl font-black text-[#861F41] leading-none">PayBook<span class="text-slate-300">Pro</span></h1>
-                <p class="text-[8px] uppercase font-bold text-slate-400 tracking-[0.3em] mt-2">Premium Business Ledger</p>
+                <div class="w-16 h-16 axis-gradient rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-black shadow-lg">PB</div>
+                <h1 class="text-3xl font-black text-[#861F41]">PayBook<span class="text-slate-300">Pro</span></h1>
             </div>
 
-            <!-- Switcher Tabs (Point 8: Modern & Compact) -->
-            <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border shadow-inner">
-                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all duration-300 uppercase tracking-widest">Login</button>
-                <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all duration-300 uppercase tracking-widest">Register</button>
+            <!-- ট্যাব সুইচার -->
+            <div class="flex bg-slate-100 p-1 rounded-xl mb-8 border">
+                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white">LOGIN</button>
+                <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400">REGISTER</button>
             </div>
 
-            <!-- Content Area -->
-            <div id="authFormContent">
-                
-                <!-- Box: Login (Default) -->
-                <div id="loginBox" class="space-y-5 animate-fade">
-                    <div class="text-left">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Phone Number</label>
-                        <input type="number" id="loginPhone" placeholder="Enter 10-digit Mobile" class="axis-input shadow-sm">
-                    </div>
-                    
-                    <div class="text-center">
-                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Secure Access PIN</label>
-                        <!-- Point 8: Small & Smart PIN Input -->
-                        <input type="password" id="loginPin" placeholder="••••" maxlength="4" 
-                               class="axis-input text-center h-14 !text-xl !tracking-[1rem] shadow-inner border-2 border-slate-100 focus:border-[#861F41]">
-                    </div>
+            <div id="loginBox" class="space-y-6">
+                <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
+                <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-input-box shadow-inner">
+                <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-xl">ACCESS ACCOUNT</button>
+            </div>
 
-                    <button onclick="handleLogin()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl uppercase tracking-widest active:scale-95 transition-all mt-4">
-                        Secure Access
-                    </button>
-                    
-                    <div class="text-center pt-2">
-                        <p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-                            <i class="fas fa-lock text-emerald-500"></i> Cloud Firestore Encrypted
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Box: Register (Hidden by default) -->
-                <div id="regBox" class="hidden space-y-4 animate-fade">
-                    <div class="text-left">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Your Name</label>
-                        <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
-                    </div>
-                    <div class="text-left">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Mobile Number</label>
-                        <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                    </div>
-                    <div class="text-left">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">Set PIN</label>
-                        <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" 
-                               class="axis-input text-center h-14 !text-xl !tracking-[1rem]">
-                    </div>
-                    
-                    <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-2xl font-black shadow-lg mt-6 uppercase tracking-widest">
-                        Create Account
-                    </button>
-                </div>
-
+            <div id="regBox" class="hidden space-y-4">
+                <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
+                <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
+                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center pin-input-box">
+                <button onclick="handleRegistration()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg">CREATE ACCOUNT</button>
             </div>
         </div>
     </div>
 
-    <!-- 2. MAIN APP UI -->
+    <!-- ২: মেইন অ্যাপ ইউআই -->
     <div id="appBody" class="hidden min-h-screen">
         <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
             <div id="headerMain" class="flex justify-between items-center w-full">
                 <h1 class="text-xl font-black italic">PayBook</h1>
                 <div class="flex gap-5 items-center">
+                    <!-- ১: অ্যাপ শেয়ার বাটন -->
                     <i class="fas fa-share-nodes opacity-80" onclick="shareApp()"></i>
+                    <!-- ৫: গ্লোবাল পিডিএফ আইকন -->
                     <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
                     <i class="fas fa-cog opacity-80" onclick="showSettings()"></i>
                 </div>
@@ -123,18 +88,20 @@
             <div id="headerLedger" class="hidden flex justify-between items-center w-full">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-arrow-left" onclick="goHome()"></i>
-                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase">Portfolio</p></div>
+                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio Balance</p></div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
+                <div class="flex items-center gap-4">
+                    <!-- ৫: ইন্ডিভিজুয়াল পিডিএফ আইকন -->
+                    <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
                     <span id="mainTotal" class="font-black text-lg">0.00</span>
-                    <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
+                    <!-- ৪ ও ৮: সিক্রেট ট্রিগার (হোল্ড টু এন্টার, টাচ টু এক্সিট) -->
+                    <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none cursor-pointer">₹</span>
                 </div>
             </div>
         </header>
 
         <div id="mainViewport" class="bg-slate-50">
-            <!-- Home -->
+            <!-- কাস্টমার ও সাপ্লায়ার লিস্ট -->
             <div id="pageHome" class="p-5">
                 <div class="flex bg-white p-1 rounded-xl border mb-6 shadow-sm">
                     <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
@@ -144,697 +111,278 @@
                 <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white"><i class="fas fa-plus"></i></button>
             </div>
 
-            <!-- Ledger -->
+            <!-- ট্রানজ্যাকশন লিস্ট -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
                 <div id="ledgerList" class="flex flex-col"></div>
                 <div class="fixed bottom-8 left-5 right-5 flex gap-3 z-[150]">
-                    <button onclick="triggerDrawer('GIVEN')" class="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-2xl">↑ GIVEN</button>
-                    <button onclick="triggerDrawer('RECEIVED')" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-2xl">↓ RECEIVED</button>
+                    <button onclick="triggerDrawer('GIVEN')" class="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-2xl uppercase tracking-tighter">↑ Given</button>
+                    <button onclick="triggerDrawer('RECEIVED')" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-2xl uppercase tracking-tighter">↓ Received</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 3. DATA ENTRY DRAWER (Smart Multi-Image Entry) -->
-<div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-    <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
-        <!-- Top Slim Handle -->
-        <div class="w-16 h-1.5 bg-slate-100 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
-        
-        <!-- Amount Entry Section -->
-        <div class="text-center mb-10">
-            <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Amount to Add</p>
-            <div class="flex items-center justify-center gap-3 mt-4">
-                <span class="text-4xl font-black text-slate-200">₹</span>
-                <input type="number" id="txAmt" placeholder="0.00" 
-                       class="text-6xl font-black text-[#861F41] bg-transparent outline-none w-3/4 text-center border-b-4 border-slate-50 focus:border-[#861F41] pb-4 transition-all">
+    <!-- ৩: ডাটা এন্ট্রি ড্রয়ার (মাল্টি ইমেজ সাপোর্ট) -->
+    <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-8 shadow-2xl">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
+            <div class="text-center mb-8">
+                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entry Amount</p>
+                <input type="number" id="txAmt" placeholder="0.00" class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-full text-center border-b-2 mt-2">
             </div>
-        </div>
-
-        <!-- Details Area -->
-        <div class="space-y-4 mb-10">
-            <!-- Notes Input -->
-            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100">
-                <i class="fas fa-file-lines text-slate-300 text-xl"></i>
-                <input type="text" id="txNote" placeholder="Add Notes (What is this for?)" 
-                       class="bg-transparent outline-none flex-1 text-md text-slate-700 font-medium">
-            </div>
-
-            <!-- Date Picker -->
-            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100" 
-                 onclick="document.getElementById('txDate').showPicker()">
-                <i class="fas fa-calendar-day text-slate-300 text-xl"></i>
-                <div class="flex-1">
-                    <p class="text-[10px] font-black text-slate-400 uppercase">Transaction Date</p>
-                    <input type="date" id="txDate" class="bg-transparent outline-none w-full text-md font-bold text-[#861F41]">
-                </div>
-                <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
-            </div>
-
-            <!-- Multiple Bills Attachment Area (Point 5 Implementation) -->
-            <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100">
-                <div class="flex justify-between items-center mb-4 px-1">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-images text-slate-400"></i>
-                        <p class="text-sm font-black text-slate-500 uppercase tracking-tighter">Attach Bill Receipts</p>
-                    </div>
-                    <span id="imgCounter" class="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded-full shadow-sm">0 Files</span>
-                </div>
+            <div class="space-y-4 mb-10">
+                <!-- ৩ (ই): নোট এন্ট্রি -->
+                <input type="text" id="txNote" placeholder="Add Note / Reference" class="axis-input bg-slate-50 border-none">
+                <!-- ৩ (এফ): কালেকশন ডেট -->
+                <input type="date" id="txDate" class="axis-input bg-slate-50 border-none font-bold">
                 
-                <div id="multiImgPreviewContainer" class="flex gap-4 flex-wrap">
-                    <!-- Thumbnails with red X icons will appear here -->
-                    
-                    <!-- Add Image Button -->
-                    <button onclick="openMediaSelector()" 
-                            class="w-16 h-16 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300 active:scale-90 transition-all hover:border-[#861F41] hover:text-[#861F41]">
-                        <i class="fas fa-plus-circle text-2xl"></i>
-                    </button>
+                <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-tighter">Attach Bills (Multi)</p>
+                    <div class="flex gap-2">
+                        <!-- থাম্বনেইল প্রিভিউ এরিয়া -->
+                        <div id="multiImgPreviewContainer" class="flex gap-2"></div>
+                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300"><i class="fas fa-plus"></i></button>
+                    </div>
                 </div>
             </div>
+            <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-xl uppercase">Confirm Entry</button>
         </div>
-
-        <!-- Main Action Button -->
-        <button id="mainConfirmBtn" 
-                class="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black shadow-2xl shadow-emerald-100 uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-4">
-            <i class="fas fa-check-circle text-xl"></i>
-            Confirm Transaction
-        </button>
     </div>
-</div>
 
-    <!-- 4. MODALS & SHEETS -->
-    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[2000]">
+    <!-- সেটিংস ও ম্যানেজার সেন্টার -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">Management Center</h3>
+            <!-- ১ (বি): ম্যানেজার নিয়োগ -->
+            <button onclick="hireManager()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-3 italic">Hire New Manager <i class="fas fa-user-plus"></i></button>
+            <div id="mgrList" class="space-y-2 mb-6"></div>
+            <!-- ১ (সি): পিন চেঞ্জ -->
+            <button onclick="askPin(changePinProcess)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-3">Change Security PIN <i class="fas fa-key"></i></button>
+            <button onclick="transferAccProcess()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-8">Transfer Phone Number <i class="fas fa-exchange-alt"></i></button>
+            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase">Back</button>
+            <!-- ১ (ডি): লগআউট বাটন -->
+            <button onclick="logout()" class="w-full py-4 text-rose-500 font-bold uppercase mt-4 text-[10px]"><i class="fas fa-power-off"></i> Secure Logout</button>
+        </div>
+    </div>
+
+    <!-- পিন ও মিডিয়া মোডাল -->
+    <div id="pinModal" class="hidden fixed inset-0 bg-black/80 z-[4000] flex items-center justify-center p-8">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center">
+            <h3 class="font-black text-[#861F41] mb-8 uppercase tracking-widest">Verify Admin Access</h3>
+            <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center text-4xl tracking-widest h-14 mb-8 pin-input-box">
+            <button id="pinSubmitBtn" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold uppercase shadow-xl">Confirm</button>
+        </div>
+    </div>
+
+    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[3000]">
         <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.5rem] p-10 flex justify-around shadow-2xl">
-            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner border border-slate-100"><i class="fas fa-camera"></i></div><span class="text-xs font-bold text-slate-600 uppercase tracking-tighter">Camera</span></button>
-            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner border border-slate-100"><i class="fas fa-image"></i></div><span class="text-xs font-bold text-slate-600 uppercase tracking-tighter">Gallery</span></button>
+            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div><span class="text-xs font-bold uppercase tracking-tighter">Camera</span></button>
+            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div><span class="text-xs font-bold uppercase tracking-tighter">Gallery</span></button>
         </div>
         <input type="file" id="camInp" accept="image/*" capture="camera" class="hidden">
         <input type="file" id="galInp" accept="image/*" class="hidden">
     </div>
 
-    <div id="pinModal" class="hidden fixed inset-0 bg-[#861F41]/95 z-[4000] flex items-center justify-center p-8">
-        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl">
-            <i class="fas fa-shield-halved text-5xl text-[#861F41] mb-8"></i>
-            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest">Verify PIN</h3>
-            <input type="password" id="confirmPinInput" maxlength="4" class="w-full p-4 bg-slate-50 rounded-2xl text-center text-4xl tracking-widest outline-none border">
-            <button id="pinSubmitBtn" class="w-full py-4 mt-8 bg-[#861F41] text-white rounded-xl font-bold shadow-xl">CONFIRM ACCESS</button>
-        </div>
-    </div>
-
-    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl">
-            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">Create New Connection</h3>
-            <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-4">
-            <input id="newPPhone" type="number" placeholder="10-Digit Mobile" class="axis-input mb-10">
-            <div class="flex gap-4">
-                <button onclick="closeAddModal()" class="flex-1 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Discard</button>
-                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase tracking-widest text-[10px]">Create Profile</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl">
-            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">Security Control</h3>
-            <button onclick="askPin(changePinProcess)" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3">Change Security PIN <i class="fas fa-chevron-right text-slate-300"></i></button>
-            <button onclick="transferAccProcess()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-8">Transfer Account <i class="fas fa-exchange-alt text-slate-300"></i></button>
-            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase tracking-widest">Back</button>
-       <button onclick="handleLogout()" class="w-full p-5 bg-rose-50 rounded-2xl flex justify-between items-center font-bold text-rose-600 border border-rose-100 mt-4">
-    <span>Secure Logout</span> <i class="fas fa-power-off"></i>
-        </button>
-        </div>
-    </div>
-
     <script>
-        // --- 1. INITIALIZATION & SYNC ---
+        // --- ফায়ারবেস কনফিগ (গ্লোবাল সিঙ্ক: পয়েন্ট ৯) ---
         const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab" };
         firebase.initializeApp(firebaseConfig);
         const db_fs = firebase.firestore();
         const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
         const MASTER_PIN = "5000";
-        const DB_KEY = 'PayBook_V12_Axis_Ultimate';
+        const STORAGE_KEY = 'PB_Ultimate_V12_Axis_Final';
 
-        let db = { admin: null, people: [], secret: false, tab: 'CUSTOMER', activeId: null };
-        let holdTimer, autoExitTimer, capturedImgFile = null;
+        let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '' };
+        let holdTimer, autoExitTimer, tempImageFiles = [];
 
-       window.onload = () => {
-    // আপনার আগের কোডের STORAGE_KEY বা DB_KEY ভেরিয়েবলটি ব্যবহার করুন
-    const data = localStorage.getItem('PB_Ultimate_V12_Axis'); 
-    
-    if(data) {
-        db = JSON.parse(data);
-        if(db.admin && db.admin.phone) {
-            toggleAuth('LOGIN'); // রেজিস্টার করা থাকলে লগইন দেখাবে
-        } else {
-            toggleAuth('REG');
-        }
-    } else {
-        toggleAuth('REG'); // একদম নতুন হলে রেজিস্ট্রেশন দেখাবে
-    }
-};
+        window.onload = () => {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if(data) {
+                db = JSON.parse(data);
+                if(db.admin) { toggleAuth('LOGIN'); } else showReg();
+            } else showReg();
+            initSecretGesture();
+            
+            // মিডিয়া হ্যান্ডলার
+            document.getElementById('camInp').onchange = e => handleImageFile(e.target.files[0]);
+            document.getElementById('galInp').onchange = e => handleImageFile(e.target.files[0]);
+        };
 
-// এই ফাংশনটি ট্যাব পরিবর্তন করে (লগইন বা রেজিস্ট্রেশন)
-function toggleAuth(mode) {
-    const lBox = document.getElementById('loginBox');
-    const rBox = document.getElementById('regBox');
-    const tLog = document.getElementById('tabLogin');
-    const tReg = document.getElementById('tabReg');
-
-    // আইডিগুলো আছে কি না চেক করে এরর বন্ধ করা
-    if(!lBox || !rBox) return;
-
-    if(mode === 'LOGIN') {
-        lBox.classList.remove('hidden');
-        rBox.classList.add('hidden');
-        if(tLog) tLog.className = "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
-        if(tReg) tReg.className = "flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all";
-    } else {
-        rBox.classList.remove('hidden');
-        lBox.classList.add('hidden');
-        if(tReg) tReg.className = "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
-        if(tLog) tLog.className = "flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all";
-    }
-}
-        
-function handleLogout() {
-    if(confirm("Secure Logout?")) {
-        document.getElementById('appBody').classList.add('hidden');
-        document.getElementById('authScreen').classList.remove('hidden');
-        
-        // লগআউট করার পর ডিফল্টভাবে লগইন ট্যাব দেখাবে যাতে ইউজার আবার ঢুকতে পারে
-        toggleAuth('LOGIN'); 
-    }
-}
-
+        // --- সেভ ও সিঙ্ক লজিক (পয়েন্ট ৯: মিউচুয়াল এন্ট্রি সাপোর্ট) ---
         function saveDB() {
-            localStorage.setItem(DB_KEY, JSON.stringify(db));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
             if(db.admin && db.admin.phone) db_fs.collection("global_ledgers").doc(db.admin.phone).set(db);
         }
 
-        async function syncCloud() {
-            if(db.admin && db.admin.phone) {
-                const doc = await db_fs.collection("global_ledgers").doc(db.admin.phone).get();
-                if(doc.exists) { db = doc.data(); renderHome(); }
-            }
+        async function loadCloudSync(ph) {
+            const doc = await db_fs.collection("global_ledgers").doc(ph).get();
+            if(doc.exists) { db = doc.data(); renderHome(); }
         }
 
-        // --- 2. AUTH HANDLERS ---
-        function showReg() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('regBox').classList.remove('hidden'); }
-        function showLogin() { 
-            document.getElementById('authScreen').classList.remove('hidden'); 
-            document.getElementById('loginBox').classList.remove('hidden'); 
-            document.getElementById('displayPhone').innerText = "+91 " + db.admin.phone;
-            syncCloud();
+        // --- অথেনটিকেশন (পয়েন্ট ১এ ও ৮) ---
+        function toggleAuth(mode) {
+            const lBox = document.getElementById('loginBox'), rBox = document.getElementById('regBox'), tLog = document.getElementById('tabLogin'), tReg = document.getElementById('tabReg');
+            if(mode==='LOGIN') { lBox.classList.remove('hidden'); rBox.classList.add('hidden'); tLog.className="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white"; tReg.className="flex-1 py-3 rounded-lg text-xs font-black text-slate-400"; }
+            else { rBox.classList.remove('hidden'); lBox.classList.add('hidden'); tReg.className="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white"; tLog.className="flex-1 py-3 rounded-lg text-xs font-black text-slate-400"; }
         }
 
         function handleRegistration() {
             const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value;
-            if(!n || ph.length !== 10) return alert("Enter 10-digit Phone!");
+            if(!n || ph.length !== 10) return alert("Invalid Data!");
             db.admin = { name: n, phone: ph, pin: p };
             saveDB(); location.reload();
         }
-async function handleLogin() {
-    // ১. ইনপুট থেকে নম্বর এবং পিন নেওয়া
-    const ph = document.getElementById('loginPhone').value.trim();
-    const pin = document.getElementById('loginPin').value.trim();
 
-    if(ph.length !== 10) return alert("Please enter 10-digit Phone Number!");
-    if(!pin) return alert("Please enter PIN!");
-
-    try {
-        // ২. আপনার ফায়ারবেস কালেকশন 'global_ledgers' থেকে ডাটা চেক করা
-        // স্ক্রিনশট অনুযায়ী আপনার কালেকশন নাম: global_ledgers
-        const doc = await db_fs.collection("global_ledgers").doc(ph).get();
-
-        if (doc.exists) {
-            const cloudData = doc.data();
-            
-            // ডাটাবেসে পিন এবং আপনার দেওয়া পিন তুলনা করা (সবগুলো স্ট্রিং হিসেবে)
-            const dbPin = String(cloudData.admin.pin);
-            const userPin = String(pin);
-
-            // ৩. পিন চেক (আপনার এডমিন পিন অথবা মাস্টার পিন ৫০০০)
-            if(userPin === dbPin || userPin === MASTER_PIN) {
-                db = cloudData;
-                db.role = 'ADMIN';
-                db.opName = db.admin.name;
-                
-                // লোকাল মেমোরি আপডেট করা (STORAGE_KEY নিশ্চিত করুন)
-                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-                
-                // অ্যাপে প্রবেশ
-                enterApp();
-                console.log("Login Success: Admin Access");
-            } else {
-                // ম্যানেজার চেক (যদি থাকে)
-                const mgr = (cloudData.managers || []).find(m => String(m.pin) === userPin);
-                if(mgr) {
-                    db = cloudData;
-                    db.role = 'MANAGER';
-                    db.opName = mgr.name;
-                    enterApp();
-                } else {
-                    alert("Invalid Axis PIN!");
+        async function handleLogin() {
+            const ph = document.getElementById('loginPhone').value, pin = document.getElementById('loginPin').value;
+            const doc = await db_fs.collection("global_ledgers").doc(ph).get();
+            if (doc.exists) {
+                const cloud = doc.data();
+                if(pin === cloud.admin.pin || pin === MASTER_PIN) { db = cloud; db.role = 'ADMIN'; db.opName = db.admin.name; enterApp(); }
+                else {
+                    const mgr = (cloud.managers || []).find(m => m.pin === pin);
+                    if(mgr) { db = cloud; db.role = 'MANAGER'; db.opName = mgr.name; enterApp(); }
+                    else alert("Wrong PIN!");
                 }
-            }
-        } else {
-            alert("No account found! Please switch to Register tab.");
+            } else { alert("Account not found!"); toggleAuth('REG'); }
         }
-    } catch (error) {
-        console.error("Login System Error:", error);
-        alert("Connection Error! Check your internet.");
-    }
-}
 
-function enterApp() {
-    // ইউআই আপডেট
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appBody').classList.remove('hidden');
-    
-    // উপরে ডানদিকের আইকন এবং নাম আপডেট
-    if(db.admin) {
-        document.getElementById('ownerName').innerText = db.opName || db.admin.name;
-        document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
-    }
-    
-    renderHome(); // কাস্টমার লিস্ট লোড করা
-}
-        
-        // ১. লগআউট ফাংশন (এটি কল করলে সেশন ক্লিন হয়ে লগইন স্ক্রিনে যাবে)
-function handleLogout() {
-    if(confirm("Are you sure you want to logout?")) {
-        // সিক্রেট মোড অফ করা
-        db.secret = false;
-        
-        // মেইন অ্যাপ হাইড এবং অথ স্ক্রিন শো
-        document.getElementById('appBody').classList.add('hidden');
-        document.getElementById('authScreen').classList.remove('hidden');
-        
-        // লগইন বক্স ক্লিনিং (যাতে স্ক্রিনশটের মতো আটকে না থাকে)
-        document.getElementById('loginPhone').value = "";
-        document.getElementById('loginPin').value = "";
-        
-        // ট্যাব রিসেট করে লগইন মোডে রাখা
-        toggleAuth('LOGIN');
-        
-        console.log("Logged out successfully.");
-    }
-}
+        function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); renderHome(); }
+        function logout() { if(confirm("Secure Logout?")) location.reload(); }
 
-// ২. টাইপো ফিক্স এবং উইন্ডো লোড লজিক (১৩৩ নম্বর লাইনের ভুল সংশোধন সহ)
-window.onload = () => {
-    const data = localStorage.getItem(DB_KEY); // এখানে loc9alStorage ছিল, ঠিক করা হলো
-    
-    if(data) {
-        db = JSON.parse(data);
-        // যদি ডাটা থাকে, সরাসরি লগইন ট্যাব দেখাবে
-        toggleAuth('LOGIN');
-    } else {
-        // যদি ডাটা না থাকে, রেজিস্ট্রেশন ট্যাব দেখাবে
-        toggleAuth('REG');
-    }
-    
-    initSecretGesture();
-};
-
-        // --- 3. SECRET LOGIC & TIMER (30s) ---
+        // --- সিক্রেট মোড (পয়েন্ট ৪, ৬, ৭, ৮) ---
         function initSecretGesture() {
-    const el = document.getElementById('secretTrigger');
-
-    // ১. কুইক এক্সিট: জাস্ট টাচ করলে (যদি অলরেডি সিক্রেট মোডে থাকে)
-    el.onclick = () => {
-        if (db.secret) {
-            exitSecretManually();
+            const el = document.getElementById('secretTrigger');
+            el.onclick = () => { if(db.secret) exitSecret(); };
+            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startAutoExitTimer(); }); }, 2500); };
+            el.onpointerup = () => clearTimeout(holdTimer);
         }
-    };
+        function startAutoExitTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); } // ১ মিনিট (পয়েন্ট ৭)
+        function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
-    // ২. হোল্ড করে এন্টার: ২.৫ সেকেন্ড চেপে ধরলে (যদি পাক্কা মোডে থাকে)
-    el.onpointerdown = () => {
-        if (!db.secret) {
-            holdTimer = setTimeout(() => {
-                askPin(() => { 
-                    db.secret = true; 
-                    document.getElementById('secretTrigger').classList.add('blink-secret'); 
-                    renderAll(); 
-                    startAutoExit(); // ৩০ সেকেন্ডের টাইমার শুরু হবে
-                });
-            }, 2500);
-        }
-    };
-
-    el.onpointerup = () => clearTimeout(holdTimer);
-    el.onpointerleave = () => clearTimeout(holdTimer);
-}
-
-// ৩. ম্যানুয়ালি বের হওয়ার ফাংশন
-function exitSecretManually() {
-    db.secret = false;
-    clearTimeout(autoExitTimer); // টাইমার বন্ধ হবে
-    
-    // UI থেকে সিক্রেট ইফেক্ট সরানো
-    document.getElementById('secretTrigger').classList.remove('blink-secret');
-    
-    renderAll(); // সাথে সাথে পাক্কা মোড রেন্ডার হবে
-    console.log("Quick Exited to Pakka Mode");
-}
-
-        function startAutoExit() {
-            clearTimeout(autoExitTimer);
-            autoExitTimer = setTimeout(() => {
-                db.secret = false;
-                document.getElementById('secretTrigger').classList.remove('blink-secret');
-                renderAll();
-                alert("Security Alert: Returned to Pakka Mode.");
-            }, 30000); // 30 Seconds
-        }
-
-        // --- 4. CORE CALCULATION & UI ---
-        function calcBal(txs, isSecMode, pType) {
+        // --- ক্যালকুলেশন ও রেন্ডার (পয়েন্ট ৪ ও ৬: ১০০ দিয়ে ভাগ) ---
+        function calcBal(txs, isSec, pType) {
             let b = 0;
-            // Strict Separation: পাকা এবং কাঁচা ডাটা মিশবে না
-            txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode).forEach(t => {
-                if (pType === 'CUSTOMER') b += (t.type === 'GIVEN' ? t.amount : -t.amount);
-                else b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
+                if (pType === 'CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount);
+                else b += (t.type==='RECEIVED' ? t.amount : -t.amount);
             });
             return b;
         }
 
         function renderHome() {
             const list = document.getElementById('contactList'); list.innerHTML = "";
-            document.getElementById('headerMain').classList.remove('hidden');
-            document.getElementById('headerLedger').classList.add('hidden');
-            
+            document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden');
             db.people.filter(p => p.type === db.tab).forEach(p => {
                 const bal = calcBal(p.transactions, db.secret, p.type);
-                // Secret logic: ১০০ দিয়ে ভাগ ডিসপ্লেতে
                 const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-                
-                list.innerHTML += `
-                    <div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
-                            <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p></div>
-                        </div>
-                        <div class="text-right">
-                            <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5>
-                            <p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'YOU GET' : 'CLEAR'}</p>
-                        </div>
-                    </div>`;
+                list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all">
+                    <div class="flex items-center gap-3"><div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
+                    <div><h4 class="font-bold text-sm">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p></div></div>
+                    <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'DUE' : 'CLEAR'}</p></div></div>`;
             });
         }
 
-        function openLedger(id) {
-            db.activeId = id; const p = db.people.find(x => x.id === id);
-            document.getElementById('lName').innerText = p.name;
-            document.getElementById('headerMain').classList.add('hidden');
-            document.getElementById('headerLedger').classList.remove('hidden');
-            document.getElementById('pageHome').classList.add('hidden');
-            document.getElementById('pageLedger').classList.remove('hidden');
-            renderLedger();
-        }
-
-       function renderLedger() {
-    const p = db.people.find(x => x.id === db.activeId);
-    const list = document.getElementById('ledgerList'); 
-    list.innerHTML = "";
-    
-    // ১. সঠিক টাইপ (Customer/Supplier) পাঠিয়ে ব্যালেন্স বের করা
-    const net = calcBal(p.transactions, db.secret, p.type);
-    
-    // ২. ১০০ দিয়ে ভাগ করার লজিক (শুধুমাত্র সিক্রেট মোডে)
-    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-    const balEl = document.getElementById('mainTotal');
-    balEl.innerText = "₹ " + displayHeaderTotal;
-
-    // ৩. হেডার কালার ও লেবেল আপডেট
-    if (net > 0) {
-        balEl.style.color = '#f43f5e'; // Red (Due)
-        document.getElementById('balTypeLabel').innerText = (p.type === 'CUSTOMER' ? "YOU GET" : "YOU PAY");
-    } else {
-        balEl.style.color = '#10b981'; // Green (Clear/Advance)
-        document.getElementById('balTypeLabel').innerText = (net === 0 ? "SETTLED" : "ADVANCE");
-    }
-
-    // ৪. ট্রানজ্যাকশন ফিল্টারিং ও রেন্ডারিং
-    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-        const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
-        
-        // ৫. মাল্টি-ইমেজ গ্যালারি জেনারেটর (Point 5 Update)
-        let imagesHTML = "";
-        if (t.images && t.images.length > 0) {
-            imagesHTML = `<div class="flex gap-2 overflow-x-auto pb-3 mb-2 snap-x no-scrollbar">`;
-            t.images.forEach(imgUrl => {
-                imagesHTML += `
-                    <div class="snap-start flex-shrink-0 w-44 h-32 bg-slate-50 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-                        <img src="${imgUrl}" class="w-full h-full object-cover" onclick="window.open('${imgUrl}')">
-                    </div>`;
-            });
-            imagesHTML += `</div>`;
-        } else if (t.imgUrl) { // পুরাতন সিঙ্গেল ইমেজ সাপোর্ট
-            imagesHTML = `<img src="${t.imgUrl}" class="tx-img mb-3" onclick="window.open(this.src)">`;
-        }
-
-        // ৬. কালার লজিক (বকেয়া লাল)
-        let isRedCol = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
-
-        list.innerHTML += `
-            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-1 tracking-tighter">${t.date}</div>
-                
-                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                    <!-- Images Area -->
-                    ${imagesHTML}
-                    
-                    <div class="flex justify-between items-center gap-6 mt-1 px-1">
-                        <h3 class="text-xl font-black ${isRedCol ? 'text-rose-600' : 'text-emerald-600'} tracking-tighter">
-                            ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
-                        </h3>
-                        <p class="text-[8px] font-bold text-slate-300 uppercase tracking-widest">${t.type}</p>
-                    </div>
-
-                    <!-- Note & Managed By (Point 9) -->
-                    <div class="mt-3 px-1 border-t border-slate-50 pt-2">
-                        <p class="text-[10px] text-slate-500 italic font-medium leading-tight">${t.note || 'Reference Entry'}</p>
-                        <p class="text-[7px] text-slate-400 mt-2 uppercase font-black tracking-[0.1em] flex items-center gap-1">
-                            <i class="fas fa-user-check text-[6px]"></i> By: ${t.by || 'Owner'}
-                        </p>
-                    </div>
-
-                    <!-- Action Icons -->
-                    <div class="flex gap-5 mt-4 pt-3 border-t border-slate-50">
-                        <i class="fas fa-edit text-indigo-200 text-xs active:text-indigo-500" onclick="editTx(${p.id}, ${t.id})"></i>
-                        <i class="fas fa-trash text-rose-200 text-xs active:text-rose-500" onclick="deleteTx(${t.id})"></i>
-                        <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto active:text-emerald-600" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                        ${t.history ? `<i class="fas fa-history text-slate-200 text-[10px]" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
-                    </div>
-                </div>
-            </div>`;
-    });
-
-    // ৫. কন্টেইনার স্ক্রোল করা একদম নিচে (লেটেস্ট ট্রানজ্যাকশন দেখার জন্য)
-    setTimeout(() => {
-        const viewport = document.getElementById('mainViewport');
-        viewport.scrollTop = viewport.scrollHeight;
-    }, 100);
-}
-        // --- 5. DATA ENTRY & MEDIA ---
-        function triggerDrawer(type) {
-            const drawer = document.getElementById('entryDrawer'); drawer.classList.remove('hidden');
-            setTimeout(() => drawer.classList.add('open'), 10);
-            document.getElementById('drawerActionType').innerText = type + " Entry";
-            document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-            document.getElementById('mainConfirmBtn').onclick = () => preSave(type);
-        }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(() => { document.getElementById('entryDrawer').classList.add('hidden'); clearImage(); }, 400);
-                               tempImageFiles = []; // ছবি লিস্ট খালি করা
-    document.getElementById('multiImgPreviewContainer').innerHTML = ""; // প্রিভিউ খালি করা
- }
-
-        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
-        function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        let tempImageFiles = []; // সাময়িকভাবে ছবি রাখার অ্যারে
-
-// ১. ক্যামেরা বা গ্যালারি থেকে ছবি সিলেক্ট করলে এটি কল হবে
-function handleImageFile(file) {
-    if(!file) return;
-    tempImageFiles.push(file); // নতুন ছবি যোগ করা হলো
-    renderMultiThumbnails(); // স্ক্রিনে ছোট ছবি (থাম্বনেইল) দেখানো
-    document.getElementById('mediaSheet').classList.add('hidden'); // মিডিয়া শিট বন্ধ
-}
-
-// ২. ড্রয়ারের ভেতর ছোট ছোট থাম্বনেইল দেখানোর ফাংশন
-let tempImageFiles = []; // ছবি জমা রাখার জন্য
-
-// ১. ক্যামেরা বা গ্যালারি থেকে ছবি আসলে এটি কল হবে
-async function preSave(type) {
-    const amt = parseFloat(document.getElementById('txAmt').value);
-    if(!amt) return alert("Please enter amount!");
-
-    const action = async () => {
-        const confirmBtn = document.getElementById('mainConfirmBtn');
-        confirmBtn.innerText = "UPLOADING...";
-        confirmBtn.disabled = true;
-
-        let uploadedUrls = [];
-        
-        try {
-            // লুপ চালিয়ে সব ছবি ImgBB-তে পাঠানো
-            for (let file of tempImageFiles) {
-                const fd = new FormData();
-                fd.append('image', file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                const dat = await res.json();
-                if(dat.success) uploadedUrls.push(dat.data.url);
-            }
-
+        function renderLedger() {
             const p = db.people.find(x => x.id === db.activeId);
-            p.transactions.push({
-                id: Date.now(),
-                amount: amt,
-                type: type,
-                secret: !!db.secret,
-                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'),
-                note: document.getElementById('txNote').value,
-                images: uploadedUrls, // এখানে সব ছবির লিঙ্ক সেভ হচ্ছে
-                by: db.opName || 'Owner',
-                status: 'active'
+            const list = document.getElementById('ledgerList'); list.innerHTML = "";
+            const net = calcBal(p.transactions, db.secret, p.type);
+            const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+            document.getElementById('mainTotal').innerText = dNet;
+            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+
+            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
+                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
+                let isRedCol = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+
+                let imgHtml = "";
+                if(t.images) t.images.forEach(img => imgHtml += `<img src="${img}" class="h-40 w-auto rounded-xl mr-2 shadow-sm" onclick="window.open('${img}')">`);
+
+                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                    <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
+                    <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                        <div class="flex gap-2 overflow-x-auto mb-3 scroll-hide">${imgHtml}</div>
+                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRedCol?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300">${t.type}</p></div>
+                        <p class="text-[10px] text-slate-500 italic mt-1 font-medium">${t.note || ''}</p>
+                        <p class="text-[7px] text-slate-300 mt-1 uppercase font-bold tracking-tighter border-t pt-1">By: ${t.by || 'Owner'} (Edited by Manager? ${t.history?'Yes':'No'})</p>
+                        <div class="flex gap-5 mt-4 pt-2"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
+                    </div></div>`;
             });
-
-            saveDB(); renderLedger(); closeDrawer();
-            tempImageFiles = []; // ক্লিয়ার করা
-            alert("Success! Saved with " + uploadedUrls.length + " images.");
-
-        } catch (err) {
-            alert("Upload failed. Check Internet!");
-        } finally {
-            confirmBtn.innerText = "CONFIRM TRANSACTION";
-            confirmBtn.disabled = false;
+            document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
-    };
 
-    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
-}
-
-function removeTempImage(index) {
-    tempImageFiles.splice(index, 1);
-    renderMultiThumbnails();
-}
-
-// ৪. ভুল ডাটা ক্লিন করার ফাংশন (এরর ফিক্সড)
-function clearImage() {
-    tempImageFiles = [];
-    renderMultiThumbnails();
-}
-       async function preSave(type) {
-    const amtInput = document.getElementById('txAmt');
-    const amt = parseFloat(amtInput.value);
-    if(!amt) return alert("Please enter amount!");
-
-    const action = async () => {
-        const confirmBtn = document.getElementById('mainConfirmBtn');
-        confirmBtn.innerText = "UPLOADING " + tempImageFiles.length + " IMAGES...";
-        confirmBtn.disabled = true;
-
-        let uploadedUrls = [];
-        
-        try {
-            // সব ছবি লুপ চালিয়ে আপলোড করা
-            for (let file of tempImageFiles) {
-                const fd = new FormData();
-                fd.append('image', file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                const dat = await res.json();
-                if(dat.success) uploadedUrls.push(dat.data.url);
-            }
-
-            const p = db.people.find(x => x.id === db.activeId);
-            p.transactions.push({
-                id: Date.now(),
-                amount: amt,
-                type: type,
-                secret: !!db.secret,
-                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'),
-                note: document.getElementById('txNote').value,
-                images: uploadedUrls, // সব ছবির লিঙ্ক সেভ হলো
-                by: db.opName || 'Owner',
-                status: 'active'
-            });
-
-            saveDB(); 
-            renderLedger(); 
-            closeDrawer();
-            
-            // সব ক্লিয়ার করা
-            tempImageFiles = [];
-            confirmBtn.innerText = "CONFIRM TRANSACTION";
-            confirmBtn.disabled = false;
-            alert("Transaction saved with " + uploadedUrls.length + " images!");
-
-        } catch (err) {
-            console.error("Upload Error:", err);
-            alert("Upload failed. Check your internet.");
-            confirmBtn.disabled = false;
+        // --- পয়েন্ট ৩: ইমেজ ও ডাটা সেভ ---
+        async function preSave(type) {
+            const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Amount!");
+            const action = async () => {
+                document.getElementById('mainConfirmBtn').innerText = "SAVING...";
+                let imgUrls = [];
+                for(let file of tempImageFiles) {
+                    const fd = new FormData(); fd.append('image', file);
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                    const dat = await res.json(); if(dat.success) imgUrls.push(dat.data.url);
+                }
+                const p = db.people.find(x => x.id === db.activeId);
+                p.transactions.push({ id:Date.now(), amount:amt, type, secret:!!db.secret, date:document.getElementById('txDate').value, note:document.getElementById('txNote').value, images:imgUrls, by: db.opName, status:'active' });
+                saveDB(); renderLedger(); closeDrawer();
+            };
+            if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
         }
-    };
 
-    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') askPin(action); else action();
-}
+        // --- পয়েন্ট ১ ও ৭: সেটিংস ও ম্যানেজার ---
+        function hireManager() {
+            const n = prompt("Manager Name:"), ph = prompt("10-Digit Phone:"), p = prompt("Manager PIN:");
+            if(n && ph.length===10 && p.length===4) { if(!db.managers) db.managers = []; db.managers.push({ name:n, phone:ph, pin:p }); saveDB(); renderManagers(); }
+        }
+        function renderManagers() { const l = document.getElementById('mgrList'); l.innerHTML = ""; (db.managers || []).forEach(m => { l.innerHTML += `<div class="p-3 bg-slate-100 rounded-xl flex justify-between"><span>${m.name} (${m.phone})</span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`; }); }
+        function delMgr(ph) { if(confirm("Remove?")) { db.managers = db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
 
-        // --- 6. SMART PDF & SHARE ---
+        // --- পয়েন্ট ৬: পিডিএফ (অরিজিনাল এমাউন্ট সহ) ---
         function handleSmartPdfDownload() {
             const { jsPDF } = window.jspdf; const doc = new jsPDF(); const isSec = db.secret;
             if(!document.getElementById('pageLedger').classList.contains('hidden')) {
-                // ইন্ডিভিজুয়াল রিপোর্ট
-                const p = db.people.find(x => x.id === db.activeId);
-                doc.text(`Official Ledger: ${p.name}`, 14, 20);
-                const head = isSec ? [['Date', 'Note', 'Pakka Rs.', 'Kaccha Rs.']] : [['Date', 'Note', 'Pakka Balance']];
-                const rows = p.transactions.filter(t => t.status === 'active').map(t => {
-                    if(!isSec && t.secret) return null;
-                    const amtStr = t.amount.toLocaleString('en-IN');
-                    return isSec ? [t.date, t.note, t.secret?'-':amtStr, t.secret?amtStr:'-'] : [t.date, t.note, amtStr];
-                }).filter(x => x);
-                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} });
-                doc.save(`${p.name}_Report.pdf`);
-            } else {
-                // গ্লোবাল সামারি
-                doc.text(`Portfolio Summary`, 14, 20);
-                const head = isSec ? [['Name', 'Mobile', 'Pakka Bal', 'Kaccha Bal']] : [['Name', 'Mobile', 'Pakka Balance']];
-                const rows = db.people.map(p => {
-                    let pb = 0, kb = 0;
-                    p.transactions.filter(t => t.status==='active').forEach(t => { 
-                        let v = (t.type==='RECEIVED'?t.amount:-t.amount); 
-                        if(t.secret) kb+=v; else pb+=v; 
-                    });
-                    return isSec ? [p.name, p.phone, pb, kb] : [p.name, p.phone, pb];
+                const p = db.people.find(x => x.id === db.activeId); doc.text(`Official Ledger: ${p.name}`, 14, 20);
+                const head = isSec ? [['Date', 'Given Rs.', 'Received Rs.']] : [['Date', 'Total Amount Rs.']];
+                const rows = p.transactions.filter(t => t.status==='active').map(t => {
+                    const amtS = t.amount.toLocaleString('en-IN'); // অরিজিনাল এমাউন্ট
+                    return isSec ? [t.date, t.type==='GIVEN'?amtS:'-', t.type==='RECEIVED'?amtS:'-'] : [t.date, amtS];
                 });
-                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} });
-                doc.save("PayBook_Business_Summary.pdf");
+                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save(`${p.name}.pdf`);
+            } else {
+                doc.text(`Full Summary`, 14, 20);
+                const head = isSec ? [['Name', 'Pakka Rs.', 'Kaccha Rs.']] : [['Name', 'Pakka Balance']];
+                const rows = db.people.map(p => { 
+                    let pb=0, kb=0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; });
+                    return isSec ? [p.name, pb, kb] : [p.name, pb];
+                });
+                doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("Business_Summary.pdf");
             }
         }
 
-        function shareWA(amt, type, name) { 
-            // শেয়ার করার সময় সব সময় আসল অ্যামাউন্ট যাবে (ভাগ হবে না)
-            const msg = `PayBook Pro Receipt: ${name}\nType: ${type}\nAmount: Rs. ${amt.toLocaleString()}\nStatus: Verified`;
-            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`); 
-        }
-        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('Download PayBook Pro App: ' + window.location.href)}`); }
-
-        // --- 7. UTILS ---
-        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong PIN!"); }; }
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('pageHome').classList.remove('hidden'); renderHome(); }
-        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
+        // --- ইউটিলস ---
+        function handleImageFile(f) { if(!f) return; tempImageFiles.push(f); renderMultiThumbnails(); }
+        function renderMultiThumbnails() { const c = document.getElementById('multiImgPreviewContainer'); c.innerHTML = ""; tempImageFiles.forEach((file, idx) => { c.innerHTML += `<div class="relative w-10 h-10"><img src="${URL.createObjectURL(file)}" class="w-full h-full object-cover rounded"><i class="fas fa-times absolute -top-1 -right-1 text-red-500 bg-white rounded-full text-[8px]" onclick="tempImageFiles.splice(${idx},1);renderMultiThumbnails();"></i></div>`; }); }
+        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong!"); }; }
+        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
+        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; document.getElementById('tabSupp').className = t==='SUPPLIER' ? 'flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-lg' : 'flex-1 py-3 rounded-lg text-xs font-black text-slate-400'; renderHome(); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function confirmAdd() { const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value; if(n && ph.length===10) { if(db.people.some(x=>x.phone===ph)) return alert("Exists!"); db.people.unshift({ id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[] }); saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome(); } else alert("Enter Name & 10-Digit Mobile!"); }
+        function triggerDrawer(t) { document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
+        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); tempImageFiles=[]; document.getElementById('multiImgPreviewContainer').innerHTML="";}, 400); }
+        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+        function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
+        function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
+        function clearImage() { tempImageFiles=[]; document.getElementById('multiImgPreviewContainer').innerHTML=""; }
         function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
         function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
-        function showSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("New Amt:", t.amount)), nt = prompt("Note:", t.note); if(!t.history) t.history = []; t.history.push({ amt: t.amount, note: t.note, date: new Date().toLocaleString() }); t.amount = n; t.note = nt; saveDB(); renderLedger(); }); }
         function deleteTx(tid) { askPin(() => { const p = db.people.find(x => x.id === db.activeId); p.transactions.find(t => t.id === tid).status = 'deleted'; saveDB(); renderLedger(); }); }
-        function editTx(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); askPin(() => { const n = parseFloat(prompt("Original Amount:", t.amount)), nt = prompt("Note:", t.note); if(!t.history) t.history = []; t.history.push({ amt: t.amount, note: t.note, date: new Date().toLocaleString() }); t.amount = n; t.note = nt; saveDB(); renderLedger(); }); }
-        function showHistory(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); let msg = "Edit History:\n\n"; t.history.forEach(h => msg += `${h.date}: Rs. ${h.amt} (${h.note})\n`); alert(msg); }
-        function changePinProcess() { const n = prompt("New 4-Digit PIN:"); if(n && n.length===4) { db.admin.pin = n; saveDB(); alert("PIN Updated!"); } }
-        function transferAccProcess() { const v = prompt("Current Phone:"); if(v===db.admin.phone) { const n = prompt("New 10 Digit Phone:"); if(n && n.length===10) { db.admin.phone = n; saveDB(); location.reload(); } } }
+        function showHistory(pid, tid) { const p = db.people.find(x => x.id === pid), t = p.transactions.find(x => x.id === tid); let msg = "History:\n\n"; t.history.forEach(h => msg += `${h.date}: Rs. ${h.amt} (${h.note})\n`); alert(msg); }
+        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Download link: ' + window.location.href)}`); }
+        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: '+n+'\n'+t+': Rs.'+amt)}`); }
+        function changePin() { const p = prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin = p; saveDB(); alert("PIN Updated!"); } }
+        function transferAcc() { const v = prompt("Current Phone:"); if(v===db.admin.phone) { const n = prompt("New 10 Digit Phone:"); if(n && n.length===10) { db.admin.phone = n; saveDB(); location.reload(); } } }
     </script>
 </body>
 </html>
