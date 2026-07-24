@@ -249,7 +249,6 @@
         };
 
         // --- 2. AUTH & MANAGER SYNC ---
-        function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin && db.admin.phone) db_fs.collection("global_ledgers").doc(db.admin.phone).set(db); }
         async function syncCloud() { if(db.admin) { const doc = await db_fs.collection("global_ledgers").doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } } }
         
         function toggleAuth(mode) {
@@ -257,20 +256,38 @@
             if(mode==='LOGIN') { lBox.classList.remove('hidden'); rBox.classList.add('hidden'); tL.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tR.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
             else { rBox.classList.remove('hidden'); lBox.classList.add('hidden'); tR.className="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md"; tL.className="flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; }
         }
+        // ১. সেভ করার সময়
+function saveDB() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    if(db.admin && db.admin.phone) {
+        // এখানে 'global_ledgers' ব্যবহার করুন
+        db_fs.collection("global_ledgers").doc(db.admin.phone).set(db);
+    }
+}
 
-        async function handleLogin() {
-            const ph = document.getElementById('loginPhone').value, pin = document.getElementById('loginPin').value;
-            if(ph.length !== 10) return alert("Enter 10-digit Phone!");
-            const doc = await db_fs.collection("global_ledgers").doc(ph).get();
-            if (doc.exists) {
-                const cloud = doc.data();
-                if(pin === cloud.admin.pin || pin === MASTER_PIN) { db = cloud; db.role='ADMIN'; db.opName=db.admin.name; enterApp(); }
-                else {
-                    const mgr = (cloud.managers || []).find(m => m.pin === pin);
-                    if(mgr) { db = cloud; db.role='MANAGER'; db.opName=mgr.name; enterApp(); } else alert("PIN Incorrect!");
-                }
-            } else { alert("Not registered!"); toggleAuth('REG'); }
+// ২. লগইন করার সময়
+async function handleLogin() {
+    const ph = document.getElementById('loginPhone').value;
+    const pin = document.getElementById('loginPin').value;
+
+    if(ph.length !== 10) return alert("Enter 10-digit Phone!");
+
+    // এখানেও 'global_ledgers' ব্যবহার করুন
+    const doc = await db_fs.collection("global_ledgers").doc(ph).get();
+
+    if (doc.exists) {
+        const cloudData = doc.data();
+        if(pin === cloudData.admin.pin || pin === MASTER_PIN) {
+            db = cloudData;
+            enterApp();
+        } else {
+            alert("Wrong PIN!");
         }
+    } else {
+        alert("Not registered!");
+        toggleAuth('REG'); // রেজিস্টার ট্যাবে পাঠিয়ে দিবে
+    }
+}
         function handleRegistration() { const n = document.getElementById('regName').value, ph = document.getElementById('regPhone').value, p = document.getElementById('regPin').value; if(!n || ph.length !== 10) return alert("Data Invalid!"); db.admin = { name: n, phone: ph, pin: p }; saveDB(); location.reload(); }
         function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase(); renderHome(); }
         function logout() { if(confirm("Terminate Secure Session?")) location.reload(); }
