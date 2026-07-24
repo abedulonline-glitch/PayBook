@@ -190,17 +190,26 @@
         </div>
     </div>
 
-    <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">Management Center</h3>
-            <button onclick="hireManager()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-3 italic">Hire New Manager <i class="fas fa-user-plus"></i></button>
-            <div id="mgrList" class="space-y-2 mb-6"></div>
-            <button onclick="askPin(changePin)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-3">Change PIN <i class="fas fa-key"></i></button>
-            <button onclick="transferAcc()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold mb-8">Transfer Phone <i class="fas fa-exchange"></i></button>
-            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-xl font-bold">BACK</button>
-            <button onclick="logout()" class="w-full py-4 text-rose-500 font-bold uppercase mt-3 tracking-widest text-[10px]"><i class="fas fa-power-off"></i> Secure Logout</button>
+    <!-- Settings Modal এর ভেতরের বাটনগুলো এভাবে পরিবর্তন করুন -->
+<div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+    <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl">
+        <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">System Access</h3>
+        
+        <!-- এই বাটনগুলো শুধু এডমিন দেখবে -->
+        <div id="adminControls" class="space-y-3">
+            <button onclick="hireManager()" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold">Hire New Manager <i class="fas fa-user-plus"></i></button>
+            <div id="mgrList" class="space-y-2 mb-3"></div>
+            <button onclick="askPin(changePin)" class="w-full p-5 bg-slate-50 rounded-2xl flex justify-between font-bold">Change Admin PIN <i class="fas fa-key"></i></button>
         </div>
+
+        <!-- এই বাটনটি সবাই দেখবে (এডমিন ও ম্যানেজার) -->
+        <button onclick="logout()" class="w-full p-6 bg-rose-50 rounded-3xl flex justify-between font-bold text-rose-600 mt-3 border border-rose-100">
+            <span>Secure Logout</span> <i class="fas fa-power-off"></i>
+        </button>
+
+        <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="w-full py-4 text-slate-400 font-bold mt-4 uppercase">Close</button>
     </div>
+</div>
 
     <script>
         const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab" };
@@ -300,8 +309,26 @@ function enterApp() {
     document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
     renderHome();
 }
-           function logout() { if(confirm("Secure Logout?")) location.reload(); }
-
+           
+        function logout() {
+    if(confirm("Securely Logout from PayBook Pro?")) {
+        // অ্যাপ ভিউ হাইড এবং লগইন শো
+        document.getElementById('appBody').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+        
+        // লগইন ইনপুট ক্লিন
+        document.getElementById('loginPhone').value = "";
+        document.getElementById('loginPin').value = "";
+        
+        // সিক্রেট মোড অফ
+        db.secret = false;
+        document.getElementById('secretTrigger').classList.remove('blink-secret');
+        
+        // হোম পেজে নিয়ে যাওয়া
+        goHome();
+        console.log("Session terminated safely.");
+    }
+}
         // --- CUSTOMER & SUPPLIER (Fix Point 1 & 6) ---
         function confirmAdd() {
             const n = document.getElementById('newPName').value, ph = document.getElementById('newPPhone').value;
@@ -410,6 +437,21 @@ function enterApp() {
                 doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("Summary.pdf");
             }
         }
+        function showSettings() {
+    const modal = document.getElementById('settingsModal');
+    const adminControls = document.getElementById('adminControls');
+
+    if (db.role === 'MANAGER') {
+        // যদি ইউজার ম্যানেজার হয়, তবে এডমিন অপশনগুলো হাইড করে দাও
+        adminControls.classList.add('hidden');
+    } else {
+        // যদি এডমিন হয়, তবে সব অপশন শো করো
+        adminControls.classList.remove('hidden');
+        renderManagers(); // ম্যানেজারের লিস্ট দেখাবে
+    }
+
+    modal.classList.remove('hidden');
+}
 
         // --- MANAGERS ---
         function hireManager() {
@@ -433,7 +475,6 @@ function enterApp() {
         function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
         function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function showSettings() { if(db.role==='MANAGER') return alert("Admin Only!"); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: '+n+'\n'+t+': Rs.'+amt)}`); }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Download Now: ' + window.location.href)}`); }
         function changePin() { const p = prompt("New 4 Digit PIN:"); if(p && p.length===4) { db.admin.pin = p; saveDB(); alert("PIN Updated!"); } }
