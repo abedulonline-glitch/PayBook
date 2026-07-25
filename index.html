@@ -240,7 +240,7 @@ async function saveDB() {
         });
     }
 }
-        async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
+       async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
 
         function toggleAuth(mode) {
             document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
@@ -260,44 +260,37 @@ async function saveDB() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
-    if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
+    if(ph.length !== 10 || !pin) return alert("Enter Phone & PIN!");
 
     try {
-        // ১. পিন এবং নম্বর দিয়ে সিকিউর ইউনিক চাবিকাঠি তৈরি (Privacy Lock)
-        // এই কি-টি দিয়ে আমরা 'auth_router' কালেকশনে সার্চ করব
+        // ১. পিন এবং নম্বর দিয়ে রাউটার চেক করা
         const authKey = `${ph}_${pin}`;
-        
-        // ২. ফায়ারস্টোর থেকে সরাসরি ওই পিনের ম্যাপটি খুঁজে বের করা
-        // এতে সবার ডাটা রিড করার প্রয়োজন হয় না, শুধু আপনারটিই পাওয়া যাবে
-        const routerDoc = await db_fs.collection("auth_router").doc(authKey).get();
+        const authDoc = await db_fs.collection("auth_router").doc(authKey).get();
 
-        if (routerDoc.exists) {
-            const authInfo = routerDoc.data();
-            
-            // ৩. রাউটার থেকে পাওয়া 'adminPhone' দিয়ে মূল লেজার ডাটা আনা
+        if (authDoc.exists) {
+            const authInfo = authDoc.data();
+            // ২. রাউটার থেকে পাওয়া এডমিন নম্বর দিয়ে আসল লেজার ডাটা আনা
             const ledgerDoc = await db_fs.collection(COLLECTION).doc(authInfo.adminPhone).get();
-
+            
             if (ledgerDoc.exists) {
                 db = ledgerDoc.data();
                 db.role = authInfo.role; // ADMIN অথবা MANAGER
-                db.opName = authInfo.name; // যার পিন সে ই অপারেটর
+                db.opName = (authInfo.role === 'ADMIN') ? db.admin.name : db.managers.find(m => m.pin === pin).name;
                 
-                // ৪. লোকাল স্টোরেজে সেভ এবং অ্যাপে প্রবেশ
                 localStorage.setItem(DB_KEY, JSON.stringify(db));
                 enterApp();
-                console.log(`Success: Logged in as ${db.role} (${db.opName})`);
-            } else {
-                alert("Database Error: Main ledger record missing!");
+                alert("Welcome, " + db.opName);
             }
         } else {
-            // যদি পিন বা ফোন নম্বর ভুল হয়, তবে রাউটারে কোনো ডাটা পাওয়া যাবে না
-            alert("Access Denied: Incorrect Phone or PIN! If you are new, please Register.");
+            // যদি রাউটারে পিন ম্যাচ না করে
+            alert("Security Error: Invalid PIN or Account not found! Please Register if you are new.");
         }
     } catch (error) {
-        console.error("Critical Login Error:", error);
-        alert("Connection Failed: Unable to verify identity.");
+        console.error("Auth Error:", error);
+        alert("Sync Failed! Check connection.");
     }
 }
+
         function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); if(db.admin) document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase(); renderHome(); }
         function logout() { if(confirm("Terminate Session?")) location.reload(); }
 
@@ -566,7 +559,6 @@ function handleSmartPdfDownload() {
         } catch (e) { alert("Failed to hire manager."); }
     }
 }
-
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -577,6 +569,7 @@ function handleSmartPdfDownload() {
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
+        //function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
