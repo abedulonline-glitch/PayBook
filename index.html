@@ -375,8 +375,7 @@
             if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
         }
 
-       // --- ৬. স্মার্ট পিডিএফ জেনারেশন (পয়েন্ট ৩, ৫, ৬, ৭, ১১ এবং আপনার নতুন শর্তানুযায়ী) ---
-// --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.3 - Font Fix) ---
+       // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
 function handleSmartPdfDownload() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('l', 'mm', 'a4'); // Landscape মোড
@@ -403,7 +402,7 @@ function handleSmartPdfDownload() {
 
         const head = isSec 
             ? [['Date', 'Phone', 'Type', 'P-Given (OUT)', 'P-Rec. (IN)', 'K-Given (OUT)', 'K-Rec. (IN)']] 
-            : [['Date', 'Phone', 'Type', 'Given (Amount OUT)', 'Received (Amount IN)']];
+            : [['Date', 'Phone', 'Type', 'Given (OUT)', 'Received (IN)']];
 
         const rows = [];
         let tP_G = 0, tP_R = 0, tK_G = 0, tK_R = 0;
@@ -412,9 +411,6 @@ function handleSmartPdfDownload() {
             if (!isSec && t.secret) return; 
 
             const amt = t.amount;
-            let isEntryRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
-            let color = isEntryRed ? RED : GREEN;
-
             if (isSec) {
                 let pG="-", pR="-", kG="-", kR="-";
                 if(!t.secret) {
@@ -433,38 +429,37 @@ function handleSmartPdfDownload() {
                 if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
                 rows.push([
                     t.date, p.phone, p.type,
-                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: color}},
-                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: color}}
+                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN'?RED:GREEN}},
+                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED'?GREEN:RED}}
                 ]);
             }
         });
 
+        // কলাম অনুযায়ী ফুটার তৈরি (পয়েন্ট অনুযায়ী টোটাল রো)
+        let footer = isSec 
+            ? [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN'), tK_G.toLocaleString('en-IN'), tK_R.toLocaleString('en-IN')]]
+            : [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN')]];
+
         doc.autoTable({
-            startY: 45, head: head, body: rows, theme: 'grid',
+            startY: 45, head: head, body: rows, foot: footer, theme: 'grid',
             headStyles: { fillColor: BURGUNDY },
+            footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
             styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' }
         });
 
         let finalY = doc.lastAutoTable.finalY + 15;
-        let balP = tP_G - tP_R;
-        let balK = tK_G - tK_R;
-        let netBalance = isSec ? (balP + balK) : balP;
+        let netBalance = isSec ? ((tP_G - tP_R) + (tK_G - tK_R)) : (tP_G - tP_R);
 
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
         doc.text("FINAL SUMMARY:", 14, finalY);
-        doc.setFontSize(10);
-        doc.text(`Total Given: Rs. ${isSec ? (tP_G + tK_G).toLocaleString('en-IN') : tP_G.toLocaleString('en-IN')}`, 14, finalY + 8);
-        doc.text(`Total Received: Rs. ${isSec ? (tP_R + tK_R).toLocaleString('en-IN') : tP_R.toLocaleString('en-IN')}`, 14, finalY + 14);
-        
-        // --- ফিক্স করা হয়েছে: এখান থেকে বাংলা টেক্সট সরানো হয়েছে ---
         doc.setFontSize(14);
         if (netBalance > 0) {
             doc.setTextColor(RED[0], RED[1], RED[2]);
-            doc.text(`NET BALANCE DUE (OUTSTANDING): Rs. ${netBalance.toLocaleString('en-IN')}`, 14, finalY + 25);
+            doc.text(`NET BALANCE DUE (OUTSTANDING): Rs. ${netBalance.toLocaleString('en-IN')}`, 14, finalY + 12);
         } else {
             doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
-            doc.text(`NET BALANCE CLEAR (ADVANCE/SETTLED): Rs. ${Math.abs(netBalance).toLocaleString('en-IN')}`, 14, finalY + 25);
+            doc.text(`NET BALANCE CLEAR (ADVANCE/SETTLED): Rs. ${Math.abs(netBalance).toLocaleString('en-IN')}`, 14, finalY + 12);
         }
 
         doc.save(`${p.name}_Statement.pdf`);
@@ -482,12 +477,14 @@ function handleSmartPdfDownload() {
             ? [['Name', 'Mobile', 'Type', 'Pakka Balance', 'Kaccha Balance', 'Net Total']] 
             : [['Name', 'Mobile', 'Type', 'Current Balance']];
 
+        let gP = 0, gK = 0;
         const rows = db.people.map(p => {
             let pB=0, kB=0;
             p.transactions.filter(t => t.status==='active').forEach(t => {
                 let v = (t.type==='RECEIVED' ? -t.amount : t.amount);
                 if(t.secret) kB += v; else pB += v;
             });
+            gP += pB; gK += kB;
 
             if(isSec) {
                 let net = pB + kB;
@@ -497,7 +494,16 @@ function handleSmartPdfDownload() {
             }
         });
 
-        doc.autoTable({ startY: 35, head: head, body: rows, headStyles: {fillColor: BURGUNDY}, theme: 'striped', styles: { font: 'helvetica' } });
+        let gFooter = isSec 
+            ? [['GRAND TOTAL', '', '', gP.toLocaleString('en-IN'), gK.toLocaleString('en-IN'), (gP+gK).toLocaleString('en-IN')]]
+            : [['GRAND TOTAL', '', '', gP.toLocaleString('en-IN')]];
+
+        doc.autoTable({ 
+            startY: 35, head: head, body: rows, foot: gFooter,
+            headStyles: {fillColor: BURGUNDY}, 
+            footStyles: {fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold'},
+            theme: 'striped', styles: { font: 'helvetica' } 
+        });
         doc.save("Full_Business_Summary.pdf");
     }
 }
