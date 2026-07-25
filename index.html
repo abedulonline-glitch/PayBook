@@ -46,7 +46,10 @@
             <h1 class="text-3xl font-black text-[#861F41] mb-6">PayBookPro</h1>
             
             <div class="flex bg-slate-100 p-1 rounded-2xl mb-8">
-                <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">LOGIN</button>
+                <!-- এই বাটনটি খুঁজে ঠিক করুন -->
+              <button onclick="hireManager()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3 italic">
+                Hire New Manager <i class="fas fa-user-plus text-[#861F41]"></i>
+              </button>
                 <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
             </div>
 
@@ -390,31 +393,56 @@
         }
 
         // --- ম্যানেজমেন্ট সেন্টার (Point 1b, 9, 11) ---
-        function hireManager() {
-            const n = prompt("Manager Name:");
-            const ph = prompt("Manager Phone:");
-            const pin = prompt("Set Manager PIN:");
-            if(n && ph.length===10 && pin.length===4) {
-                db.managers.push({name:n, phone:ph, pin:pin});
-                saveDB(); renderManagers();
-                alert("Manager " + n + " Hired Successfully!");
-            } else alert("Invalid Input!");
-        }
-        function renderManagers() {
-            const l = document.getElementById('mgrList'); l.innerHTML = "";
-            (db.managers || []).forEach(m => {
-                l.innerHTML += `<div class="p-4 bg-slate-100 rounded-2xl flex justify-between items-center mb-2">
-                    <div><p class="font-bold text-slate-700">${m.name}</p><p class="text-[9px] text-slate-400 uppercase font-black">PH: ${m.phone} | PIN: ${m.pin}</p></div>
-                    <i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i>
-                </div>`;
-            });
-        }
-        function delMgr(ph) { if(confirm("Remove Manager?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
+        // ১. ম্যানেজার নিয়োগ ফাংশন (Fixes the Reference Error)
+function hireManager() {
+    const n = prompt("Enter Manager Name:");
+    if(!n) return;
+    const ph = prompt("Enter Manager 10-Digit Mobile:");
+    if(!ph || ph.length !== 10) return alert("Invalid Phone Number!");
+    const p = prompt("Set a 4-Digit PIN for this Manager:");
+    if(!p || p.length !== 4) return alert("PIN must be 4 digits!");
 
-        function showSettings() { 
-            if(db.role==='MANAGER') { alert("Access Restricted: Managers can only Logout."); logout(); return; }
-            renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); 
-        }
+    if(!db.managers) db.managers = [];
+    db.managers.push({ name: n, phone: ph, pin: p });
+    
+    saveDB(); 
+    renderManagers();
+    alert("Manager " + n + " hired successfully!");
+}
+
+// ২. ম্যানেজার লিস্ট রেন্ডার (পিন এবং নম্বর পাশাপাশি দেখাবে)
+function renderManagers() {
+    const l = document.getElementById('mgrList');
+    if(!l) return;
+    l.innerHTML = "";
+    (db.managers || []).forEach(m => {
+        l.innerHTML += `
+            <div class="p-4 bg-slate-50 rounded-2xl flex justify-between items-center mb-2 border border-slate-100 shadow-sm animate-fade">
+                <div>
+                    <p class="font-bold text-slate-700">${m.name}</p>
+                    <p class="text-[9px] text-slate-400 font-black uppercase tracking-tighter">PH: ${m.phone} | PIN: <span class="text-[#861F41]">${m.pin}</span></p>
+                </div>
+                <i class="fas fa-trash-can text-rose-300 active:text-rose-600 p-2" onclick="delMgr('${m.phone}')"></i>
+            </div>`;
+    });
+}
+
+// ৩. সেটিংস কন্ট্রোল (ম্যানেজারদের জন্য শুধুমাত্র লগআউট)
+function showSettings() {
+    const modal = document.getElementById('settingsModal');
+    const adminControls = document.getElementById('adminControls');
+
+    if (db.role === 'MANAGER') {
+        // ম্যানেজার লগইন থাকলে এডমিন কন্ট্রোল লুকিয়ে ফেলবে
+        if(adminControls) adminControls.classList.add('hidden');
+    } else {
+        // এডমিন লগইন থাকলে সব দেখাবে
+        if(adminControls) adminControls.classList.remove('hidden');
+        renderManagers();
+    }
+    modal.classList.remove('hidden');
+}
+        function delMgr(ph) { if(confirm("Remove Manager?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
 
         // --- ইউটিলিটিস ---
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
