@@ -240,16 +240,50 @@
         }
 
         async function handleLogin() {
-            const ph = document.getElementById('loginPhone').value.trim(), pin = document.getElementById('loginPin').value.trim();
-            const querySnapshot = await db_fs.collection(COLLECTION).get();
-            let found = false;
-            querySnapshot.forEach(doc => {
-                const data = doc.data();
-                if(data.admin.phone === ph && (pin === data.admin.pin || pin === MASTER_PIN)) { db = data; db.role='ADMIN'; db.opName=db.admin.name; found = true; }
-                else { const m = (data.managers || []).find(m => m.phone === ph && m.pin === pin); if(mgr) { db = data; db.role='MANAGER'; db.opName=mgr.name; found = true; } }
-            });
-            if(found) { localStorage.setItem(DB_KEY, JSON.stringify(db)); enterApp(); } else alert("No Account! Please Register.");
+    const ph = document.getElementById('loginPhone').value.trim();
+    const pin = document.getElementById('loginPin').value.trim();
+
+    if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
+
+    try {
+        // ফায়ারস্টোর থেকে সব ডাটা চেক করা (একই নাম্বারে ভিন্ন পিন চেক করার জন্য)
+        const querySnapshot = await db_fs.collection(COLLECTION).get();
+        let found = false;
+
+        querySnapshot.forEach(doc => {
+            const cloudData = doc.data();
+            
+            // ১. এডমিন হিসেবে চেক (নিজের নম্বর + নিজের পিন)
+            if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
+                db = cloudData;
+                db.role = 'ADMIN';
+                db.opName = db.admin.name;
+                found = true;
+            } 
+            // ২. ম্যানেজার হিসেবে চেক (ম্যানেজারের নম্বর + ম্যানেজারের পিন)
+            else if(cloudData.managers && cloudData.managers.length > 0) {
+                const matchedManager = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
+                if(matchedManager) {
+                    db = cloudData; // এডমিনের ডাটাবেস লোড হবে
+                    db.role = 'MANAGER';
+                    db.opName = matchedManager.name; // ম্যানেজারের নাম অপারেটর হিসেবে সেট হবে
+                    found = true;
+                }
+            }
+        });
+
+        if(found) {
+            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+            enterApp();
+            console.log("Login Success as " + db.role);
+        } else {
+            alert("Incorrect Phone or PIN! If you are new, please Register.");
         }
+    } catch (error) {
+        console.error("Login Error:", error);
+        alert("Network Error: Check your connection.");
+    }
+}
 
         function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); if(db.admin) document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase(); renderHome(); }
         function logout() { if(confirm("Terminate Session?")) location.reload(); }
@@ -362,6 +396,23 @@
                 doc.autoTable({ startY:30, head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("Business_Summary.pdf");
             }
         }
+        function showSettings() {
+    const modal = document.getElementById('settingsModal');
+    const adminControls = document.getElementById('adminControls');
+
+    if (db.role === 'MANAGER') {
+        // ম্যানেজার শুধু লগআউট বাটন দেখবে, এডমিন অপশনগুলো হাইড থাকবে
+        if(adminControls) adminControls.classList.add('hidden');
+        if(document.getElementById('mgrList')) document.getElementById('mgrList').classList.add('hidden');
+    } else {
+        // এডমিন সবকিছু দেখবে
+        if(adminControls) adminControls.classList.remove('hidden');
+        if(document.getElementById('mgrList')) document.getElementById('mgrList').classList.remove('hidden');
+        renderManagers(); 
+    }
+
+    modal.classList.remove('hidden');
+}
 
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
@@ -373,7 +424,6 @@
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-        function showSettings() { if(db.role==='MANAGER') { document.getElementById('adminControls').classList.add('hidden'); } else { document.getElementById('adminControls').classList.remove('hidden'); renderManagers(); } document.getElementById('settingsModal').classList.remove('hidden'); }
         function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
