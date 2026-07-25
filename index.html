@@ -572,10 +572,33 @@ function handleSmartPdfDownload() {
     }
 }
 
+        function switchTab(t) {
+    // ১. ডাটাবেসের ট্যাব ভ্যালু আপডেট
+    db.tab = t;
+
+    // ২. বাটন দুটির আইডি খুঁজে বের করা
+    const btnCust = document.getElementById('tabCust');
+    const btnSupp = document.getElementById('tabSupp');
+
+    // ৩. কন্ডিশন অনুযায়ী কালার পরিবর্তন (Axis Style)
+    if (t === 'CUSTOMER') {
+        // কাস্টমার বাটন একটিভ (Burgundy Color)
+        btnCust.className = "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
+        // সাপ্লায়ার বাটন ইন-একটিভ (Grey Color)
+        btnSupp.className = "flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all";
+    } else {
+        // সাপ্লায়ার বাটন একটিভ (Burgundy Color)
+        btnSupp.className = "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
+        // কাস্টমার বাটন ইন-একটিভ (Grey Color)
+        btnCust.className = "flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all";
+    }
+
+    // ৪. লিস্ট রিফ্রেশ করা
+    renderHome();
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
-        function switchTab(t) { db.tab = t; renderHome(); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
         function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
         function confirmAdd() { const n=document.getElementById('newPName').value, ph=document.getElementById('newPPhone').value; if(n && ph.length===10) { db.people.unshift({id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[]}); saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome(); } else alert("Invalid Name/Phone!"); }
