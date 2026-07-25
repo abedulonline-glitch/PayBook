@@ -70,42 +70,148 @@
 
     <!-- ২. মেইন অ্যাপ ইউআই -->
     <div id="appBody" class="hidden min-h-screen">
-        <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
-            <div id="headerMain" class="flex justify-between items-center w-full">
-                <div class="flex items-center gap-3">
-                    <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">AD</div>
-                    <h1 class="text-xl font-black italic">PayBook</h1>
-                </div>
-                <div class="flex gap-5 items-center">
-                    <i class="fas fa-share-nodes opacity-80" onclick="shareApp()"></i>
-                    <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <i class="fas fa-cog opacity-80" onclick="showSettings()"></i>
-                </div>
+    <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
+        <div id="headerMain" class="flex justify-between items-center w-full">
+            <div class="flex items-center gap-3">
+                <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">PB</div>
+                <h1 class="text-xl font-black italic">PayBook</h1>
             </div>
-            <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
-            <div id="headerLedger" class="hidden flex justify-between items-center w-full">
-                <div class="flex items-center gap-4">
-                    <i class="fas fa-arrow-left" onclick="goHome()"></i>
-                    <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio Balance</p></div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
-                    <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
-                </div>
+            <div class="flex gap-5 items-center">
+                <!-- নতুন সার্চ আইকন -->
+                <i class="fas fa-search opacity-80 text-lg" onclick="toggleSearchBar()"></i>
+                <i class="fas fa-share-nodes opacity-80" onclick="shareApp()"></i>
+                <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
+                <i class="fas fa-cog opacity-80" onclick="showSettings()"></i>
             </div>
-        </header>
+        </div>
+        
+        <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
+        <div id="headerLedger" class="hidden flex justify-between items-center w-full">
+            <div class="flex items-center gap-4">
+                <i class="fas fa-arrow-left" onclick="goHome()"></i>
+                <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Net Balance</p></div>
+            </div>
+            <div class="flex items-center gap-3">
+                <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
+                <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
+                <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
+            </div>
+        </div>
 
-        <div id="mainViewport" class="bg-slate-50">
-            <!-- হোম: কন্টাক্ট লিস্ট -->
-            <div id="pageHome" class="p-5">
-                <div class="flex bg-white p-1 rounded-xl border mb-6 shadow-sm">
-                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white">CUSTOMERS</button>
-                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400">SUPPLIERS</button>
-                </div>
-                <div id="contactList" class="space-y-3"></div>
-                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
+        <!-- ড্রপডাউন সার্চ বার -->
+        <div id="searchBarContainer" class="hidden absolute top-[65px] left-0 right-0 bg-white p-3 shadow-md z-[110] border-b">
+            <div class="relative">
+                <input type="text" id="searchInput" oninput="renderHome()" placeholder="Search Name or Phone..." 
+                       class="w-full p-3 pl-10 rounded-xl bg-slate-100 outline-none border focus:border-[#861F41] text-sm text-slate-700">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <i class="fas fa-times absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" onclick="toggleSearchBar()"></i>
             </div>
+        </div>
+    </header>
+
+    <div id="mainViewport" class="bg-slate-50">
+        <!-- হোম স্ক্রিন -->
+        <div id="pageHome" class="flex flex-col">
+            <!-- স্টিকি ট্যাব সেকশন (এটি স্ক্রোল হবে না) -->
+            <div class="sticky top-0 z-40 bg-slate-50 p-5 pb-2">
+                <div class="flex bg-white p-1 rounded-xl border shadow-sm">
+                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white transition-all">CUSTOMERS</button>
+                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
+                </div>
+            </div>
+            
+            <!-- কন্টাক্ট লিস্ট (এটি স্ক্রোল হবে) -->
+            <div id="contactList" class="p-5 pt-0 space-y-3"></div>
+            
+            <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white z-50"><i class="fas fa-plus"></i></button>
+        </div>
+
+        <!-- লেজার স্ক্রিন -->
+        <div id="pageLedger" class="hidden flex flex-col p-4">
+            <div id="ledgerList" class="flex flex-col"></div>
+            <!-- ... বাকি ফুটার বাটন ... -->
+        </div>
+    </div>
+</div>
+২. সংশোধিত renderHome এবং সার্চ লজিক (JavaScript)
+আপনার জাভাস্ক্রিপ্ট সেকশনে এই নতুন renderHome এবং toggleSearchBar ফাংশনগুলো আপডেট করুন:
+code
+JavaScript
+// ১. সার্চ বার অন/অফ করার ফাংশন
+function toggleSearchBar() {
+    const container = document.getElementById('searchBarContainer');
+    const input = document.getElementById('searchInput');
+    container.classList.toggle('hidden');
+    if(!container.classList.contains('hidden')) {
+        input.focus();
+    } else {
+        input.value = ""; // বন্ধ করলে সার্চ ডাটা ক্লিয়ার হবে
+        renderHome();
+    }
+}
+
+// ২. সংশোধিত renderHome ফাংশন
+function renderHome() {
+    const list = document.getElementById('contactList'); 
+    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    list.innerHTML = "";
+    
+    document.getElementById('headerMain').classList.remove('hidden'); 
+    document.getElementById('headerLedger').classList.add('hidden');
+    
+    // ডাটা ফিল্টার করা (ট্যাব অনুযায়ী + সার্চ অনুযায়ী)
+    const filteredPeople = db.people.filter(p => {
+        const matchesTab = p.type === db.tab;
+        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
+        return matchesTab && matchesSearch;
+    });
+
+    filteredPeople.forEach(p => {
+        const bal = calcBal(p.transactions, db.secret, p.type);
+        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+        
+        list.innerHTML += `
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm">
+                <div onclick="openLedger(${p.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
+                    <div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-800">${p.name}</h4>
+                        <p class="text-[8px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
+                    </div>
+                </div>
+                
+                <div class="text-right flex items-center gap-4">
+                    <div onclick="openLedger(${p.id})" class="cursor-pointer">
+                        <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5>
+                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                    </div>
+                    
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </div>
+            </div>`;
+    });
+
+    // রেজাল্ট না থাকলে মেসেজ
+    if(filteredPeople.length === 0) {
+        list.innerHTML = `<div class="text-center py-20 opacity-30 uppercase font-bold text-xs tracking-widest">No Match Found</div>`;
+    }
+}
+এই আপডেটের সুফল:
+১. সুইফ্ট সার্চ: নাম বা ফোন নম্বরের যেকোনো একটি ডিজিট বা অক্ষর লিখলেই সাথে সাথে লিস্ট ফিল্টার হবে।
+২. স্টিকি ট্যাব (Sticky Tabs): আপনি যখন ১০০ জন কাস্টমারের লিস্ট স্ক্রোল করবেন, CUSTOMERS/SUPPLIERS লেখা বাটন দুটি স্ক্রিনের হেডারের ঠিক নিচে আটকে থাকবে। এতে আপনার ইউজার এক্সপেরিয়েন্স অনেক উন্নত হবে।
+৩. স্মার্ট লেআউট: সার্চ বারটি ড্রপডাউন স্টাইলে হেডারের নিচে আসবে, যা দেখতে খুব প্রিমিয়াম।
+কোডগুলো আপনার ফাইলে আপডেট করে সেভ করুন। এখন আপনার PayBook Pro একদম আধুনিক ব্যাংকিং অ্যাপের মতো কাজ করবে। কোনো এরর আসলে জানাবেন!
+31.3s
+info
+Google AI models may make mistakes, so double-check outputs.
+Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
+Start typing a prompt to see what our models can do
+1
+
+
+
 
             <!-- লেজার: লেনদেন পেজ -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
@@ -343,41 +449,66 @@
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
-        function renderHome() {
+        // ১. সার্চ বার অন/অফ করার ফাংশন
+function toggleSearchBar() {
+    const container = document.getElementById('searchBarContainer');
+    const input = document.getElementById('searchInput');
+    container.classList.toggle('hidden');
+    if(!container.classList.contains('hidden')) {
+        input.focus();
+    } else {
+        input.value = ""; // বন্ধ করলে সার্চ ডাটা ক্লিয়ার হবে
+        renderHome();
+    }
+}
+
+// ২. সংশোধিত renderHome ফাংশন
+function renderHome() {
     const list = document.getElementById('contactList'); 
+    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
     list.innerHTML = "";
+    
     document.getElementById('headerMain').classList.remove('hidden'); 
     document.getElementById('headerLedger').classList.add('hidden');
     
-    db.people.filter(p => p.type === db.tab).forEach(p => {
+    // ডাটা ফিল্টার করা (ট্যাব অনুযায়ী + সার্চ অনুযায়ী)
+    const filteredPeople = db.people.filter(p => {
+        const matchesTab = p.type === db.tab;
+        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
+        return matchesTab && matchesSearch;
+    });
+
+    filteredPeople.forEach(p => {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm">
-                <!-- বাম পাশ: নাম এবং ফোন (ক্লিক করলে লেজার খুলবে) -->
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
                     <div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
                     <div>
                         <h4 class="font-bold text-sm text-slate-800">${p.name}</h4>
-                        <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
+                        <p class="text-[8px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
                     </div>
                 </div>
                 
-                <!-- ডান পাশ: ব্যালেন্স এবং ডিলেট বাটন -->
                 <div class="text-right flex items-center gap-4">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
                     
-                    <!-- ডিলেট আইকন: স্টপেজ দেওয়া হয়েছে যাতে লেজার না খুলে যায় -->
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>`;
     });
+
+    // রেজাল্ট না থাকলে মেসেজ
+    if(filteredPeople.length === 0) {
+        list.innerHTML = `<div class="text-center py-20 opacity-30 uppercase font-bold text-xs tracking-widest">No Match Found</div>`;
+    }
 }
 
         function openLedger(id) {
