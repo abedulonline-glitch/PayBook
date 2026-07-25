@@ -226,18 +226,25 @@
 const COLLECTION = "global_paybook_ledgers";
 
 async function saveDB() {
+    // ১. লোকাল মেমোরিতে সেভ
     localStorage.setItem(DB_KEY, JSON.stringify(db));
+
     if(db.admin && db.admin.phone) {
-        // এডমিন তার নিজস্ব নম্বরের ডক-এ ডাটা সেভ করবে
-        await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db);
-        
-        // পয়েন্ট ৯: একই সাথে একটি সিকিউর "ম্যাপিং" তৈরি করা হবে
-        // যা পিন এবং নম্বর দিয়ে ডাটা খুঁজে বের করবে
-        const authKey = `${db.admin.phone}_${db.admin.pin}`;
-        await db_fs.collection("auth_router").doc(authKey).set({
-            adminPhone: db.admin.phone,
-            role: 'ADMIN'
-        });
+        try {
+            // ২. আপনার মেইন লেজার ডাটা সেভ
+            await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db);
+
+            // ৩. সিকিউরিটি রাউটার আপডেট (পয়েন্ট ৯: পিন ভিত্তিক সুরক্ষা)
+            // এটি ফোন_পিন দিয়ে একটি ইউনিক আইডি তৈরি করবে
+            const authKey = `${db.admin.phone}_${db.admin.pin}`;
+            await db_fs.collection("auth_router").doc(authKey).set({
+                ownerPhone: db.admin.phone, // এটি আসল ডাটার চাবিকাঠি
+                role: 'ADMIN'
+            });
+            console.log("Global Sync: Success");
+        } catch (e) {
+            console.error("Sync Error:", e);
+        }
     }
 }
        async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
@@ -256,38 +263,46 @@ async function saveDB() {
             try { await saveDB(); alert("Successfully Registered!"); location.reload(); } catch(e) { alert("Registration Failed!"); }
         }
 
-       async function handleLogin() {
+      async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
-    if(ph.length !== 10 || !pin) return alert("Enter Phone & PIN!");
+    if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        // ১. পিন এবং নম্বর দিয়ে রাউটার চেক করা
+        // ১. পিন এবং নম্বরের ইউনিক কম্বিনেশন দিয়ে রাউটার চেক করা
         const authKey = `${ph}_${pin}`;
-        const authDoc = await db_fs.collection("auth_router").doc(authKey).get();
+        const routeDoc = await db_fs.collection("auth_router").doc(authKey).get();
 
-        if (authDoc.exists) {
-            const authInfo = authDoc.data();
-            // ২. রাউটার থেকে পাওয়া এডমিন নম্বর দিয়ে আসল লেজার ডাটা আনা
-            const ledgerDoc = await db_fs.collection(COLLECTION).doc(authInfo.adminPhone).get();
+        if (routeDoc.exists) {
+            const routeInfo = routeDoc.data();
+            
+            // ২. রাউটার থেকে পাওয়া মালিকের ফোন নম্বর দিয়ে আসল লেজার ডাটা আনা
+            const ledgerDoc = await db_fs.collection(COLLECTION).doc(routeInfo.ownerPhone).get();
             
             if (ledgerDoc.exists) {
                 db = ledgerDoc.data();
-                db.role = authInfo.role; // ADMIN অথবা MANAGER
-                db.opName = (authInfo.role === 'ADMIN') ? db.admin.name : db.managers.find(m => m.pin === pin).name;
+                db.role = routeInfo.role; // ADMIN অথবা MANAGER
                 
-                localStorage.setItem(DB_KEY, JSON.stringify(db));
+                // ৩. অপারেটরের নাম সেট করা
+                if(db.role === 'ADMIN') {
+                    db.opName = db.admin.name;
+                } else {
+                    const mgr = db.managers.find(m => m.phone === ph && m.pin === pin);
+                    db.opName = mgr ? mgr.name : "Manager";
+                }
+
+                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
                 enterApp();
-                alert("Welcome, " + db.opName);
+                console.log("Logged in securely as " + db.role);
             }
         } else {
-            // যদি রাউটারে পিন ম্যাচ না করে
-            alert("Security Error: Invalid PIN or Account not found! Please Register if you are new.");
+            // পিন বা নম্বর ভুল হলে অথবা একাউন্ট না থাকলে
+            alert("Security Error: Invalid PIN or No Account found! Please Register first.");
         }
     } catch (error) {
-        console.error("Auth Error:", error);
-        alert("Sync Failed! Check connection.");
+        console.error("Login Error:", error);
+        alert("Network Error: Check your connection.");
     }
 }
 
@@ -532,31 +547,38 @@ function handleSmartPdfDownload() {
 }
 
         async function hireManager() {
-    const n = prompt("Manager Name:");
-    const ph = prompt("Manager 10-Digit Mobile:");
-    const p = prompt("Set Manager PIN (MUST be unique):");
+    const n = prompt("Enter Manager Name:");
+    const ph = prompt("Enter Manager 10-Digit Mobile:");
+    const p = prompt("Set a 4-Digit Unique PIN for Manager:");
 
     if(n && ph.length === 10 && p.length === 4) {
-        // ম্যানেজারের জন্য আলাদা লক তৈরি করা (Auth Router)
+        // ১. চেক করা হচ্ছে এই পিন এবং নম্বর অন্য কোথাও লক করা কি না
         const authKey = `${ph}_${p}`;
+        const checkRoute = await db_fs.collection("auth_router").doc(authKey).get();
         
-        try {
-            // চেক করা হচ্ছে এই পিন অন্য কেউ ব্যবহার করছে কি না
-            const check = await db_fs.collection("auth_router").doc(authKey).get();
-            if(check.exists) return alert("Error: This PIN/Phone combination is already in use!");
+        if(checkRoute.exists) {
+            return alert("Error: This PIN and Phone combination is already taken. Try a different PIN!");
+        }
 
-            db.managers.push({ name: n, phone: ph, pin: p });
-            
-            // রাউটারে ম্যানেজারের এন্ট্রি দেওয়া
+        // ২. এডমিনের লিস্টে ম্যানেজার যোগ করা
+        if(!db.managers) db.managers = [];
+        db.managers.push({ name: n, phone: ph, pin: p });
+
+        // ৩. সিকিউরিটি রাউটারে ম্যানেজারের জন্য এক্সেস তৈরি করা
+        try {
             await db_fs.collection("auth_router").doc(authKey).set({
-                adminPhone: db.admin.phone, // এটি এডমিনের ডাটা এক্সেস দিবে
+                ownerPhone: db.admin.phone, // ম্যানেজার এই ফোন নম্বরের ডাটা দেখতে পাবে
                 role: 'MANAGER'
             });
 
             await saveDB();
             renderManagers();
-            alert("Manager Hired & PIN Locked!");
-        } catch (e) { alert("Failed to hire manager."); }
+            alert("Success: " + n + " is now your Manager!");
+        } catch (e) {
+            alert("Failed to sync manager data.");
+        }
+    } else {
+        alert("Action Cancelled or Invalid Data!");
     }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
