@@ -86,20 +86,16 @@
         </div>
         
         <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
-        <!-- লেজার হেডার আপডেট: নামের অংশটি ক্লিকযোগ্য করা হলো -->
-<div id="headerLedger" class="hidden flex justify-between items-center w-full">
-    <div class="flex items-center gap-4">
-        <i class="fas fa-arrow-left" onclick="goHome()"></i>
-        <!-- এখানে onclick যোগ করা হয়েছে -->
-        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
-            <h2 id="lName" class="text-sm font-bold leading-none">Client</h2>
-            <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
+        <!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল -->
+<div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+    <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
+        <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Update Account</h3>
+        <input id="editPName" type="text" placeholder="Edit Full Name" class="axis-input mb-4">
+        <input id="editPPhone" type="number" placeholder="Edit Mobile Number" class="axis-input mb-10">
+        <div class="flex gap-4">
+            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
+            <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">Save Changes</button>
         </div>
-    </div>
-    <div class="flex items-center gap-3">
-        <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
-        <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
-        <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
     </div>
 </div>
 
