@@ -551,23 +551,24 @@ function handleSmartPdfDownload() {
         function deletePerson(id) {
     const person = db.people.find(p => p.id === id);
     
-    // পাকা এবং কাঁচা ব্যালেন্স চেক করা
+    // পাকা এবং কাঁচা ব্যালেন্স চেক (পেছনের লজিকে থাকবে, কিন্তু ইউজার জানবে না)
     const pBal = calcBal(person.transactions, false, person.type);
     const kBal = calcBal(person.transactions, true, person.type);
 
+    // শর্ত: উভয় ব্যালেন্স ০ হলেই ডিলিট হবে
     if (pBal === 0 && kBal === 0) {
-        // ব্যালেন্স ০ থাকলে পিন চাইবে এবং ডিলিট করবে
         askPin(() => {
             if (confirm(`Are you sure you want to permanently delete ${person.name}?`)) {
                 db.people = db.people.filter(p => p.id !== id);
                 saveDB();
                 renderHome();
-                alert("Account Deleted Successfully.");
+                alert("Profile removed successfully.");
             }
         });
     } else {
-        // ব্যালেন্স ০ না থাকলে মেসেজ দিবে
-        alert(`Cannot Delete! Current balance must be 0 before deleting. \nPakka: Rs. ${pBal}, Kaccha: Rs. ${kBal}`);
+        // --- আপনার পছন্দ অনুযায়ী গোপনীয় এরর মেসেজ ---
+        // এখানে পাকা বা কাঁচা কিছুই লেখা নেই, শুধু বলা হচ্ছে হিসাব বাকি আছে।
+        alert("Action Denied! This account cannot be deleted because it still has an active balance. Please settle the account first.");
     }
 }
 
