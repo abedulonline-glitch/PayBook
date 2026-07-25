@@ -222,7 +222,24 @@
             document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
         };
 
-        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
+        // ১. লগইন এবং রেজিস্ট্রেশন লজিক আপডেট (Point 9 & Privacy Fix)
+const COLLECTION = "global_paybook_ledgers";
+
+async function saveDB() {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    if(db.admin && db.admin.phone) {
+        // এডমিন তার নিজস্ব নম্বরের ডক-এ ডাটা সেভ করবে
+        await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db);
+        
+        // পয়েন্ট ৯: একই সাথে একটি সিকিউর "ম্যাপিং" তৈরি করা হবে
+        // যা পিন এবং নম্বর দিয়ে ডাটা খুঁজে বের করবে
+        const authKey = `${db.admin.phone}_${db.admin.pin}`;
+        await db_fs.collection("auth_router").doc(authKey).set({
+            adminPhone: db.admin.phone,
+            role: 'ADMIN'
+        });
+    }
+}
         async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
 
         function toggleAuth(mode) {
@@ -239,52 +256,48 @@
             try { await saveDB(); alert("Successfully Registered!"); location.reload(); } catch(e) { alert("Registration Failed!"); }
         }
 
-        async function handleLogin() {
+       async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        // ফায়ারস্টোর থেকে সব ডাটা চেক করা (একই নাম্বারে ভিন্ন পিন চেক করার জন্য)
-        const querySnapshot = await db_fs.collection(COLLECTION).get();
-        let found = false;
+        // ১. পিন এবং নম্বর দিয়ে সিকিউর ইউনিক চাবিকাঠি তৈরি (Privacy Lock)
+        // এই কি-টি দিয়ে আমরা 'auth_router' কালেকশনে সার্চ করব
+        const authKey = `${ph}_${pin}`;
+        
+        // ২. ফায়ারস্টোর থেকে সরাসরি ওই পিনের ম্যাপটি খুঁজে বের করা
+        // এতে সবার ডাটা রিড করার প্রয়োজন হয় না, শুধু আপনারটিই পাওয়া যাবে
+        const routerDoc = await db_fs.collection("auth_router").doc(authKey).get();
 
-        querySnapshot.forEach(doc => {
-            const cloudData = doc.data();
+        if (routerDoc.exists) {
+            const authInfo = routerDoc.data();
             
-            // ১. এডমিন হিসেবে চেক (নিজের নম্বর + নিজের পিন)
-            if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
-                db = cloudData;
-                db.role = 'ADMIN';
-                db.opName = db.admin.name;
-                found = true;
-            } 
-            // ২. ম্যানেজার হিসেবে চেক (ম্যানেজারের নম্বর + ম্যানেজারের পিন)
-            else if(cloudData.managers && cloudData.managers.length > 0) {
-                const matchedManager = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
-                if(matchedManager) {
-                    db = cloudData; // এডমিনের ডাটাবেস লোড হবে
-                    db.role = 'MANAGER';
-                    db.opName = matchedManager.name; // ম্যানেজারের নাম অপারেটর হিসেবে সেট হবে
-                    found = true;
-                }
-            }
-        });
+            // ৩. রাউটার থেকে পাওয়া 'adminPhone' দিয়ে মূল লেজার ডাটা আনা
+            const ledgerDoc = await db_fs.collection(COLLECTION).doc(authInfo.adminPhone).get();
 
-        if(found) {
-            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-            enterApp();
-            console.log("Login Success as " + db.role);
+            if (ledgerDoc.exists) {
+                db = ledgerDoc.data();
+                db.role = authInfo.role; // ADMIN অথবা MANAGER
+                db.opName = authInfo.name; // যার পিন সে ই অপারেটর
+                
+                // ৪. লোকাল স্টোরেজে সেভ এবং অ্যাপে প্রবেশ
+                localStorage.setItem(DB_KEY, JSON.stringify(db));
+                enterApp();
+                console.log(`Success: Logged in as ${db.role} (${db.opName})`);
+            } else {
+                alert("Database Error: Main ledger record missing!");
+            }
         } else {
-            alert("Incorrect Phone or PIN! If you are new, please Register.");
+            // যদি পিন বা ফোন নম্বর ভুল হয়, তবে রাউটারে কোনো ডাটা পাওয়া যাবে না
+            alert("Access Denied: Incorrect Phone or PIN! If you are new, please Register.");
         }
     } catch (error) {
-        console.error("Login Error:", error);
-        alert("Network Error: Check your connection.");
+        console.error("Critical Login Error:", error);
+        alert("Connection Failed: Unable to verify identity.");
     }
 }
-
         function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); if(db.admin) document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase(); renderHome(); }
         function logout() { if(confirm("Terminate Session?")) location.reload(); }
 
@@ -525,6 +538,35 @@ function handleSmartPdfDownload() {
     modal.classList.remove('hidden');
 }
 
+        async function hireManager() {
+    const n = prompt("Manager Name:");
+    const ph = prompt("Manager 10-Digit Mobile:");
+    const p = prompt("Set Manager PIN (MUST be unique):");
+
+    if(n && ph.length === 10 && p.length === 4) {
+        // ম্যানেজারের জন্য আলাদা লক তৈরি করা (Auth Router)
+        const authKey = `${ph}_${p}`;
+        
+        try {
+            // চেক করা হচ্ছে এই পিন অন্য কেউ ব্যবহার করছে কি না
+            const check = await db_fs.collection("auth_router").doc(authKey).get();
+            if(check.exists) return alert("Error: This PIN/Phone combination is already in use!");
+
+            db.managers.push({ name: n, phone: ph, pin: p });
+            
+            // রাউটারে ম্যানেজারের এন্ট্রি দেওয়া
+            await db_fs.collection("auth_router").doc(authKey).set({
+                adminPhone: db.admin.phone, // এটি এডমিনের ডাটা এক্সেস দিবে
+                role: 'MANAGER'
+            });
+
+            await saveDB();
+            renderManagers();
+            alert("Manager Hired & PIN Locked!");
+        } catch (e) { alert("Failed to hire manager."); }
+    }
+}
+
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -535,7 +577,6 @@ function handleSmartPdfDownload() {
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-        function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
