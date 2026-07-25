@@ -89,13 +89,6 @@
                     <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio Balance</p></div>
                 </div>
                 <div class="flex items-center gap-3">
-                   <!-- এই আইকনটি শুধু ব্যালেন্স জিরো হলে দেখা যাবে -->
-                   <i id="deletePersonBtn" class="fas fa-trash-alt text-rose-300 hidden text-lg" onclick="deletePerson(db.activeId)"></i>
-                   <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
-                   <span id="mainTotal" class="font-black text-lg">0.00</span>
-                   <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
-                 </div>
-                <div class="flex items-center gap-3">
                     <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
                     <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
                     <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
@@ -113,7 +106,7 @@
                 <div id="contactList" class="space-y-3"></div>
                 <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
             </div>
-            
+
             <!-- লেজার: লেনদেন পেজ -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
                 <div id="ledgerList" class="flex flex-col"></div>
@@ -316,17 +309,41 @@
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
         function renderHome() {
-            const list = document.getElementById('contactList'); list.innerHTML = "";
-            document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden');
-            db.people.filter(p => p.type === db.tab).forEach(p => {
-                const bal = calcBal(p.transactions, db.secret, p.type);
-                const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-                list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50">
-                    <div class="flex items-center gap-3"><div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
-                    <div><h4 class="font-bold text-sm text-slate-800">${p.name}</h4><p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p></div></div>
-                    <div class="text-right"><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p></div></div>`;
-            });
-        }
+    const list = document.getElementById('contactList'); 
+    list.innerHTML = "";
+    document.getElementById('headerMain').classList.remove('hidden'); 
+    document.getElementById('headerLedger').classList.add('hidden');
+    
+    db.people.filter(p => p.type === db.tab).forEach(p => {
+        const bal = calcBal(p.transactions, db.secret, p.type);
+        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+        
+        list.innerHTML += `
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm">
+                <!-- বাম পাশ: নাম এবং ফোন (ক্লিক করলে লেজার খুলবে) -->
+                <div onclick="openLedger(${p.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
+                    <div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-800">${p.name}</h4>
+                        <p class="text-[8px] text-slate-400 font-bold uppercase tracking-widest">${p.phone}</p>
+                    </div>
+                </div>
+                
+                <!-- ডান পাশ: ব্যালেন্স এবং ডিলেট বাটন -->
+                <div class="text-right flex items-center gap-4">
+                    <div onclick="openLedger(${p.id})" class="cursor-pointer">
+                        <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5>
+                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                    </div>
+                    
+                    <!-- ডিলেট আইকন: স্টপেজ দেওয়া হয়েছে যাতে লেজার না খুলে যায় -->
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </div>
+            </div>`;
+    });
+}
 
         function openLedger(id) {
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -336,55 +353,32 @@
             renderLedger();
         }
 
-       function renderLedger() {
-    const p = db.people.find(x => x.id === db.activeId);
-    const list = document.getElementById('ledgerList'); 
-    list.innerHTML = "";
-    
-    // ১. স্মার্ট ডিলিট লজিক: পাকা এবং কাঁচা—উভয় হিসাবের ব্যালেন্স বের করা
-    const netPakka = calcBal(p.transactions, false, p.type);
-    const netKaccha = calcBal(p.transactions, true, p.type);
-    
-    // চেক করা হচ্ছে মোট বকেয়া ০ কি না (পয়েন্ট অনুযায়ী)
-    const isSettled = (netPakka + netKaccha) === 0;
-    const deleteBtn = document.getElementById('deletePersonBtn');
+        function renderLedger() {
+            const p = db.people.find(x => x.id === db.activeId);
+            const list = document.getElementById('ledgerList'); list.innerHTML = "";
+            const net = calcBal(p.transactions, db.secret, p.type);
+            document.getElementById('mainTotal').innerText = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
 
-    if (deleteBtn) {
-        if (isSettled) {
-            deleteBtn.classList.remove('hidden'); // হিসাব ০ হলে ডিলিট বাটন আসবে
-        } else {
-            deleteBtn.classList.add('hidden'); // বকেয়া থাকলে বাটন হাইড থাকবে
+            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
+                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
+                let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+                let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="window.open('${i}')">`).join("");
+
+                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                    <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
+                    <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                        <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
+                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
+                        <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
+                        <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
+                        <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
+                    </div></div>`;
+            });
+            document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
-    }
-
-    // ২. বর্তমান ভিউ (পাকা/কাঁচা) অনুযায়ী হেডার ব্যালেন্স দেখানো
-    const net = calcBal(p.transactions, db.secret, p.type);
-    const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-    
-    document.getElementById('mainTotal').innerText = dNet;
-    document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
-
-    // ৩. ট্রানজ্যাকশন লিস্ট রেন্ডারিং
-    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-        const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-        const dAmt = t.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-        let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-        let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="window.open('${i}')">`).join("");
-
-        list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-            <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
-            <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
-                <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
-                <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
-                <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
-                <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
-            </div></div>`;
-    });
-    
-    document.getElementById('mainViewport').scrollTop = list.scrollHeight;
-}
 
         // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
         async function preSave(t) {
@@ -554,22 +548,27 @@ function handleSmartPdfDownload() {
 
     modal.classList.remove('hidden');
 }
-        function deletePerson(pid) {
-    // নিরাপত্তা নিশ্চিত করতে পিন চাওয়া হবে
-    askPin(() => {
-        if (confirm("Are you sure? This account will be deleted permanently. This cannot be undone!")) {
-            // ১. লিস্ট থেকে ওই ব্যক্তিকে বাদ দেওয়া
-            db.people = db.people.filter(x => x.id !== pid);
-            
-            // ২. ডাটা সেভ করা (Local & Cloud)
-            saveDB();
-            
-            // ৩. হোমে ফিরে যাওয়া
-            goHome();
-            
-            alert("Account settled and deleted successfully!");
-        }
-    });
+        function deletePerson(id) {
+    const person = db.people.find(p => p.id === id);
+    
+    // পাকা এবং কাঁচা ব্যালেন্স চেক করা
+    const pBal = calcBal(person.transactions, false, person.type);
+    const kBal = calcBal(person.transactions, true, person.type);
+
+    if (pBal === 0 && kBal === 0) {
+        // ব্যালেন্স ০ থাকলে পিন চাইবে এবং ডিলিট করবে
+        askPin(() => {
+            if (confirm(`Are you sure you want to permanently delete ${person.name}?`)) {
+                db.people = db.people.filter(p => p.id !== id);
+                saveDB();
+                renderHome();
+                alert("Account Deleted Successfully.");
+            }
+        });
+    } else {
+        // ব্যালেন্স ০ না থাকলে মেসেজ দিবে
+        alert(`Cannot Delete! Current balance must be 0 before deleting. \nPakka: Rs. ${pBal}, Kaccha: Rs. ${kBal}`);
+    }
 }
 
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
