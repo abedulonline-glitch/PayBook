@@ -211,16 +211,34 @@
 
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = () => {
-            const data = localStorage.getItem(DB_KEY);
-            if(data) {
-                db = JSON.parse(data);
-                if(db.admin) { toggleAuth('LOGIN'); syncCloud(); } else toggleAuth('REG');
-            } else toggleAuth('REG');
-            initSecretGesture();
-            setupHistoryBack();
-            document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
-            document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
-        };
+    const data = localStorage.getItem(DB_KEY);
+    if(data) {
+        db = JSON.parse(data);
+        
+        // অ্যাপ রিফ্রেশ করলে সর্বদা সিক্রেট মোড অফ হয়ে যাবে
+        db.secret = false; 
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); // পাক্কা স্টেট সেভ করা হলো
+        
+        if(db.admin && db.admin.phone) { 
+            toggleAuth('LOGIN'); 
+            syncCloud(); 
+        } else {
+            toggleAuth('REG');
+        }
+    } else {
+        toggleAuth('REG');
+    }
+    
+    // UI থেকে সিক্রেট ব্লিনকিং ইফেক্ট সরিয়ে ফেলা
+    const trigger = document.getElementById('secretTrigger');
+    if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+
+    initSecretGesture();
+    setupHistoryBack();
+    
+    document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
+    document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
+};
 
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
         async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
@@ -246,38 +264,44 @@
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        // ফায়ারস্টোর থেকে সব ডাটা চেক করা (একই নাম্বারে ভিন্ন পিন চেক করার জন্য)
         const querySnapshot = await db_fs.collection(COLLECTION).get();
         let found = false;
 
         querySnapshot.forEach(doc => {
             const cloudData = doc.data();
             
-            // ১. এডমিন হিসেবে চেক (নিজের নম্বর + নিজের পিন)
+            // ১. এডমিন হিসেবে চেক
             if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
                 db = cloudData;
                 db.role = 'ADMIN';
                 db.opName = db.admin.name;
                 found = true;
             } 
-            // ২. ম্যানেজার হিসেবে চেক (ম্যানেজারের নম্বর + ম্যানেজারের পিন)
+            // ২. ম্যানেজার হিসেবে চেক
             else if(cloudData.managers && cloudData.managers.length > 0) {
                 const matchedManager = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
                 if(matchedManager) {
-                    db = cloudData; // এডমিনের ডাটাবেস লোড হবে
+                    db = cloudData;
                     db.role = 'MANAGER';
-                    db.opName = matchedManager.name; // ম্যানেজারের নাম অপারেটর হিসেবে সেট হবে
+                    db.opName = matchedManager.name;
                     found = true;
                 }
             }
         });
 
         if(found) {
+            // লগইন সাকসেস হলে সিক্রেট মোড অফ রাখা নিশ্চিত করা
+            db.secret = false; 
+            
+            // UI থেকে ব্লিনকিং ইফেক্ট ক্লিয়ার করা
+            const trigger = document.getElementById('secretTrigger');
+            if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+
             localStorage.setItem(DB_KEY, JSON.stringify(db)); 
             enterApp();
-            console.log("Login Success as " + db.role);
+            console.log("Secure Login Success as " + db.role);
         } else {
-            alert("Incorrect Phone or PIN! If you are new, please Register.");
+            alert("Incorrect Phone or PIN! Please Register if you are new.");
         }
     } catch (error) {
         console.error("Login Error:", error);
@@ -286,8 +310,19 @@
 }
 
         function enterApp() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); if(db.admin) document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase(); renderHome(); }
-        function logout() { if(confirm("Terminate Session?")) location.reload(); }
-
+        function logout() {
+    if(confirm("Are you sure you want to terminate this secure session?")) {
+        // লগআউট করার সময় সিক্রেট মোড পার্মানেন্টলি অফ করে রিফ্রেশ করা
+        if(db) db.secret = false;
+        saveDB(); 
+        
+        // পিন এবং ফোন ইনপুট ক্লিয়ার করা
+        document.getElementById('loginPhone').value = "";
+        document.getElementById('loginPin').value = "";
+        
+        location.reload(); // এটি পুরো অ্যাপকে ক্লিন স্টেটে নিয়ে যাবে
+    }
+}
         // --- ৩. ক্যালকুলেশন এবং সিক্রেট লজিক (Point 2, 4, 6, 7, 8) ---
         function calcBal(txs, isSec, pType) {
             let b = 0;
