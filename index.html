@@ -89,6 +89,13 @@
                     <div><h2 id="lName" class="text-sm font-bold leading-none">Client</h2><p id="balTypeLabel" class="text-[8px] opacity-60 uppercase mt-1">Portfolio Balance</p></div>
                 </div>
                 <div class="flex items-center gap-3">
+                   <!-- এই আইকনটি শুধু ব্যালেন্স জিরো হলে দেখা যাবে -->
+                   <i id="deletePersonBtn" class="fas fa-trash-alt text-rose-300 hidden text-lg" onclick="deletePerson(db.activeId)"></i>
+                   <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
+                   <span id="mainTotal" class="font-black text-lg">0.00</span>
+                   <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
+                 </div>
+                <div class="flex items-center gap-3">
                     <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
                     <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
                     <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
@@ -106,7 +113,7 @@
                 <div id="contactList" class="space-y-3"></div>
                 <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
             </div>
-
+            
             <!-- লেজার: লেনদেন পেজ -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
                 <div id="ledgerList" class="flex flex-col"></div>
@@ -222,32 +229,8 @@
             document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
         };
 
-        // ১. লগইন এবং রেজিস্ট্রেশন লজিক আপডেট (Point 9 & Privacy Fix)
-const COLLECTION = "global_paybook_ledgers";
-
-async function saveDB() {
-    // ১. লোকাল মেমোরিতে সেভ
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
-
-    if(db.admin && db.admin.phone) {
-        try {
-            // ২. আপনার মেইন লেজার ডাটা সেভ
-            await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db);
-
-            // ৩. সিকিউরিটি রাউটার আপডেট (পয়েন্ট ৯: পিন ভিত্তিক সুরক্ষা)
-            // এটি ফোন_পিন দিয়ে একটি ইউনিক আইডি তৈরি করবে
-            const authKey = `${db.admin.phone}_${db.admin.pin}`;
-            await db_fs.collection("auth_router").doc(authKey).set({
-                ownerPhone: db.admin.phone, // এটি আসল ডাটার চাবিকাঠি
-                role: 'ADMIN'
-            });
-            console.log("Global Sync: Success");
-        } catch (e) {
-            console.error("Sync Error:", e);
-        }
-    }
-}
-       async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
+        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
+        async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
 
         function toggleAuth(mode) {
             document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
@@ -263,42 +246,45 @@ async function saveDB() {
             try { await saveDB(); alert("Successfully Registered!"); location.reload(); } catch(e) { alert("Registration Failed!"); }
         }
 
-      async function handleLogin() {
+        async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        // ১. পিন এবং নম্বরের ইউনিক কম্বিনেশন দিয়ে রাউটার চেক করা
-        const authKey = `${ph}_${pin}`;
-        const routeDoc = await db_fs.collection("auth_router").doc(authKey).get();
+        // ফায়ারস্টোর থেকে সব ডাটা চেক করা (একই নাম্বারে ভিন্ন পিন চেক করার জন্য)
+        const querySnapshot = await db_fs.collection(COLLECTION).get();
+        let found = false;
 
-        if (routeDoc.exists) {
-            const routeInfo = routeDoc.data();
+        querySnapshot.forEach(doc => {
+            const cloudData = doc.data();
             
-            // ২. রাউটার থেকে পাওয়া মালিকের ফোন নম্বর দিয়ে আসল লেজার ডাটা আনা
-            const ledgerDoc = await db_fs.collection(COLLECTION).doc(routeInfo.ownerPhone).get();
-            
-            if (ledgerDoc.exists) {
-                db = ledgerDoc.data();
-                db.role = routeInfo.role; // ADMIN অথবা MANAGER
-                
-                // ৩. অপারেটরের নাম সেট করা
-                if(db.role === 'ADMIN') {
-                    db.opName = db.admin.name;
-                } else {
-                    const mgr = db.managers.find(m => m.phone === ph && m.pin === pin);
-                    db.opName = mgr ? mgr.name : "Manager";
+            // ১. এডমিন হিসেবে চেক (নিজের নম্বর + নিজের পিন)
+            if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
+                db = cloudData;
+                db.role = 'ADMIN';
+                db.opName = db.admin.name;
+                found = true;
+            } 
+            // ২. ম্যানেজার হিসেবে চেক (ম্যানেজারের নম্বর + ম্যানেজারের পিন)
+            else if(cloudData.managers && cloudData.managers.length > 0) {
+                const matchedManager = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
+                if(matchedManager) {
+                    db = cloudData; // এডমিনের ডাটাবেস লোড হবে
+                    db.role = 'MANAGER';
+                    db.opName = matchedManager.name; // ম্যানেজারের নাম অপারেটর হিসেবে সেট হবে
+                    found = true;
                 }
-
-                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-                enterApp();
-                console.log("Logged in securely as " + db.role);
             }
+        });
+
+        if(found) {
+            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+            enterApp();
+            console.log("Login Success as " + db.role);
         } else {
-            // পিন বা নম্বর ভুল হলে অথবা একাউন্ট না থাকলে
-            alert("Security Error: Invalid PIN or No Account found! Please Register first.");
+            alert("Incorrect Phone or PIN! If you are new, please Register.");
         }
     } catch (error) {
         console.error("Login Error:", error);
@@ -350,32 +336,55 @@ async function saveDB() {
             renderLedger();
         }
 
-        function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList'); list.innerHTML = "";
-            const net = calcBal(p.transactions, db.secret, p.type);
-            document.getElementById('mainTotal').innerText = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+       function renderLedger() {
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); 
+    list.innerHTML = "";
+    
+    // ১. স্মার্ট ডিলিট লজিক: পাকা এবং কাঁচা—উভয় হিসাবের ব্যালেন্স বের করা
+    const netPakka = calcBal(p.transactions, false, p.type);
+    const netKaccha = calcBal(p.transactions, true, p.type);
+    
+    // চেক করা হচ্ছে মোট বকেয়া ০ কি না (পয়েন্ট অনুযায়ী)
+    const isSettled = (netPakka + netKaccha) === 0;
+    const deleteBtn = document.getElementById('deletePersonBtn');
 
-            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-                let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="window.open('${i}')">`).join("");
-
-                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                    <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
-                    <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                        <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
-                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
-                        <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
-                        <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
-                        <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
-                    </div></div>`;
-            });
-            document.getElementById('mainViewport').scrollTop = list.scrollHeight;
+    if (deleteBtn) {
+        if (isSettled) {
+            deleteBtn.classList.remove('hidden'); // হিসাব ০ হলে ডিলিট বাটন আসবে
+        } else {
+            deleteBtn.classList.add('hidden'); // বকেয়া থাকলে বাটন হাইড থাকবে
         }
+    }
+
+    // ২. বর্তমান ভিউ (পাকা/কাঁচা) অনুযায়ী হেডার ব্যালেন্স দেখানো
+    const net = calcBal(p.transactions, db.secret, p.type);
+    const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    
+    document.getElementById('mainTotal').innerText = dNet;
+    document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+
+    // ৩. ট্রানজ্যাকশন লিস্ট রেন্ডারিং
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
+        const dAmt = t.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
+        let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+        let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="window.open('${i}')">`).join("");
+
+        list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+            <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
+            <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
+                <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
+                <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
+                <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
+                <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
+            </div></div>`;
+    });
+    
+    document.getElementById('mainViewport').scrollTop = list.scrollHeight;
+}
 
         // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
         async function preSave(t) {
@@ -545,42 +554,24 @@ function handleSmartPdfDownload() {
 
     modal.classList.remove('hidden');
 }
-
-        async function hireManager() {
-    const n = prompt("Enter Manager Name:");
-    const ph = prompt("Enter Manager 10-Digit Mobile:");
-    const p = prompt("Set a 4-Digit Unique PIN for Manager:");
-
-    if(n && ph.length === 10 && p.length === 4) {
-        // ১. চেক করা হচ্ছে এই পিন এবং নম্বর অন্য কোথাও লক করা কি না
-        const authKey = `${ph}_${p}`;
-        const checkRoute = await db_fs.collection("auth_router").doc(authKey).get();
-        
-        if(checkRoute.exists) {
-            return alert("Error: This PIN and Phone combination is already taken. Try a different PIN!");
+        function deletePerson(pid) {
+    // নিরাপত্তা নিশ্চিত করতে পিন চাওয়া হবে
+    askPin(() => {
+        if (confirm("Are you sure? This account will be deleted permanently. This cannot be undone!")) {
+            // ১. লিস্ট থেকে ওই ব্যক্তিকে বাদ দেওয়া
+            db.people = db.people.filter(x => x.id !== pid);
+            
+            // ২. ডাটা সেভ করা (Local & Cloud)
+            saveDB();
+            
+            // ৩. হোমে ফিরে যাওয়া
+            goHome();
+            
+            alert("Account settled and deleted successfully!");
         }
-
-        // ২. এডমিনের লিস্টে ম্যানেজার যোগ করা
-        if(!db.managers) db.managers = [];
-        db.managers.push({ name: n, phone: ph, pin: p });
-
-        // ৩. সিকিউরিটি রাউটারে ম্যানেজারের জন্য এক্সেস তৈরি করা
-        try {
-            await db_fs.collection("auth_router").doc(authKey).set({
-                ownerPhone: db.admin.phone, // ম্যানেজার এই ফোন নম্বরের ডাটা দেখতে পাবে
-                role: 'MANAGER'
-            });
-
-            await saveDB();
-            renderManagers();
-            alert("Success: " + n + " is now your Manager!");
-        } catch (e) {
-            alert("Failed to sync manager data.");
-        }
-    } else {
-        alert("Action Cancelled or Invalid Data!");
-    }
+    });
 }
+
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -591,7 +582,7 @@ function handleSmartPdfDownload() {
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-        //function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
+        function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
