@@ -119,15 +119,11 @@
         <div id="pageHome" class="flex flex-col">
             <!-- স্টিকি ট্যাব সেকশন (হেডারের সাথে একদম লেগে থাকবে) -->
 <div class="sticky top-[65px] z-40 bg-white border-b border-slate-100 shadow-sm">
-    <div class="flex p-2 gap-2"> <!-- p-2 বাটনগুলোর চারপাশের হালকা গ্যাপের জন্য, চাইলে এটিও ০ করতে পারেন -->
-        <button onclick="switchTab('CUSTOMER')" id="tabCust" 
-                class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white transition-all shadow-md">
-            CUSTOMERS
-        </button>
-        <button onclick="switchTab('SUPPLIER')" id="tabSupp" 
-                class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400 transition-all">
-            SUPPLIERS
-        </button>
+<!-- স্টিকি ট্যাব: হেডারের সাথে একদম লেগে থাকবে (No Gap) -->
+<div class="sticky top-[65px] z-[90] bg-white border-b border-slate-100 shadow-sm">
+    <div class="flex p-2 gap-2"> <!-- এখানে p-2 বাটনগুলোর পাশে হালকা সৌন্দর্যের জন্য, গ্যাপ পুরোপুরি মুছতে চাইলে p-0 করুন -->
+        <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">CUSTOMERS</button>
+        <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
     </div>
 </div>
                 <div id="contactList" class="space-y-3"></div>
