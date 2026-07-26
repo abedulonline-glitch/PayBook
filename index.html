@@ -302,71 +302,68 @@
 
         // --- সংশোধিত handleLogin: মিরর লজিক সহ (পয়েন্ট ৯ অনুযায়ী) ---
 async function handleLogin() {
-    // ১. ইনপুট থেকে নম্বর এবং পিন নিয়ে চারপাশের স্পেস মুছে ফেলা
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        console.log("Attempting login for:", ph);
+        console.log("Searching for account with Phone:", ph, "and PIN:", pin);
         
-        // ২. ফায়ারস্টোর থেকে ডাটা সংগ্রহ
+        // ১. ফায়ারস্টোর থেকে পুরো কালেকশনটি চেক করা (পয়েন্ট ৯ অনুযায়ী)
         const querySnapshot = await db_fs.collection(COLLECTION).get();
+        let matchedDB = null;
+        let finalRole = "";
+        let finalOpName = "";
         let found = false;
 
         querySnapshot.forEach(doc => {
-            if (found) return; // একবার মিলে গেলে আর চেক করার দরকার নেই
-            
+            if (found) return; // একবার সঠিক কম্বিনেশন মিলে গেলে লুপ বন্ধ হবে
+
             const cloudData = doc.data();
             
-            // টাইপ মিসম্যাচ এড়াতে সব ভ্যালুকে String-এ রূপান্তর করে তুলনা করা
-            const dbAdminPhone = String(cloudData.admin?.phone || "");
-            const dbAdminPin = String(cloudData.admin?.pin || "");
-            const userPin = String(pin);
-
-            // ৩. এডমিন লগইন চেক
-            if(dbAdminPhone === ph && (userPin === dbAdminPin || userPin === MASTER_PIN)) {
-                db = cloudData;
-                db.role = 'ADMIN';
-                db.opName = db.admin.name;
-                db.secret = false; // লগইনের সময় সর্বদা পাকা মোড নিশ্চিত করা
+            // কন্ডিশন ১: এটি কি আপনার নিজের এডমিন একাউন্ট? (Phone + PIN Match)
+            if (cloudData.admin && String(cloudData.admin.phone) === ph && String(cloudData.admin.pin) === pin) {
+                matchedDB = cloudData;
+                finalRole = "ADMIN";
+                finalOpName = cloudData.admin.name;
                 found = true;
-                console.log("Admin Match Found!");
             } 
-            // ৪. ম্যানেজার লগইন চেক (যদি এডমিন না মেলে)
-            else if(cloudData.managers && cloudData.managers.length > 0) {
-                const mgrMatch = cloudData.managers.find(m => String(m.phone) === ph && String(m.pin) === userPin);
-                if(mgrMatch) {
-                    db = cloudData;
-                    db.role = 'MANAGER';
-                    db.opName = mgrMatch.name;
-                    db.secret = false;
+            
+            // কন্ডিশন ২: আপনি কি এই এডমিনের ম্যানেজার? (Phone + PIN Match in Managers list)
+            if (!found && cloudData.managers && cloudData.managers.length > 0) {
+                const mgrMatch = cloudData.managers.find(m => String(m.phone) === ph && String(m.pin) === pin);
+                if (mgrMatch) {
+                    matchedDB = cloudData; // এডমিনের পুরো ডাটাবেস লোড হবে
+                    finalRole = "MANAGER";
+                    finalOpName = mgrMatch.name;
                     found = true;
-                    console.log("Manager Match Found!");
                 }
             }
         });
 
-        if(found) {
-            // ৫. সাকসেস: লোকাল স্টোরেজ আপডেট এবং অ্যাপে প্রবেশ
-            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+        // ২. ডাটা খুঁজে পাওয়া গেলে সেটি অ্যাপে সেট করা
+        if (found && matchedDB) {
+            // সিকিউরিটি: লোকাল মেমোরি ক্লিন করে নতুন ডাটা সেট করা
+            localStorage.removeItem(DB_KEY); 
             
-            // সুন্দর স্লাইড এনিমেশন (Axis Style)
-            const auth = document.getElementById('authScreen');
-            auth.style.opacity = '0';
-            auth.style.transition = 'opacity 0.5s ease';
+            db = JSON.parse(JSON.stringify(matchedDB)); // Deep Copy
+            db.role = finalRole;
+            db.opName = finalOpName;
+            db.secret = false; // লগইনের সময় সর্বদা পাকা মোড
+
+            // ৩. লোকাল স্টোরেজ আপডেট এবং অ্যাপে প্রবেশ
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+            enterApp();
             
-            setTimeout(() => {
-                enterApp();
-                alert(`Welcome ${db.opName}! Login Successful.`);
-            }, 500);
+            alert(`Verified! Welcome ${finalOpName} (${finalRole})`);
         } else {
-            alert("Incorrect Phone or PIN! If you are new, please Register.");
+            alert("Login Failed! No account found for this Phone and PIN combination.");
         }
+
     } catch (error) {
-        console.error("Critical Login Error:", error);
-        alert("Connection Error: Could not reach the server.");
+        console.error("Login Error:", error);
+        alert("Sync Error: Check your internet connection.");
     }
 }
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
