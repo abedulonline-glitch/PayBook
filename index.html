@@ -117,15 +117,13 @@
     <div id="mainViewport" class="bg-slate-50">
         <!-- হোম স্ক্রিন -->
         <div id="pageHome" class="flex flex-col">
-            <!-- স্টিকি ট্যাব সেকশন (হেডারের সাথে একদম লেগে থাকবে) -->
-<div class="sticky top-[65px] z-40 bg-white border-b border-slate-100 shadow-sm">
-<!-- স্টিকি ট্যাব: হেডারের সাথে একদম লেগে থাকবে (No Gap) -->
-<div class="sticky top-[65px] z-[90] bg-white border-b border-slate-100 shadow-sm">
-    <div class="flex p-2 gap-2"> <!-- এখানে p-2 বাটনগুলোর পাশে হালকা সৌন্দর্যের জন্য, গ্যাপ পুরোপুরি মুছতে চাইলে p-0 করুন -->
-        <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">CUSTOMERS</button>
-        <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
-    </div>
-</div>
+            <!-- স্টিকি ট্যাব সেকশন (এটি স্ক্রোল হবে না) -->
+            <div class="sticky top-0 z-40 bg-slate-50 p-5 pb-2">
+                <div class="flex bg-white p-1 rounded-xl border shadow-sm">
+                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white transition-all">CUSTOMERS</button>
+                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
+                </div>
+            </div>
                 <div id="contactList" class="space-y-3"></div>
                 <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
             </div>
