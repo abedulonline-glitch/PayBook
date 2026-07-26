@@ -308,56 +308,77 @@ async function handleLogin() {
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        // ১. ফায়ারস্টোর থেকে সব ইউজার ডাটা চেক করা
+        // ১. ফায়ারস্টোর থেকে সব ডাটা স্ক্যান করা
         const querySnapshot = await db_fs.collection(COLLECTION).get();
-        let cloudData = null;
-        let found = false;
+        let matchedData = null;
+        let finalRole = '';
+        let operatorName = '';
 
         querySnapshot.forEach(doc => {
-            const data = doc.data();
+            const cloudData = doc.data();
             
-            // চেক ১: এডমিন লগইন
-            if(data.admin && data.admin.phone === ph && (pin === data.admin.pin || pin === MASTER_PIN)) {
-                cloudData = data;
-                db.role = 'ADMIN';
-                db.opName = data.admin.name;
-                found = true;
+            // চেক ১: এটি কি আপনার নিজের এডমিন একাউন্ট? (নম্বর + এডমিন পিন)
+            if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
+                matchedData = cloudData;
+                finalRole = 'ADMIN';
+                operatorName = cloudData.admin.name;
             } 
-            // চেক ২: ম্যানেজার লগইন
-            else if(data.managers && data.managers.length > 0) {
-                const matchedManager = data.managers.find(m => m.phone === ph && m.pin === pin);
-                if(matchedManager) {
-                    cloudData = data;
-                    db.role = 'MANAGER';
-                    db.opName = matchedManager.name;
-                    found = true;
+            
+            // চেক ২: আপনি কি অন্য কোনো এডমিনের ম্যানেজার? (নম্বর + ম্যানেজার পিন)
+            // এটি চেক করবে যদি আপনি অলরেডি এডমিন হিসেবে না মিলে থাকেন
+            if (!matchedData && cloudData.managers && cloudData.managers.length > 0) {
+                const managerEntry = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
+                if(managerEntry) {
+                    matchedData = cloudData; // ওই এডমিনের ডাটাবেস লোড হবে
+                    finalRole = 'MANAGER';
+                    operatorName = managerEntry.name;
                 }
             }
         });
 
-        if(found) {
-            db = cloudData;
-            db.secret = false; // লগইন সাকসেস হলে সিক্রেট মোড অফ রাখা
-            
-            // ২. মিরর লজিক ট্রিগার (পয়েন্ট ৯: সুলতান আপনাকে সাপ্লায়ার হিসেবে দেখবে)
+        if(matchedData) {
+            // ২. স্টেট সেটআপ (নিখুঁত আইসোলেশন)
+            db = matchedData;
+            db.role = finalRole; // এখানে রোলটি ফিক্স করা হলো
+            db.opName = operatorName;
+            db.secret = false; 
+
+            // ৩. মিরর লজিক (শুধুমাত্র এডমিন হলে অন্যদের সিঙ্ক করবে)
             if(db.role === 'ADMIN') {
                 await discoverMirrorContacts(ph, querySnapshot);
             }
 
-            // UI থেকে সিক্রেট ইফেক্ট ক্লিয়ার করা
-            const trigger = document.getElementById('secretTrigger');
-            if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
-
+            // ৪. লোকাল স্টোরেজ আপডেট
             localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+            
+            // ৫. অ্যাপে প্রবেশ এবং ইউআই রিফ্রেশ
             enterApp();
-            console.log("Secure Login Success as " + db.role);
+            
+            alert(`Welcome ${operatorName}! Logged in as ${finalRole}`);
+            console.log("Identity Verified: " + finalRole);
         } else {
-            alert("No Account found! Please check Phone/PIN or Register.");
+            alert("No account match found for this PIN! Please register if new.");
         }
     } catch (error) {
         console.error("Login Error:", error);
-        alert("Network Error: Check your connection.");
+        alert("Sync Error! Check connection.");
     }
+}
+
+// --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
+function enterApp() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+
+    // রোল অনুযায়ী সেটিংস এবং ইউজার নেম সেট করা
+    if(db.admin) {
+        document.getElementById('userInitials').innerText = db.opName.substring(0,2).toUpperCase();
+        document.getElementById('balTypeLabel').innerText = (db.role === 'ADMIN') ? "Owner's Dashboard" : "Managed for: " + db.admin.name;
+    }
+
+    // ডিফল্ট ট্যাব সেট করে ডাটা লোড
+    db.tab = 'CUSTOMER';
+    switchTab(db.tab); 
 }
 
 // ৩. মিরর কন্টাক্ট ডিসকভারি ফাংশন (Smart Point 9)
