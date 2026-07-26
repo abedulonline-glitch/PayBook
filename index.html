@@ -194,6 +194,11 @@
     </div>
 
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="flex justify-between items-center mb-6">
+    <i class="fas fa-chevron-left text-slate-300" onclick="handleGlobalBack()"></i>
+    <h3 class="text-xl font-bold uppercase">Title Here</h3>
+    <span></span>
+</div>
         <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase tracking-widest">Management Center</h3>
             
@@ -212,6 +217,11 @@
     </div>
 
     <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="flex justify-between items-center mb-6">
+    <i class="fas fa-chevron-left text-slate-300" onclick="handleGlobalBack()"></i>
+    <h3 class="text-xl font-bold uppercase">Title Here</h3>
+    <span></span>
+</div>
         <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
             <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">New Account</h3>
             <input id="newPName" type="text" placeholder="Contact Full Name" class="axis-input mb-4">
@@ -459,6 +469,7 @@ function renderHome() {
 }
 
         function openLedger(id) {
+            history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
             document.getElementById('lName').innerText = p.name;
             document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden');
@@ -645,6 +656,7 @@ function handleSmartPdfDownload() {
     }
 }
         function showSettings() {
+    history.pushState(null, null, window.location.pathname);        
     const modal = document.getElementById('settingsModal');
     const adminControls = document.getElementById('adminControls');
 
@@ -744,6 +756,42 @@ function confirmEditPerson() {
         renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
     }
 }
+        // ১. গ্লোবাল ব্যাক ফাংশন
+function handleGlobalBack() {
+    const isLedgerVisible = !document.getElementById('pageLedger').classList.contains('hidden');
+    const isDrawerOpen = !document.getElementById('entryDrawer').classList.contains('hidden');
+    const isSettingsOpen = !document.getElementById('settingsModal').classList.contains('hidden');
+    const isAddModalOpen = !document.getElementById('addModal').classList.contains('hidden');
+    const isMediaSheetOpen = !document.getElementById('mediaSheet').classList.contains('hidden');
+
+    // প্রায়োরিটি অনুযায়ী ব্যাক করা
+    if (isMediaSheetOpen) {
+        document.getElementById('mediaSheet').classList.add('hidden'); // মিডিয়া বন্ধ
+    } else if (isDrawerOpen) {
+        closeDrawer(); // ডাটা এন্ট্রি বন্ধ
+    } else if (isSettingsOpen) {
+        document.getElementById('settingsModal').classList.add('hidden'); // সেটিংস বন্ধ
+    } else if (isAddModalOpen) {
+        document.getElementById('addModal').classList.add('hidden'); // কাস্টমার এন্ট্রি বন্ধ
+    } else if (isLedgerVisible) {
+        goHome(); // কাস্টমার লেজার থেকে হোমে ফেরা
+    } else {
+        // যদি অলরেডি হোম স্ক্রিনে থাকে, তবে ইউজারকে জানানো যেতে পারে
+        console.log("Already on Home Screen");
+    }
+}
+
+// ২. ফোনের হার্ডওয়্যার ব্যাক বাটন হ্যান্ডেল করা
+window.addEventListener('popstate', function (event) {
+    handleGlobalBack();
+    // পুনরায় স্টেট পুশ করা যাতে অ্যাপ থেকে বের না হয়ে যায়
+    history.pushState(null, null, window.location.pathname);
+});
+
+// ৩. অ্যাপ লোড হওয়ার সময় একটি স্টেট পুশ করা
+function initNavigation() {
+    history.pushState(null, null, window.location.pathname);
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -760,7 +808,7 @@ function confirmEditPerson() {
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
-        function triggerDrawer(t) { document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
+        function triggerDrawer(t) { history.pushState(null, null, window.location.pathname);document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
         function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[]; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
