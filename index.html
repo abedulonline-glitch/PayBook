@@ -308,60 +308,63 @@ async function handleLogin() {
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        // ১. ফায়ারস্টোর থেকে সব ডাটা স্ক্যান করা
+        // ১. ফায়ারস্টোর থেকে সব ডাটা নেওয়া
         const querySnapshot = await db_fs.collection(COLLECTION).get();
-        let matchedData = null;
-        let finalRole = '';
-        let operatorName = '';
+        
+        let targetData = null;
+        let targetRole = '';
+        let targetOpName = '';
+        let accountFound = false;
 
+        // ২. ডাটাবেস স্ক্যান করা (নিখুঁত পিন রাউটিং)
         querySnapshot.forEach(doc => {
+            if (accountFound) return; // যদি একবার সঠিক পিন দিয়ে একাউন্ট মিলে যায়, তবে লুপ আর চলবে না
+
             const cloudData = doc.data();
             
-            // চেক ১: এটি কি আপনার নিজের এডমিন একাউন্ট? (নম্বর + এডমিন পিন)
-            if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
-                matchedData = cloudData;
-                finalRole = 'ADMIN';
-                operatorName = cloudData.admin.name;
+            // চেক ১: এটি কি আপনার নিজের মালিকানা (ADMIN) একাউন্ট?
+            if (cloudData.admin && cloudData.admin.phone === ph && pin === cloudData.admin.pin) {
+                targetData = cloudData;
+                targetRole = 'ADMIN';
+                targetOpName = cloudData.admin.name;
+                accountFound = true;
+                console.log("Admin account identified.");
             } 
             
-            // চেক ২: আপনি কি অন্য কোনো এডমিনের ম্যানেজার? (নম্বর + ম্যানেজার পিন)
-            // এটি চেক করবে যদি আপনি অলরেডি এডমিন হিসেবে না মিলে থাকেন
-            if (!matchedData && cloudData.managers && cloudData.managers.length > 0) {
-                const managerEntry = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
-                if(managerEntry) {
-                    matchedData = cloudData; // ওই এডমিনের ডাটাবেস লোড হবে
-                    finalRole = 'MANAGER';
-                    operatorName = managerEntry.name;
+            // চেক ২: আপনি কি অন্য কারো নিয়োগ করা ম্যানেজার? (নম্বর + ম্যানেজার পিন)
+            if (!accountFound && cloudData.managers && cloudData.managers.length > 0) {
+                const mgrEntry = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
+                if (mgrEntry) {
+                    targetData = cloudData; // ওই এডমিনের ডাটাবেসটি আপনার জন্য লোড হবে
+                    targetRole = 'MANAGER';
+                    targetOpName = mgrEntry.name;
+                    accountFound = true;
+                    console.log("Manager access identified.");
                 }
             }
         });
 
-        if(matchedData) {
-            // ২. স্টেট সেটআপ (নিখুঁত আইসোলেশন)
-            db = matchedData;
-            db.role = finalRole; // এখানে রোলটি ফিক্স করা হলো
-            db.opName = operatorName;
-            db.secret = false; 
+        // ৩. ডাটা লোড এবং ইউআই আপডেট
+        if (accountFound && targetData) {
+            // পুরাতন ডাটা সম্পূর্ণ মুছে নতুন ডাটা ইনজেক্ট করা
+            db = JSON.parse(JSON.stringify(targetData)); // Deep Copy নিশ্চিত করা
+            db.role = targetRole;
+            db.opName = targetOpName;
+            db.secret = false; // সব সময় পাক্কা মোডে শুরু হবে
 
-            // ৩. মিরর লজিক (শুধুমাত্র এডমিন হলে অন্যদের সিঙ্ক করবে)
-            if(db.role === 'ADMIN') {
-                await discoverMirrorContacts(ph, querySnapshot);
-            }
-
-            // ৪. লোকাল স্টোরেজ আপডেট
+            // লোকাল মেমোরি আপডেট
             localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-            
-            // ৫. অ্যাপে প্রবেশ এবং ইউআই রিফ্রেশ
+
+            // অ্যাপে প্রবেশ
             enterApp();
             
-            alert(`Welcome ${operatorName}! Logged in as ${finalRole}`);
-            console.log("Identity Verified: " + finalRole);
+            alert(`Welcome ${targetOpName}! Successfully logged in as ${targetRole}`);
         } else {
-            alert("No account match found for this PIN! Please register if new.");
+            alert("No matching account found for this Phone and PIN. Please check or Register.");
         }
     } catch (error) {
         console.error("Login Error:", error);
-        alert("Sync Error! Check connection.");
+        alert("Sync Error! Please check your internet connection.");
     }
 }
 
