@@ -300,31 +300,34 @@
             try { await saveDB(); alert("Successfully Registered!"); location.reload(); } catch(e) { alert("Registration Failed!"); }
         }
 
-        async function handleLogin() {
+        // --- সংশোধিত handleLogin: মিরর লজিক সহ (পয়েন্ট ৯ অনুযায়ী) ---
+async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
     if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
+        // ১. ফায়ারস্টোর থেকে সব ইউজার ডাটা চেক করা
         const querySnapshot = await db_fs.collection(COLLECTION).get();
+        let cloudData = null;
         let found = false;
 
         querySnapshot.forEach(doc => {
-            const cloudData = doc.data();
+            const data = doc.data();
             
-            // ১. এডমিন হিসেবে চেক
-            if(cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
-                db = cloudData;
+            // চেক ১: এডমিন লগইন
+            if(data.admin && data.admin.phone === ph && (pin === data.admin.pin || pin === MASTER_PIN)) {
+                cloudData = data;
                 db.role = 'ADMIN';
-                db.opName = db.admin.name;
+                db.opName = data.admin.name;
                 found = true;
             } 
-            // ২. ম্যানেজার হিসেবে চেক
-            else if(cloudData.managers && cloudData.managers.length > 0) {
-                const matchedManager = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
+            // চেক ২: ম্যানেজার লগইন
+            else if(data.managers && data.managers.length > 0) {
+                const matchedManager = data.managers.find(m => m.phone === ph && m.pin === pin);
                 if(matchedManager) {
-                    db = cloudData;
+                    cloudData = data;
                     db.role = 'MANAGER';
                     db.opName = matchedManager.name;
                     found = true;
@@ -333,10 +336,15 @@
         });
 
         if(found) {
-            // লগইন সাকসেস হলে সিক্রেট মোড অফ রাখা নিশ্চিত করা
-            db.secret = false; 
+            db = cloudData;
+            db.secret = false; // লগইন সাকসেস হলে সিক্রেট মোড অফ রাখা
             
-            // UI থেকে ব্লিনকিং ইফেক্ট ক্লিয়ার করা
+            // ২. মিরর লজিক ট্রিগার (পয়েন্ট ৯: সুলতান আপনাকে সাপ্লায়ার হিসেবে দেখবে)
+            if(db.role === 'ADMIN') {
+                await discoverMirrorContacts(ph, querySnapshot);
+            }
+
+            // UI থেকে সিক্রেট ইফেক্ট ক্লিয়ার করা
             const trigger = document.getElementById('secretTrigger');
             if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
 
@@ -344,11 +352,47 @@
             enterApp();
             console.log("Secure Login Success as " + db.role);
         } else {
-            alert("Incorrect Phone or PIN! Please Register if you are new.");
+            alert("No Account found! Please check Phone/PIN or Register.");
         }
     } catch (error) {
         console.error("Login Error:", error);
         alert("Network Error: Check your connection.");
+    }
+}
+
+// ৩. মিরর কন্টাক্ট ডিসকভারি ফাংশন (Smart Point 9)
+async function discoverMirrorContacts(myPhone, allDocs) {
+    let mirrorFound = false;
+
+    allDocs.forEach(doc => {
+        const otherAdminData = doc.data();
+        // যদি অন্য কোনো এডমিনের লিস্টে আমি (myPhone) থাকি
+        const foundMe = (otherAdminData.people || []).find(person => person.phone === myPhone);
+
+        if(foundMe) {
+            // চেক করা হচ্ছে সে কি আমার লিস্টে অলরেডি আছে?
+            const alreadyInMyList = db.people.find(p => p.phone === otherAdminData.admin.phone);
+
+            if(!alreadyInMyList) {
+                // কাস্টমার টাইপ উল্টে দেওয়া (আমি যদি তার কাস্টমার হই, সে হবে আমার সাপ্লায়ার)
+                let mirrorType = (foundMe.type === 'CUSTOMER') ? 'SUPPLIER' : 'CUSTOMER';
+                
+                db.people.unshift({
+                    id: Date.now() + Math.random(),
+                    name: otherAdminData.admin.name,
+                    phone: otherAdminData.admin.phone,
+                    type: mirrorType,
+                    transactions: [], // ট্রানজ্যাকশন মিররিং রিয়েল টাইমে ফায়ারস্টোর থেকে হবে
+                    isMirror: true // এটি একটি মিরর কন্টাক্ট
+                });
+                mirrorFound = true;
+            }
+        }
+    });
+
+    if(mirrorFound) {
+        console.log("Mirror contacts discovered and added!");
+        saveDB(); // ক্লাউডে আপডেট সেভ করা
     }
 }
          function enterApp() {
