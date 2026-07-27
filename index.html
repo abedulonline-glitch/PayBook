@@ -284,9 +284,30 @@
 };
 
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
-        async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
+        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
+function syncCloud() {
+    if(db.admin && db.admin.phone) {
+        // Firestore Real-time Listener (onSnapshot)
+        db_fs.collection(COLLECTION).doc(db.admin.phone)
+            .onSnapshot((doc) => {
+                if (doc.exists) {
+                    const cloudData = doc.data();
+                    
+                    // বর্তমান লোকাল ডাটা এবং ক্লাউড ডাটা মার্জ করা
+                    // এটি নিশ্চিত করে যে আপনার করা এন্ট্রি এবং অন্যের পাঠানো এন্ট্রি দুটোই ঠিক থাকে
+                    db.people = cloudData.people || [];
+                    db.managers = cloudData.managers || [];
+                    db.admin = cloudData.admin;
 
-        function toggleAuth(mode) {
+                    localStorage.setItem(DB_KEY, JSON.stringify(db)); // লোকাল আপডেট
+                    renderHome(); // হোম স্ক্রিন রিফ্রেশ
+                    console.log("Live Sync: Data Received from Cloud");
+                }
+            }, (error) => {
+                console.error("Sync error:", error);
+            });
+    }
+} function toggleAuth(mode) {
             document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
             document.getElementById('regBox').classList.toggle('hidden', mode==='LOGIN');
             document.getElementById('tabLogin').className = mode==='LOGIN' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
@@ -384,39 +405,50 @@ function enterApp() {
     switchTab(db.tab); 
 }
 
-// ৩. মিরর কন্টাক্ট ডিসকভারি ফাংশন (Smart Point 9)
-async function discoverMirrorContacts(myPhone, allDocs) {
-    let mirrorFound = false;
-
-    allDocs.forEach(doc => {
-        const otherAdminData = doc.data();
-        // যদি অন্য কোনো এডমিনের লিস্টে আমি (myPhone) থাকি
-        const foundMe = (otherAdminData.people || []).find(person => person.phone === myPhone);
-
-        if(foundMe) {
-            // চেক করা হচ্ছে সে কি আমার লিস্টে অলরেডি আছে?
-            const alreadyInMyList = db.people.find(p => p.phone === otherAdminData.admin.phone);
-
-            if(!alreadyInMyList) {
-                // কাস্টমার টাইপ উল্টে দেওয়া (আমি যদি তার কাস্টমার হই, সে হবে আমার সাপ্লায়ার)
-                let mirrorType = (foundMe.type === 'CUSTOMER') ? 'SUPPLIER' : 'CUSTOMER';
-                
-                db.people.unshift({
-                    id: Date.now() + Math.random(),
-                    name: otherAdminData.admin.name,
-                    phone: otherAdminData.admin.phone,
-                    type: mirrorType,
-                    transactions: [], // ট্রানজ্যাকশন মিররিং রিয়েল টাইমে ফায়ারস্টোর থেকে হবে
-                    isMirror: true // এটি একটি মিরর কন্টাক্ট
-                });
-                mirrorFound = true;
-            }
+// --- মিরর সিঙ্ক লজিক (Point 9: অটোমেটিক পার্টনার আপডেট) ---
+async function syncToPartner(partnerPhone, myTx) {
+    try {
+        const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
+        const doc = await partnerRef.get();
+        
+        let pDB;
+        if (doc.exists) {
+            pDB = doc.data();
+        } else {
+            // যদি পার্টনার এখনো রেজিস্টার না করে থাকে, তবে তার জন্য বেসিক স্ট্রাকচার তৈরি হবে
+            pDB = { admin: { phone: partnerPhone, name: "Pending User", pin: "0000" }, people: [], managers: [], secret: false };
         }
-    });
 
-    if(mirrorFound) {
-        console.log("Mirror contacts discovered and added!");
-        saveDB(); // ক্লাউডে আপডেট সেভ করা
+        // পার্টনারের লিস্টে আমাকে (এডমিনকে) খোঁজা
+        let meInPartner = pDB.people.find(p => p.phone === db.admin.phone);
+
+        if (!meInPartner) {
+            // যদি আমি তার লিস্টে না থাকি, তবে আমাকে অ্যাড করা (টাইপ হবে উল্টো)
+            meInPartner = {
+                id: Date.now() + Math.random(),
+                name: db.admin.name,
+                phone: db.admin.phone,
+                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                transactions: []
+            };
+            pDB.people.unshift(meInPartner);
+        }
+
+        // লেনদেনের টাইপ উল্টে দেওয়া (Mirror effect)
+        let mirrorType = (myTx.type === 'GIVEN') ? 'RECEIVED' : 'GIVEN';
+
+        // পার্টনারের লেজারে ট্রানজ্যাকশন পুশ করা
+        meInPartner.transactions.push({
+            ...myTx,
+            type: mirrorType,
+            by: db.admin.name + " (Cloud Sync)"
+        });
+
+        // পার্টনারের ডক্যুমেন্ট ক্লাউডে সেভ করা
+        await partnerRef.set(pDB);
+        console.log("Mirror Sync: Success to " + partnerPhone);
+    } catch (e) {
+        console.error("Mirror Sync Error: ", e);
     }
 }
          function enterApp() {
@@ -568,22 +600,59 @@ function renderHome() {
 
         // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
         async function preSave(t) {
-            const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Enter Amount!");
-            const act = async () => {
-                document.getElementById('mainConfirmBtn').innerText = "SYNCHING CLOUD...";
-                let imgs = [];
-                for(let f of capturedFiles) {
-                    const fd = new FormData(); fd.append('image', f);
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json(); if(dat.success) imgs.push(dat.data.url);
-                }
-                const p = db.people.find(x => x.id === db.activeId);
-                p.transactions.push({ id:Date.now(), amount:amt, type:t, secret:!!db.secret, date:document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), note:document.getElementById('txNote').value, images:imgs, by: db.opName, status:'active' });
-                await saveDB(); renderLedger(); closeDrawer();
-                document.getElementById('mainConfirmBtn').innerText = "Confirm Transaction";
-            };
-            if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
+    const amt = parseFloat(document.getElementById('txAmt').value); 
+    if(!amt) return alert("Enter Amount!");
+
+    const act = async () => {
+        document.getElementById('mainConfirmBtn').innerText = "SYNCHING CLOUD...";
+        document.getElementById('mainConfirmBtn').disabled = true;
+
+        let imgs = [];
+        // মাল্টিপল ইমেজ আপলোড লুপ
+        for(let f of capturedFiles) {
+            const fd = new FormData();
+            fd.append('image', f);
+            try {
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) imgs.push(dat.data.url);
+            } catch(err) { console.error("Img Upload Fail"); }
         }
+
+        const p = db.people.find(x => x.id === db.activeId);
+        
+        // ১. নতুন ট্রানজ্যাকশন অবজেক্ট তৈরি
+        const newTx = { 
+            id: Date.now(), 
+            amount: amt, 
+            type: t, 
+            secret: !!db.secret, 
+            date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
+            note: document.getElementById('txNote').value, 
+            images: imgs, 
+            by: db.opName, 
+            status: 'active' 
+        };
+
+        // ২. নিজের লিস্টে সেভ করা
+        p.transactions.push(newTx);
+        await saveDB(); 
+
+        // ৩. পয়েন্ট ৯: পার্টনারের ফোনে মিরর সিঙ্ক পাঠানো
+        await syncToPartner(p.phone, newTx);
+
+        // ৪. ইউআই আপডেট এবং ড্রয়ার বন্ধ
+        renderLedger(); 
+        closeDrawer();
+        document.getElementById('mainConfirmBtn').innerText = "Confirm Transaction";
+        document.getElementById('mainConfirmBtn').disabled = false;
+        
+        if(db.secret) startTimer(); // সিক্রেট মোড হলে ১ মিনিটের টাইমার শুরু
+    };
+
+    // আপনার পিন শর্ত: সিক্রেট মোডে কাস্টমার থেকে টাকা পেলে পিন চাইবে
+    if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
+}
 
        // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
 function handleSmartPdfDownload() {
