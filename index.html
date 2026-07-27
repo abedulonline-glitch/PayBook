@@ -283,56 +283,30 @@
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
 };
 
-        // --- ৫. ডাটা সেভ ফাংশন: এটি বর্তমানে যে মালিকের (Owner) আন্ডারে কাজ হচ্ছে তার ডক আপডেট করবে ---
-async function saveDB() {
-    // লোকাল মেমোরিতে সেভ
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
-    
-    // ক্লাউডে সেভ (পয়েন্ট ৯: মিরর এবং গ্লোবাল সিঙ্ক নিশ্চিত করতে)
-    if(db.admin && db.admin.phone) {
-        try {
-            // শুধুমাত্র ডকটির মালিকের ঘরেই ডাটা সেভ হবে
-            await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db);
-            console.log("Global Sync: Successfully updated cloud database.");
-        } catch (e) {
-            console.error("Cloud Save Error:", e);
-        }
-    }
-}
-
-// --- ৬. লাইভ ক্লাউড সিঙ্ক: অন্য প্রান্ত থেকে এন্ট্রি দিলে এখানে রিয়েল-টাইমে আপডেট হবে ---
+        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
+        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
     if(db.admin && db.admin.phone) {
-        // ফায়ারস্টোর রিয়েল-টাইম লিসেনার (onSnapshot)
+        // Firestore Real-time Listener (onSnapshot)
         db_fs.collection(COLLECTION).doc(db.admin.phone)
             .onSnapshot((doc) => {
                 if (doc.exists) {
                     const cloudData = doc.data();
                     
-                    // সেশন প্রোটেকশন লজিক: যাতে লগইন সেশন না হারায়
-                    // আমরা শুধু কন্টাক্ট লিস্ট এবং ম্যানেজার লিস্ট আপডেট করব
+                    // বর্তমান লোকাল ডাটা এবং ক্লাউড ডাটা মার্জ করা
+                    // এটি নিশ্চিত করে যে আপনার করা এন্ট্রি এবং অন্যের পাঠানো এন্ট্রি দুটোই ঠিক থাকে
                     db.people = cloudData.people || [];
                     db.managers = cloudData.managers || [];
-                    
-                    // মালিকের বেসিক তথ্য আপডেট করা (নাম/পিন বদলালে যেন আপডেট হয়)
-                    db.admin.name = cloudData.admin.name;
-                    db.admin.pin = cloudData.admin.pin;
+                    db.admin = cloudData.admin;
 
-                    // লোকাল আপডেট
-                    localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-
-                    // শুধুমাত্র মেইন স্ক্রিনে থাকলে রি-রেন্ডার হবে (পারফরম্যান্স ফিক্স)
-                    const isAuthHidden = document.getElementById('authScreen').classList.contains('hidden');
-                    if(isAuthHidden) {
-                        renderAll(); // ড্যাশবোর্ড বা লেজার আপডেট করবে
-                    }
-                    console.log("Live Sync: Real-time data received for " + db.admin.name);
+                    localStorage.setItem(DB_KEY, JSON.stringify(db)); // লোকাল আপডেট
+                    renderHome(); // হোম স্ক্রিন রিফ্রেশ
+                    console.log("Live Sync: Data Received from Cloud");
                 }
             }, (error) => {
                 console.error("Sync error:", error);
             });
     }
-}
 } function toggleAuth(mode) {
             document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
             document.getElementById('regBox').classList.toggle('hidden', mode==='LOGIN');
