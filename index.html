@@ -313,8 +313,8 @@ function syncCloud() {
             document.getElementById('tabLogin').className = mode==='LOGIN' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
             document.getElementById('tabReg').className = mode==='REG' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
         }
-// --- ৩. সংশোধিত রেজিস্ট্রেশন লজিক ---
-async function handleRegistration() {
+
+        async function handleRegistration() {
     const n = document.getElementById('regName').value.trim(), ph = document.getElementById('regPhone').value.trim(), p = document.getElementById('regPin').value.trim();
     if(!n || ph.length !== 10) return alert("Valid data required!");
 
@@ -322,11 +322,11 @@ async function handleRegistration() {
     const doc = await docRef.get();
 
     if (doc.exists) {
-        // যদি আপনি সুলতানকে আগে অ্যাড করে থাকেন, তবে তার ডাটা লোড করে পিন বসিয়ে দেওয়া
+        // যদি আপনি সুলতানকে আগে অ্যাড করে থাকেন, তবে তার ডাটা সেভ থাকবে
         db = doc.data();
-        db.admin = { name: n, phone: ph, pin: p }; 
+        db.admin = { name: n, phone: ph, pin: p }; // তার নিজের পিন সেট হলো
     } else {
-        // একদম ফ্রেশ একাউন্ট
+        // সম্পূর্ণ নতুন ইউজার
         db = { admin: { name: n, phone: ph, pin: p }, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: n };
     }
 
@@ -334,9 +334,12 @@ async function handleRegistration() {
         await saveDB(); 
         alert("Registration Successful!"); 
         location.reload(); 
-    } catch(e) { alert("Registration Error!"); }
+    } catch(e) { alert("Error!"); }
 }
-        // --- ২. সংশোধিত লগইন লজিক (নিখুঁত পিন রাউটিং এবং সিকিউরিটি ফিক্স) ---
+
+        // --- সংশোধিত handleLogin: মিরর লজিক সহ (পয়েন্ট ৯ অনুযায়ী) ---
+
+// --- ২. সংশোধিত লগইন লজিক (নিখুঁত পিন রাউটিং এবং সিকিউরিটি ফিক্স) ---
 async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
@@ -381,62 +384,30 @@ async function handleLogin() {
         });
 
         // ৩. একাউন্ট পাওয়া গেলে ডাটা লোড করা
-// --- ১. সংশোধিত লগইন: হ্যাং-ফ্রি এবং সিকিউর (Surgical Login) ---
-async function handleLogin() {
-    const ph = document.getElementById('loginPhone').value.trim();
-    const pin = document.getElementById('loginPin').value.trim();
+        if (accountFound && targetData) {
+            // ৩.১ সিক্রেট মোড অফ রেখে ফ্রেশ ডাটা লোড করা (Deep Copy)
+            db = JSON.parse(JSON.stringify(targetData)); 
+            db.role = targetRole;
+            db.opName = targetOpName;
+            db.secret = false; // লগইনের সময় সব সময় পাক্কা মোডে থাকবে (পয়েন্ট অনুযায়ী)
 
-    if(ph.length !== 10 || !pin) return alert("Enter Phone & PIN!");
+            // ৩.২ লোকাল মেমোরি আপডেট
+            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
 
-    try {
-        // ১. সরাসরি ইনপুট ফোন নম্বরের ডক্যুমেন্টটি ক্লাউড থেকে আনা (No Looping)
-        const doc = await db_fs.collection(COLLECTION).doc(ph).get();
-
-        if (doc.exists) {
-            const cloudData = doc.data();
+            // ৩.৩ ড্যাশবোর্ডে প্রবেশ
+            enterApp();
             
-            // ২. এটি কি সেই নম্বরের মালিকের (ADMIN) পিন?
-            if (pin === cloudData.admin.pin || pin === MASTER_PIN) {
-                db = cloudData;
-                db.role = 'ADMIN';
-                db.opName = db.admin.name;
-                saveLocallyAndStart();
-                return;
-            }
-        }
-
-        // ৩. যদি মালিকের পিন না হয়, তবে অন্য এডমিনদের চেক করা (ম্যানেজার এক্সেসের জন্য)
-        // এটি শুধুমাত্র তখনই হবে যদি মালিক হিসেবে পিন না মেলে
-        const allDocs = await db_fs.collection(COLLECTION).get();
-        let foundAsManager = false;
-
-        allDocs.forEach(d => {
-            const data = d.data();
-            const mgr = (data.managers || []).find(m => m.phone === ph && m.pin === pin);
-            if (mgr) {
-                db = data; // এডমিনের ডাটা লোড হবে
-                db.role = 'MANAGER';
-                db.opName = mgr.name;
-                foundAsManager = true;
-            }
-        });
-
-        if (foundAsManager) {
-            saveLocallyAndStart();
+            alert(`Verified Access: Welcome ${targetOpName}! (${targetRole})`);
+            console.log("Logged in successfully as " + targetRole);
         } else {
-            alert("No account found! Please Register if you are new.");
+            // যদি কোনো ডাটাবেসেই এই পিন এবং নম্বর না পাওয়া যায়
+            alert("Login Failed: Incorrect Phone or PIN. If you are new, please Register first.");
         }
 
-    } catch (e) {
-        console.error(e);
-        alert("Sync Error! Check Internet.");
+    } catch (error) {
+        console.error("Critical Login Error:", error);
+        alert("Sync Failure: Unable to connect to global database.");
     }
-}
-
-function saveLocallyAndStart() {
-    db.secret = false;
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
-    enterApp();
 }
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
 function enterApp() {
@@ -456,7 +427,6 @@ function enterApp() {
 
 // --- মিরর সিঙ্ক লজিক (Point 9: অটোমেটিক পার্টনার আপডেট) ---
 // --- সার্জিক্যাল মিরর সিঙ্ক (Point 9: নিখুঁত দর্পণ লজিক) ---
-// --- ২. সার্জিক্যাল মিরর সিঙ্ক (Point 9: নিখুঁত দর্পণ লজিক) ---
 async function syncToPartner(partnerPhone, myTx) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
@@ -465,40 +435,39 @@ async function syncToPartner(partnerPhone, myTx) {
         let pDB;
         if (doc.exists) {
             pDB = doc.data();
-            // সুলতানের অন্য কোনো কাস্টমার বা সেটিংস যাতে নষ্ট না হয় তা নিশ্চিত করা হলো
         } else {
-            // যদি সুলতান এখনো অ্যাপ খুলেনি, তবেই বেসিক ডক তৈরি হবে
+            // যদি পার্টনার রেজিস্টার না থাকে, তবে তার জন্য একটি নতুন ক্লিন ডক তৈরি হবে
             pDB = { admin: { phone: partnerPhone, name: "New User", pin: "0000" }, people: [], managers: [], secret: false };
         }
 
-        // সুলতানের 'people' লিস্টে এডমিনকে (আপনাকে) খুঁজে বের করা
-        let meInPartnerList = pDB.people.find(p => p.phone === db.admin.phone);
+        // পার্টনারের লিস্টে আমাকে (এডমিনকে) খোঁজা
+        let meInPartner = pDB.people.find(p => p.phone === db.admin.phone);
 
-        if (!meInPartnerList) {
-            // যদি আমি তার লিস্টে না থাকি, তবে শুধু আমাকে (এডমিন) অ্যাড করা (রোল উল্টে যাবে)
-            meInPartnerList = {
+        if (!meInPartner) {
+            // যদি আমি তার লিস্টে না থাকি, তবে আমাকে অ্যাড করা (রোল হবে উল্টো)
+            meInPartner = {
                 id: Date.now() + Math.random(),
                 name: db.admin.name,
                 phone: db.admin.phone,
                 type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
                 transactions: []
             };
-            pDB.people.unshift(meInPartnerList);
+            pDB.people.unshift(meInPartner);
         }
 
-        // লেনদেনের টাইপ উল্টে দেওয়া (GIVEN -> RECEIVED)
+        // লেনদেনের টাইপ উল্টে দেওয়া (Mirror effect)
         let mirrorType = (myTx.type === 'GIVEN') ? 'RECEIVED' : 'GIVEN';
 
-        // শুধুমাত্র নতুন ট্রানজ্যাকশনটি সুলতানের ওই কার্ডে পুশ করা (পুরো ডাটাবেস নয়)
-        meInPartnerList.transactions.push({
+        // শুধুমাত্র নতুন ট্রানজ্যাকশনটি সুলতানের ওই কার্ডে পুশ করা
+        meInPartner.transactions.push({
             ...myTx,
             type: mirrorType,
-            by: db.admin.name + " (Mirror Sync)"
+            by: db.admin.name + " (Cloud Sync)"
         });
 
-        // শুধুমাত্র সুলতানের ফাইলটি আপডেট করা
+        // শুধুমাত্র সুলতানের ডক্যুমেন্ট আপডেট করা
         await partnerRef.set(pDB);
-        console.log("Mirror Synced Surgical to " + partnerPhone);
+        console.log("Mirror Synced to " + partnerPhone);
     } catch (e) {
         console.error("Mirror Error: ", e);
     }
