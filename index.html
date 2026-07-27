@@ -314,12 +314,45 @@ function syncCloud() {
             document.getElementById('tabReg').className = mode==='REG' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
         }
 
-        async function handleRegistration() {
-            const n = document.getElementById('regName').value.trim(), ph = document.getElementById('regPhone').value.trim(), p = document.getElementById('regPin').value.trim();
-            if(!n || ph.length !== 10) return alert("Error: 10-digit mobile required!");
-            db.admin = { name: n, phone: ph, pin: p };
-            try { await saveDB(); alert("Successfully Registered!"); location.reload(); } catch(e) { alert("Registration Failed!"); }
-        }
+        // --- সংশোধিত রেজিস্ট্রেশন লজিক (যাতে মিরর ডাটা মুছে না যায়) ---
+async function handleRegistration() {
+    const n = document.getElementById('regName').value.trim();
+    const ph = document.getElementById('regPhone').value.trim();
+    const p = document.getElementById('regPin').value.trim();
+
+    if(!n || ph.length !== 10) return alert("Fill data correctly!");
+
+    // ১. চেক করা হচ্ছে এই নম্বরে আগে থেকে কোনো মিরর ডাটা আছে কি না
+    const docRef = db_fs.collection(COLLECTION).doc(ph);
+    const doc = await docRef.get();
+
+    if (doc.exists) {
+        // ২. যদি ডাটা থাকে (যেমন আপনি সুলতানকে আগে অ্যাড করেছিলেন)
+        let existingData = doc.data();
+        existingData.admin = { name: n, phone: ph, pin: p }; // শুধু নাম আর পিন আপডেট হবে
+        db = existingData;
+    } else {
+        // ৩. যদি একদম নতুন নম্বর হয়
+        db = {
+            admin: { name: n, phone: ph, pin: p },
+            people: [],
+            managers: [],
+            secret: false,
+            tab: 'CUSTOMER',
+            activeId: null,
+            role: 'ADMIN',
+            opName: n
+        };
+    }
+
+    try {
+        await saveDB(); 
+        alert("Account Successfully Created! Your previous mirror entries are restored."); 
+        location.reload(); 
+    } catch(e) { 
+        alert("Registration Failed!"); 
+    }
+}
 
         // --- সংশোধিত handleLogin: মিরর লজিক সহ (পয়েন্ট ৯ অনুযায়ী) ---
 async function handleLogin() {
