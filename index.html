@@ -283,30 +283,55 @@
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
 };
 
-        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
-        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
-function syncCloud() {
+ // ১. সলিড সেভ ফাংশন: এটি মালিকের (Admin) ঘরে ডাটা সেভ করবে
+async function saveDB() {
+    // লোকাল মেমোরি আপডেট
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    
+    // ক্লাউড আপডেট (শুধুমাত্র ওই ডক-এ যেখানে আপনি বর্তমানে কাজ করছেন)
     if(db.admin && db.admin.phone) {
-        // Firestore Real-time Listener (onSnapshot)
-        db_fs.collection(COLLECTION).doc(db.admin.phone)
-            .onSnapshot((doc) => {
-                if (doc.exists) {
-                    const cloudData = doc.data();
-                    
-                    // বর্তমান লোকাল ডাটা এবং ক্লাউড ডাটা মার্জ করা
-                    // এটি নিশ্চিত করে যে আপনার করা এন্ট্রি এবং অন্যের পাঠানো এন্ট্রি দুটোই ঠিক থাকে
-                    db.people = cloudData.people || [];
-                    db.managers = cloudData.managers || [];
-                    db.admin = cloudData.admin;
-
-                    localStorage.setItem(DB_KEY, JSON.stringify(db)); // লোকাল আপডেট
-                    renderHome(); // হোম স্ক্রিন রিফ্রেশ
-                    console.log("Live Sync: Data Received from Cloud");
-                }
-            }, (error) => {
-                console.error("Sync error:", error);
-            });
+        try {
+            await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db);
+            console.log("Global Sync: Successfully updated owner ledger.");
+        } catch (e) {
+            console.error("Global Sync Error:", e);
+        }
     }
+}
+
+// ২. সংশোধিত সিঙ্ক লজিক: এটি নিশ্চিত করবে আপনি কার ডাটা দেখছেন
+async function syncCloud() {
+    if(!db.admin || !db.admin.phone) return;
+
+    // পিন দিয়ে লগইন করার সময় যে মালিকের নম্বর (Admin Phone) পাওয়া গিয়েছিল,
+    // শুধুমাত্র সেই ডকটিই লাইভ সিঙ্ক হবে।
+    const docRef = db_fs.collection(COLLECTION).doc(db.admin.phone);
+    
+    // রিয়েল টাইম লিসেনার
+    docRef.onSnapshot((doc) => {
+        if (doc.exists) {
+            const cloudData = doc.data();
+            
+            // স্মার্ট মার্জিং: মালিকের তথ্য ঠিক রেখে শুধু কন্টাক্ট লিস্ট এবং ম্যানেজার লিস্ট আপডেট হবে
+            db.people = cloudData.people || [];
+            db.managers = cloudData.managers || [];
+            
+            // আপনার বর্তমান রোল এবং নাম যাতে সিঙ্কের সময় বদলে না যায়
+            const currentRole = db.role;
+            const currentOpName = db.opName;
+            
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+            
+            // শুধুমাত্র যদি পেজটি দৃশ্যমান থাকে তবেই রেন্ডার করবে (পারফরম্যান্স ফিক্স)
+            if(!document.getElementById('appBody').classList.contains('hidden')) {
+                renderHome();
+            }
+            console.log("Real-time Sync: Data merged for owner: " + db.admin.phone);
+        }
+    }, (error) => {
+        console.error("Real-time Listener failed:", error);
+    });
+}       
 } function toggleAuth(mode) {
             document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
             document.getElementById('regBox').classList.toggle('hidden', mode==='LOGIN');
