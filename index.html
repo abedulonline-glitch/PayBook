@@ -254,17 +254,17 @@
 
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = () => {
-    // পিন রাউটিং ঠিক রাখতে সব সময় একটি ফিক্সড কি (Key) ব্যবহার করুন
     const data = localStorage.getItem(DB_KEY);
-    
     if(data) {
         db = JSON.parse(data);
-        // রিফ্রেশ করলে সর্বদা পাক্কা মোডে আসবে (আপনার সিকিউরিটি শর্ত অনুযায়ী)
-        db.secret = false;
         
-        if(db.admin && db.admin.phone) {
-            toggleAuth('LOGIN'); // সরাসরি লগইন ট্যাব দেখাবে
-            document.getElementById('loginPhone').value = db.admin.phone; // নম্বর অটো-ফিল
+        // অ্যাপ রিফ্রেশ করলে সর্বদা সিক্রেট মোড অফ হয়ে যাবে
+        db.secret = false; 
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); // পাক্কা স্টেট সেভ করা হলো
+        
+        if(db.admin && db.admin.phone) { 
+            toggleAuth('LOGIN'); 
+            syncCloud(); 
         } else {
             toggleAuth('REG');
         }
@@ -272,22 +272,18 @@
         toggleAuth('REG');
     }
     
+    // UI থেকে সিক্রেট ব্লিনকিং ইফেক্ট সরিয়ে ফেলা
+    const trigger = document.getElementById('secretTrigger');
+    if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+
     initSecretGesture();
-    setupHistoryBack(); // ব্যাক বাটন ফিক্স
-};
-       async function saveDB() {
-    // শুধুমাত্র এডমিন হিসেবে সেভ হবে (পয়েন্ট ৯ অনুযায়ী ম্যানেজারও এডমিনের ডকে সেভ করবে)
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    setupHistoryBack();
     
-    if(db.admin && db.admin.phone) {
-        try {
-            await db_fs.collection("global_paybook_ledgers").doc(db.admin.phone).set(db);
-            console.log("Cloud Updated Successfully.");
-        } catch (e) {
-            console.error("Sync Failed:", e);
-        }
-    }
-}
+    document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
+    document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
+};
+
+        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
         async function syncCloud() { const doc = await db_fs.collection(COLLECTION).doc(db.admin.phone).get(); if(doc.exists) { db = doc.data(); renderHome(); } }
 
         function toggleAuth(mode) {
@@ -309,65 +305,69 @@ async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
 
-    if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Mobile & PIN!");
+    if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
 
     try {
-        console.log("Searching Database for Phone:", ph, "and PIN:", pin);
+        // ১. ফায়ারস্টোর থেকে সব ডাটা নেওয়া
+        const querySnapshot = await db_fs.collection(COLLECTION).get();
         
-        // ফায়ারস্টোর কালেকশন স্ক্যান করা (অবশ্যই স্পেলিং চেক করুন: global_paybook_ledgers)
-        const querySnapshot = await db_fs.collection("global_paybook_ledgers").get();
-        let targetDB = null;
-        let userRole = "";
-        let userName = "";
-        let matchFound = false;
+        let targetData = null;
+        let targetRole = '';
+        let targetOpName = '';
+        let accountFound = false;
 
+        // ২. ডাটাবেস স্ক্যান করা (নিখুঁত পিন রাউটিং)
         querySnapshot.forEach(doc => {
-            if (matchFound) return;
-            const cloudData = doc.data();
+            if (accountFound) return; // যদি একবার সঠিক পিন দিয়ে একাউন্ট মিলে যায়, তবে লুপ আর চলবে না
 
-            // চেক ১: এডমিন একাউন্ট (Phone + PIN matching)
-            if (cloudData.admin && String(cloudData.admin.phone) === ph && String(cloudData.admin.pin) === pin) {
-                targetDB = cloudData;
-                userRole = "ADMIN";
-                userName = cloudData.admin.name;
-                matchFound = true;
+            const cloudData = doc.data();
+            
+            // চেক ১: এটি কি আপনার নিজের মালিকানা (ADMIN) একাউন্ট?
+            if (cloudData.admin && cloudData.admin.phone === ph && pin === cloudData.admin.pin) {
+                targetData = cloudData;
+                targetRole = 'ADMIN';
+                targetOpName = cloudData.admin.name;
+                accountFound = true;
+                console.log("Admin account identified.");
             } 
-            // চেক ২: ম্যানেজার একাউন্ট (যদি পিন এডমিন পিনের সাথে না মেলে, তবে ম্যানেজার লিস্টে খুঁজবে)
-            else if (cloudData.managers && cloudData.managers.length > 0) {
-                const mgr = cloudData.managers.find(m => String(m.phone) === ph && String(m.pin) === pin);
-                if (mgr) {
-                    targetDB = cloudData; // ওই এডমিনের ডাটাবেস লোড হবে
-                    userRole = "MANAGER";
-                    userName = mgr.name;
-                    matchFound = true;
+            
+            // চেক ২: আপনি কি অন্য কারো নিয়োগ করা ম্যানেজার? (নম্বর + ম্যানেজার পিন)
+            if (!accountFound && cloudData.managers && cloudData.managers.length > 0) {
+                const mgrEntry = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
+                if (mgrEntry) {
+                    targetData = cloudData; // ওই এডমিনের ডাটাবেসটি আপনার জন্য লোড হবে
+                    targetRole = 'MANAGER';
+                    targetOpName = mgrEntry.name;
+                    accountFound = true;
+                    console.log("Manager access identified.");
                 }
             }
         });
 
-        if (matchFound && targetDB) {
-            // ১. আগের সব লোকাল ডাটা ডিলিট করে ক্লাউড ডাটা বসানো (Critical Fix)
-            localStorage.removeItem(DB_KEY);
-            
-            db = JSON.parse(JSON.stringify(targetDB)); 
-            db.role = userRole;
-            db.opName = userName;
-            db.secret = false;
+        // ৩. ডাটা লোড এবং ইউআই আপডেট
+        if (accountFound && targetData) {
+            // পুরাতন ডাটা সম্পূর্ণ মুছে নতুন ডাটা ইনজেক্ট করা
+            db = JSON.parse(JSON.stringify(targetData)); // Deep Copy নিশ্চিত করা
+            db.role = targetRole;
+            db.opName = targetOpName;
+            db.secret = false; // সব সময় পাক্কা মোডে শুরু হবে
 
-            // ২. লোকাল মেমোরি আপডেট
-            localStorage.setItem(DB_KEY, JSON.stringify(db));
-            
-            // ৩. অ্যাপে প্রবেশ
+            // লোকাল মেমোরি আপডেট
+            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+
+            // অ্যাপে প্রবেশ
             enterApp();
-            alert("Verification Successful! Logged in as " + userRole);
+            
+            alert(`Welcome ${targetOpName}! Successfully logged in as ${targetRole}`);
         } else {
-            alert("Incorrect PIN or Mobile! If you are new, please Register first.");
+            alert("No matching account found for this Phone and PIN. Please check or Register.");
         }
-
     } catch (error) {
-        console.error("Critical Login Error:", error);
-        alert("Network Error: Make sure your Firestore Rules are set to 'allow read, write: if true'");
+        console.error("Login Error:", error);
+        alert("Sync Error! Please check your internet connection.");
     }
 }
+
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
 function enterApp() {
     document.getElementById('authScreen').classList.add('hidden');
