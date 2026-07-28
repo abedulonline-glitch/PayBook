@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
         /* এক্সিস ব্যাংক প্রিমিয়াম থিম (Point 7) */
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
@@ -152,14 +152,6 @@
             </div>
             <div class="space-y-4 mb-10">
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
-               <!-- পয়েন্ট অনুযায়ী: Next Collection Date ইনপুট -->
-             <div class="mt-4">
-                <p class="text-[10px] font-bold text-[#861F41] uppercase ml-2 mb-1">Next Collection Date</p>
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4 border border-slate-100" onclick="document.getElementById('promiseDate').showPicker()">
-                <i class="fas fa-hand-holding-dollar text-slate-300"></i>
-                <input type="date" id="promiseDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600">
-              </div>
-           </div>
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
                     <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
@@ -614,25 +606,16 @@ function renderHome() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ডিফোল্টার ব্যাজ লজিক (পয়েন্ট অনুযায়ী) ---
-        const defaulterBadge = p.isDefaulter ? 
-            `<span class="bg-rose-100 text-rose-600 text-[7px] font-black px-2 py-0.5 rounded-full ml-2 blink-secret uppercase tracking-tighter border border-rose-200 shadow-sm">Defaulter</span>` : "";
-
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm">
-                <!-- বাম পাশ: নাম এবং ফোন -->
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
                     <div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
                     <div>
-                        <h4 class="font-bold text-sm text-slate-800 flex items-center">
-                            ${p.name} 
-                            ${defaulterBadge} <!-- নামের পাশে ব্যাজটি বসানো হলো -->
-                        </h4>
+                        <h4 class="font-bold text-sm text-slate-800">${p.name}</h4>
                         <p class="text-[8px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
                     </div>
                 </div>
                 
-                <!-- ডান পাশ: ব্যালেন্স এবং ডিলেট বাটন -->
                 <div class="text-right flex items-center gap-4">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5>
@@ -651,6 +634,7 @@ function renderHome() {
         list.innerHTML = `<div class="text-center py-20 opacity-30 uppercase font-bold text-xs tracking-widest">No Match Found</div>`;
     }
 }
+
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -673,20 +657,16 @@ function renderHome() {
                 let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
                 let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="window.open('${i}')">`).join("");
 
-                // ট্রানজ্যাকশন বাবলের একশন সেকশনে এটি আপডেট করুন
-list.innerHTML += `
-    <div class="flex gap-5 mt-4 pt-3 border-t border-slate-50 items-center">
-        <i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i>
-        <i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i>
-        
-        <!-- নতুন হোয়াটসঅ্যাপ রিমাইন্ডার বাটন (ব্যালেন্স সহ) -->
-        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto" 
-           onclick="sendAxisReminder('${p.name}', '${p.phone}', ${net})"></i>
-           
-        <!-- নতুন ইউপিআই কিউআর কোড বাটন -->
-        <i class="fas fa-qrcode text-indigo-500 text-sm" 
-           onclick="generatePaymentQR(${Math.abs(net)})"></i>
-    </div>`;
+                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                    <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
+                    <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                        <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
+                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
+                        <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
+                        <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
+                        <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
+                    </div></div>`;
             });
             document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
@@ -1080,67 +1060,6 @@ window.addEventListener('popstate', function (event) {
 // ৩. অ্যাপ লোড হওয়ার সময় একটি স্টেট পুশ করা
 function initNavigation() {
     history.pushState(null, null, window.location.pathname);
-}
-        // ১. হোয়াটসঅ্যাপ রিমাইন্ডার (বর্তমান ব্যালেন্স সহ)
-function sendAxisReminder(name, phone, balance) {
-    if(balance <= 0) return alert("Account is already cleared!");
-    const msg = `Dear ${name},\nFriendly reminder from PayBook. Your current balance is Rs. ${balance.toLocaleString('en-IN')}.\nPlease clear it by the committed date. Regards, ${db.admin.name}`;
-    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`);
-}
-
-// ২. ডাইনামিক ইউপিআই কিউআর কোড
-function generatePaymentQR(amount) {
-    if(amount <= 0) return alert("No balance due!");
-    const upiID = "yourname@axisbank"; // আপনার আসল UPI ID এখানে দিন
-    const upiLink = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(db.admin.name)}&am=${amount}&cu=INR`;
-
-    // কিউআর কোড দেখানোর জন্য জুম মোডাল ব্যবহার
-    const modal = document.getElementById('zoomModal');
-    const img = document.getElementById('zoomImg');
-    const qrDiv = document.createElement('div');
-    
-    qrDiv.id = "qrCanvas";
-    qrDiv.className = "bg-white p-5 rounded-3xl";
-    modal.innerHTML = ""; // মোডাল ক্লিয়ার করা
-    modal.appendChild(qrDiv);
-    modal.classList.remove('hidden');
-
-    new QRCode(qrDiv, { text: upiLink, width: 250, height: 250 });
-    alert("Scan to Pay Rs. " + amount);
-}
-
-// ৩. গ্লোবাল ডিফোল্টার চেক (কাস্টমার অ্যাড করার সময়)
-async function checkGlobalDefaulter(phone) {
-    const querySnapshot = await db_fs.collection(COLLECTION).get();
-    let defaulterInfo = null;
-    
-    querySnapshot.forEach(doc => {
-        const otherDB = doc.data();
-        const found = (otherDB.people || []).find(p => p.phone === phone && p.isDefaulter === true);
-        if(found) defaulterInfo = { by: otherDB.admin.name, date: found.lastDefaulterDate };
-    });
-    return defaulterInfo;
-}
-
-// ৪. ডিফোল্টার ডে কাউন্টার এবং মার্কিং লজিক
-function updateDefaulterStatus() {
-    const today = new Date();
-    db.people.forEach(p => {
-        let missedCount = 0;
-        p.transactions.forEach(t => {
-            if(t.status === 'active' && t.promiseDate) {
-                const pDate = new Date(t.promiseDate);
-                if(today > pDate && !t.cleared) missedCount++;
-            }
-        });
-        
-        // পর পর ৩ বার তারিখ ফেল করলে ডিফোল্টার
-        if(missedCount >= 3) {
-            p.isDefaulter = true;
-            p.lastDefaulterDate = new Date().toLocaleDateString();
-        }
-    });
-    saveDB();
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
