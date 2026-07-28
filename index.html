@@ -360,33 +360,28 @@ async function handleRegistration() {
     const n = document.getElementById('regName').value.trim();
     const ph = document.getElementById('regPhone').value.trim();
     const p = document.getElementById('regPin').value.trim();
-    const accessKey = ph + p; // ফোন এবং পিন যোগ করে ইউনিক এক্সেস কি তৈরি
+    const accessKey = ph + p;
 
     if(!n || ph.length !== 10 || p.length < 4) {
         return alert("Error: Provide Owner Name, 10-digit Mobile, and 4-digit PIN!");
     }
 
     try {
-        // ১. চেক করা হচ্ছে এই ফোন এবং পিন কম্বিনেশন কি অলরেডি রেজিস্টার করা?
+        // ১. চেক করা হচ্ছে এই পিন কম্বিনেশন কি অলরেডি বুকড?
         const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
         const keyDoc = await keyRef.get();
+        if(keyDoc.exists) return alert("This PIN is already used for this number. Use another.");
 
-        if(keyDoc.exists) {
-            return alert("Error: This Mobile and PIN combination is already in use. Please use a different PIN.");
-        }
-
-        // ২. আপনার মেইন ডাটাবেস ডক্যুমেন্ট খোঁজা
+        // ২. মেইন ডাটাবেস চেক করা (অন্য কেউ আমাকে অ্যাড করে রেখেছে কি না)
         const docRef = db_fs.collection(COLLECTION).doc(ph);
         const doc = await docRef.get();
 
         if (doc.exists) {
-            // যদি আপনি আগে কারো সাপ্লায়ার/কাস্টমার হিসেবে অ্যাড হয়ে থাকেন, সেই ডাটা লোড হবে
+            // যদি সুলতান আপনাকে আগেই অ্যাড করে থাকে, তবে ওই ডাটা আপনার প্রোফাইল হবে
             db = doc.data();
-            db.admin = { name: n, phone: ph, pin: p }; // এখন আপনি নিজেই এডমিন হয়ে গেলেন
-            db.ownerPhone = ph;
-            db.opName = n;
+            db.admin = { name: n, phone: ph, pin: p }; // এখন আপনিই মালিক
         } else {
-            // সম্পূর্ণ নতুন ইউজার ডাটাবেস স্ট্রাকচার
+            // একদম নতুন একাউন্ট
             db = {
                 admin: { name: n, phone: ph, pin: p },
                 people: [],
@@ -396,88 +391,80 @@ async function handleRegistration() {
                 activeId: null,
                 role: 'ADMIN',
                 opName: n,
-                ownerPhone: ph // এই ফোনটি দিয়ে পরে ডাটা লোড হবে
+                ownerPhone: ph
             };
         }
 
-        // ৩. এক্সেস কি (Access Key) কালেকশনে রাউটিং ইনফো সেভ করা
-        await keyRef.set({
-            targetOwnerPhone: ph, // এই কি-টি কার ডাটাবেস খুলবে? উত্তর: আপনার নিজের।
-            role: 'ADMIN',
-            name: n
-        });
-
-        // ৪. মেইন ডাটা কালেকশনে সব হিসাব সেভ করা
+        // ৩. এক্সেস কি এবং মেইন ডাটা সেভ
+        await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
         await docRef.set(db);
 
-        // ৫. লোকাল স্টোরেজে সেশন সেভ করা
         localStorage.setItem(DB_KEY, JSON.stringify(db));
-
-        alert("Registration Successful! Your unique ID is created.");
-        location.reload(); // পেজ রিফ্রেশ করে লগইন ট্যাবে নিয়ে যাবে
+        alert("Success! Your global account is ready.");
+        location.reload();
 
     } catch(error) {
-        console.error("Registration Logic Error:", error);
-        alert("Registration Failed! Please check your internet connection.");
+        alert("Registration Failed! Check internet.");
     }
 }
 // ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
 async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
-    const accessKey = ph + pin; // ফোন এবং পিন যোগ করে ইউনিক এক্সেস কি তৈরি
+    const accessKey = ph + pin;
 
-    if(ph.length !== 10 || pin.length < 4) {
-        return alert("Error: Please enter 10-digit Phone and correct PIN!");
-    }
+    if(ph.length !== 10 || pin.length < 4) return alert("Enter correct Details!");
 
     try {
-        // ধাপ ১: এক্সেস-কি (access_keys) কালেকশন থেকে সরাসরি এই কি-টি খোঁজা
-        // কোনো লুপ নেই, সরাসরি আইডি দিয়ে ডাটা ফেচ (Direct Fetch)
-        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
-        const keyDoc = await keyRef.get();
+        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(accessKey).get();
 
         if (keyDoc.exists) {
-            const routingInfo = keyDoc.data();
-            const targetOwnerPhone = routingInfo.targetOwnerPhone; // কার ডাটাবেস খুলবে?
-            const userRole = routingInfo.role; // তার রোল কী (ADMIN/MANAGER)?
-            const operatorName = routingInfo.name; // তার নাম কী?
-
-            // ধাপ ২: টার্গেট এডমিনের অরিজিনাল ডাটাবেস ফেচ করা
-            const docRef = db_fs.collection(COLLECTION).doc(targetOwnerPhone);
+            const routing = keyDoc.data();
+            const docRef = db_fs.collection(COLLECTION).doc(routing.targetOwnerPhone);
             const doc = await docRef.get();
 
             if (doc.exists) {
-                const cloudData = doc.data();
+                db = JSON.parse(JSON.stringify(doc.data())); 
+                db.role = routing.role;
+                db.opName = routing.name;
+                db.ownerPhone = routing.targetOwnerPhone;
+                db.secret = false;
 
-                // ৩. ডাটা লোড এবং অ্যাপ স্টেট সেটআপ
-                // ৩.১ সিক্রেট মোড অফ রেখে ফ্রেশ ডাটা লোড করা (Deep Copy)
-                db = JSON.parse(JSON.stringify(cloudData)); 
-                db.role = userRole;
-                db.opName = operatorName;
-                db.ownerPhone = targetOwnerPhone; // এটি দিয়ে পরে সেভ হবে
-                db.secret = false; // সব সময় পাক্কা মোডে শুরু হবে
+                // --- পয়েন্ট ৯: মিরর কন্টাক্ট ডিসকভারি (নতুন কেউ আমাকে অ্যাড করেছে কি না) ---
+                await discoverMirrorUpdates(ph);
 
-                // ৩.২ লোকাল মেমোরি আপডেট
                 localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-
-                // ৩.৩ ড্যাশবোর্ডে প্রবেশ
                 enterApp();
-                
-                alert(`Verified Access: Welcome ${operatorName}! (${userRole})`);
-                console.log("Logged in successfully as " + userRole);
-            } else {
-                alert("Error: Main database not found. Please contact Admin.");
+                alert(`Welcome ${routing.name}! Sync Complete.`);
             }
         } else {
-            // যদি এক্সেস-কি না পাওয়া যায়
-            alert("Login Failed: Incorrect Phone or PIN. If you are new, please Register first.");
+            alert("No access found! Please check Phone/PIN or Register.");
         }
+    } catch (e) { alert("Login failed! Check internet."); }
+}
 
-    } catch (error) {
-        console.error("Critical Login Error:", error);
-        alert("Sync Failure: Unable to connect to global database. Check your internet.");
-    }
+// এই ফাংশনটি আপনার জন্য অন্য ফোনের ডাটা খুঁজে আনবে
+async function discoverMirrorUpdates(myPhone) {
+    const allDocs = await db_fs.collection(COLLECTION).get();
+    allDocs.forEach(doc => {
+        const otherData = doc.data();
+        if(otherData.admin.phone === myPhone) return;
+
+        // চেক করা: সে কি আমাকে তার লিস্টে রেখেছে?
+        const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
+        if(foundMe) {
+            const alreadyInMyList = db.people.find(p => p.phone === otherData.admin.phone);
+            if(!alreadyInMyList) {
+                db.people.unshift({
+                    id: Date.now() + Math.random(),
+                    name: otherData.admin.name,
+                    phone: otherData.admin.phone,
+                    type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                    transactions: foundMe.transactions.map(t => ({ ...t, type: (t.type==='GIVEN'?'RECEIVED':'GIVEN') }))
+                });
+            }
+        }
+    });
 }
         
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
@@ -503,26 +490,40 @@ async function syncToPartner(partnerPhone, txData) {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
         const doc = await partnerRef.get();
 
+        let partnerDB;
         if (doc.exists) {
-            const partnerData = doc.data();
-            // চেক করা হচ্ছে পার্টনারের লিস্টে আপনি আছেন কি না
-            let meInPartnerList = partnerData.people.find(p => p.phone === db.admin.phone);
-
-            if (meInPartnerList) {
-                // লেনদেনের টাইপ উল্টে দেওয়া (আপনার দেওয়া মানে ওর নেওয়া)
-                const mirrorTx = { 
-                    ...txData, 
-                    type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                    by: db.admin.name + " (Cloud Sync)"
-                };
-                meInPartnerList.transactions.push(mirrorTx);
-                await partnerRef.set(partnerData);
-                console.log("Mirror Sync Success to: " + partnerPhone);
-            }
+            partnerDB = doc.data();
+        } else {
+            // যদি পার্টনার এখনো রেজিস্টার না করে, তার জন্য একটি প্লেসহোল্ডার তৈরি হবে
+            partnerDB = { admin: { phone: partnerPhone }, people: [], managers: [] };
         }
-    } catch (e) {
-        console.error("Partner Mirror Sync Failed:", e);
-    }
+
+        // পার্টনারের লিস্টে আমাকে খুঁজে বের করা
+        let meInHisList = partnerDB.people.find(p => p.phone === db.admin.phone);
+
+        if (!meInHisList) {
+            meInHisList = {
+                id: Date.now(),
+                name: db.admin.name,
+                phone: db.admin.phone,
+                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), // আমার কাস্টমার মানে ওর সাপ্লায়ার
+                transactions: []
+            };
+            partnerDB.people.unshift(meInHisList);
+        }
+
+        // লেনদেন মিরর করা (টাইপ উল্টে যাবে)
+        const mirrorTx = {
+            ...txData,
+            type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
+            by: db.admin.name + " (Auto-Synced)"
+        };
+
+        meInHisList.transactions.push(mirrorTx);
+        await partnerRef.set(partnerDB);
+        console.log("Global Mirror Sync Done!");
+
+    } catch (e) { console.error("Mirror Sync Error:", e); }
 }
          function enterApp() {
     document.getElementById('authScreen').classList.add('hidden');
