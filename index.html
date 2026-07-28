@@ -775,33 +775,56 @@ function handleSmartPdfDownload() {
         const rows = [];
         let tP_G = 0, tP_R = 0, tK_G = 0, tK_R = 0;
 
-        p.transactions.filter(t => t.status === 'active').forEach(t => {
-            if (!isSec && t.secret) return; 
+        person.transactions.filter(t => t.status === 'active').forEach(t => {
+    const amt = t.amount;
+    const RED = [225, 29, 72];
+    const GREEN = [5, 150, 105];
 
-            const amt = t.amount;
-            if (isSec) {
-                let pG="-", pR="-", kG="-", kR="-";
-                if(!t.secret) {
-                    if(t.type==='GIVEN') { pG = amt.toLocaleString('en-IN'); tP_G+=amt; } else { pR = amt.toLocaleString('en-IN'); tP_R+=amt; }
-                } else {
-                    if(t.type==='GIVEN') { kG = amt.toLocaleString('en-IN'); tK_G+=amt; } else { kR = amt.toLocaleString('en-IN'); tK_R+=amt; }
-                }
-                rows.push([
-                    t.date, p.phone, p.type, 
-                    {content: pG, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN' && pG!=='-'?RED:GREEN}},
-                    {content: pR, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED' && pR!=='-'?GREEN:RED}},
-                    {content: kG, styles: {textColor: RED}},
-                    {content: kR, styles: {textColor: GREEN}}
-                ]);
-            } else {
-                if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
-                rows.push([
-                    t.date, p.phone, p.type,
-                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN'?RED:GREEN}},
-                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED'?GREEN:RED}}
-                ]);
-            }
-        });
+    // --- আপনার দেওয়া কালার লজিক শুরু ---
+    let rowColor;
+    if (person.type === 'CUSTOMER') {
+        // কাস্টমার: দিয়েছি (GIVEN) = লাল, পেয়েছি (RECEIVED) = সবুজ
+        rowColor = (t.type === 'GIVEN') ? RED : GREEN;
+    } else {
+        // সাপ্লায়ার: পেয়েছি (RECEIVED) = লাল (মাল নেওয়া), দিয়েছি (GIVEN) = সবুজ (শোধ)
+        rowColor = (t.type === 'RECEIVED') ? RED : GREEN;
+    }
+    // --- আপনার দেওয়া কালার লজিক শেষ ---
+
+    if (isSecret) {
+        // সিক্রেট মোডে কলাম অনুযায়ী ডাটা পুশ
+        let pG="-", pR="-", kG="-", kR="-";
+        if(!t.secret) {
+            if(t.type==='GIVEN') { pG = amt.toLocaleString('en-IN'); tP_G+=amt; } 
+            else { pR = amt.toLocaleString('en-IN'); tP_R+=amt; }
+        } else {
+            if(t.type==='GIVEN') { kG = amt.toLocaleString('en-IN'); tK_G+=amt; } 
+            else { kR = amt.toLocaleString('en-IN'); tK_R+=amt; }
+        }
+        
+        rows.push([
+            t.date, 
+            person.phone, 
+            person.type,
+            {content: pG, styles: {textColor: (t.type==='GIVEN' && !t.secret) ? rowColor : [0,0,0]}},
+            {content: pR, styles: {textColor: (t.type==='RECEIVED' && !t.secret) ? rowColor : [0,0,0]}},
+            {content: kG, styles: {textColor: (t.type==='GIVEN' && t.secret) ? rowColor : [0,0,0]}},
+            {content: kR, styles: {textColor: (t.type==='RECEIVED' && t.secret) ? rowColor : [0,0,0]}}
+        ]);
+    } else {
+        // পাক্কা মোডে শুধুমাত্র ২ কলাম (Given / Received)
+        if (!t.secret) {
+            if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
+            rows.push([
+                t.date, 
+                person.phone, 
+                person.type,
+                {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: t.type==='GIVEN' ? rowColor : [0,0,0]}},
+                {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: t.type==='RECEIVED' ? rowColor : [0,0,0]}}
+            ]);
+        }
+    }
+});
 
         // কলাম অনুযায়ী ফুটার তৈরি (পয়েন্ট অনুযায়ী টোটাল রো)
         let footer = isSec 
