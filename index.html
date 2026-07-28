@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         /* এক্সিস ব্যাংক প্রিমিয়াম থিম (Point 7) */
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
@@ -85,7 +85,6 @@
             </div>
         </div>
         
-        <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
         <!-- লেজার হেডার আপডেট: নামের অংশটি ক্লিকযোগ্য করা হলো -->
 <div id="headerLedger" class="hidden flex justify-between items-center w-full">
     <div class="flex items-center gap-4">
@@ -151,7 +150,8 @@
                 </div>
             </div>
             <div class="space-y-4 mb-10">
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
+               <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
+               <input type="date" id="collectionDate" class="axis-input bg-slate-50 border-none mb-4">
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
                     <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
@@ -662,6 +662,13 @@ function renderHome() {
                     <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
                     <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
                         <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
+                        // ট্রানজ্যাকশন বাবলের নিচে এই বাটনগুলো থাকবে
+<div class="flex gap-4 mt-4 pt-3 border-t">
+    <i class="fab fa-whatsapp text-emerald-500 text-lg" onclick="sendAxisReminder('${p.name}', '${p.phone}', ${net})"></i>
+    <i class="fas fa-qrcode text-indigo-500 text-lg" onclick="generateAxisQR(${net})"></i>
+    <i class="fas fa-edit ..." onclick="..."></i>
+    <i class="fas fa-trash ..." onclick="..."></i>
+</div>
                         <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
                         <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
                         <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
@@ -776,33 +783,44 @@ function handleSmartPdfDownload() {
         const rows = [];
         let tP_G = 0, tP_R = 0, tK_G = 0, tK_R = 0;
 
-        p.transactions.filter(t => t.status === 'active').forEach(t => {
-            if (!isSec && t.secret) return; 
+        // --- পিডিএফ এর ভেতরে কালার লজিক সংশোধন ---
+p.transactions.filter(t => t.status === 'active').forEach(t => {
+    const amt = t.amount;
+    
+    // ১. কাস্টমার এবং সাপ্লায়ারের জন্য আলাদা রেড/গ্রিন লজিক
+    let isRed = false;
+    if (p.type === 'CUSTOMER') {
+        isRed = (t.type === 'GIVEN'); // কাস্টমারকে দিলে লাল
+    } else {
+        isRed = (t.type === 'RECEIVED'); // সাপ্লায়ারের থেকে নিলে লাল
+    }
 
-            const amt = t.amount;
-            if (isSec) {
-                let pG="-", pR="-", kG="-", kR="-";
-                if(!t.secret) {
-                    if(t.type==='GIVEN') { pG = amt.toLocaleString('en-IN'); tP_G+=amt; } else { pR = amt.toLocaleString('en-IN'); tP_R+=amt; }
-                } else {
-                    if(t.type==='GIVEN') { kG = amt.toLocaleString('en-IN'); tK_G+=amt; } else { kR = amt.toLocaleString('en-IN'); tK_R+=amt; }
-                }
-                rows.push([
-                    t.date, p.phone, p.type, 
-                    {content: pG, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN' && pG!=='-'?RED:GREEN}},
-                    {content: pR, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED' && pR!=='-'?GREEN:RED}},
-                    {content: kG, styles: {textColor: RED}},
-                    {content: kR, styles: {textColor: GREEN}}
-                ]);
-            } else {
-                if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
-                rows.push([
-                    t.date, p.phone, p.type,
-                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN'?RED:GREEN}},
-                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED'?GREEN:RED}}
-                ]);
-            }
-        });
+    const cellColor = isRed ? [225, 29, 72] : [5, 150, 105]; // Axis Red vs Emerald Green
+
+    if (isSecret) {
+        // সিক্রেট মোডে কলাম ওয়াইজ কালার সেট করা
+        let pG="-", pR="-", kG="-", kR="-";
+        let pG_Color = [0,0,0], pR_Color = [0,0,0], kG_Color = [0,0,0], kR_Color = [0,0,0];
+
+        if(!t.secret) {
+            if(t.type==='GIVEN') { pG = amt.toLocaleString(); pG_Color = cellColor; } 
+            else { pR = amt.toLocaleString(); pR_Color = cellColor; }
+        } else {
+            if(t.type==='GIVEN') { kG = amt.toLocaleString(); kG_Color = cellColor; } 
+            else { kR = amt.toLocaleString(); kR_Color = cellColor; }
+        }
+        
+        rows.push([
+            t.date, 
+            p.phone, 
+            p.type,
+            {content: pG, styles: {textColor: pG_Color}},
+            {content: pR, styles: {textColor: pR_Color}},
+            {content: kG, styles: {textColor: kG_Color}},
+            {content: kR, styles: {textColor: kR_Color}}
+        ]);
+    }
+});
 
         // কলাম অনুযায়ী ফুটার তৈরি (পয়েন্ট অনুযায়ী টোটাল রো)
         let footer = isSec 
@@ -1062,6 +1080,87 @@ window.addEventListener('popstate', function (event) {
 function initNavigation() {
     history.pushState(null, null, window.location.pathname);
 }
+        // ১. স্মার্ট হোয়াটসঅ্যাপ রিমাইন্ডার
+function sendAxisReminder(name, phone, balance) {
+    if(balance <= 0) return alert("Account is already cleared!");
+    const msg = `Dear ${name},\nThis is a payment reminder from PayBook. Your pending balance is Rs. ${balance.toLocaleString('en-IN')}.\n\nPlease clear the dues by the committed date. Thank you!`;
+    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ২. ডাইনামিক ইউপিআই কিউআর কোড
+function generateAxisQR(amount) {
+    const upiID = "yourname@axisbank"; // আপনার আসল UPI ID এখানে দিন
+    const upiName = db.admin.name;
+    const upiLink = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR`;
+    
+    // কিউআর কোড দেখানোর জন্য জুম মোডালটি ব্যবহার করছি
+    const container = document.getElementById('zoomImgContainer'); // বা আপনার মোডাল আইডি
+    document.getElementById('zoomModal').classList.remove('hidden');
+    document.getElementById('zoomImg').style.display = "none"; // ইমেজ লুকিয়ে কিউআর দেখাব
+    
+    const qrDiv = document.getElementById('qrArea') || document.createElement('div');
+    qrDiv.id = "qrArea";
+    qrDiv.innerHTML = "";
+    document.getElementById('zoomModal').appendChild(qrDiv);
+    
+    new QRCode(qrDiv, {
+        text: upiLink,
+        width: 250,
+        height: 250
+    });
+    alert("Scan to Pay Rs. " + amount);
+}
+        async function confirmAdd() {
+    const ph = document.getElementById('newPPhone').value;
+    
+    // ১. গ্লোবাল ডাটাবেসে চেক করা (পয়েন্ট ৯ ফিক্স)
+    const isDefaulter = await checkGlobalDefaulterStatus(ph);
+    
+    if(isDefaulter) {
+        const proceed = confirm("⚠️ WARNING: This number is marked as a GLOBAL DEFAULTER by other merchants. Do you still want to add this account?");
+        if(!proceed) return;
+    }
+
+    // ২. নরমাল অ্যাড প্রসেস...
+    db.people.unshift({
+        id: Date.now(),
+        name: document.getElementById('newPName').value,
+        phone: ph,
+        missedDates: 0,
+        isDefaulter: isDefaulter || false, // যদি গ্লোবালি থাকে তবে মার্ক হবে
+        transactions: []
+    });
+    saveDB();
+    // ...
+}
+
+// গ্লোবাল ডাটাবেস স্ক্যানার
+async function checkGlobalDefaulterStatus(phone) {
+    const querySnapshot = await db_fs.collection(COLLECTION).get();
+    let foundBad = false;
+    querySnapshot.forEach(doc => {
+        const otherDB = doc.data();
+        const badGuy = (otherDB.people || []).find(p => p.phone === phone && p.isDefaulter === true);
+        if(badGuy) foundBad = true;
+    });
+    return foundBad;
+}function checkDues() {
+    const today = new Date();
+    db.people.forEach(person => {
+        person.transactions.forEach(t => {
+            if(t.type === 'GIVEN' && t.status === 'active' && t.promiseDate) {
+                const promise = new Date(t.promiseDate);
+                if(today > promise) {
+                    // যদি আজকের তারিখ পার হয়ে যায়
+                    person.missedDates += 1;
+                    if(person.missedDates >= 3) person.isDefaulter = true;
+                }
+            }
+        });
+    });
+    saveDB();
+}
+        
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
