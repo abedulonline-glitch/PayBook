@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
         /* এক্সিস ব্যাংক প্রিমিয়াম থিম (Point 7) */
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
@@ -85,6 +85,7 @@
             </div>
         </div>
         
+        <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
         <!-- লেজার হেডার আপডেট: নামের অংশটি ক্লিকযোগ্য করা হলো -->
 <div id="headerLedger" class="hidden flex justify-between items-center w-full">
     <div class="flex items-center gap-4">
@@ -150,17 +151,7 @@
                 </div>
             </div>
             <div class="space-y-4 mb-10">
-               <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
-               <!-- কালেকশন ডেট ইনপুট উইথ হেডার (পয়েন্ট অনুযায়ী) -->
-<div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100 mb-4" onclick="document.getElementById('collectionDate').showPicker()">
-    <i class="fas fa-hand-holding-dollar text-slate-300 text-xl"></i>
-    <div class="flex-1">
-        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Next Collection Date</p>
-        <input type="date" id="collectionDate" 
-               class="bg-transparent outline-none w-full text-md font-bold text-[#861F41]">
-    </div>
-    <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
-</div>
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
                     <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
@@ -677,12 +668,6 @@ function renderHome() {
                         <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
                         ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
                     </div></div>`;
-                <div class="flex gap-4 mt-4 pt-3 border-t">
-    <i class="fab fa-whatsapp text-emerald-500 text-lg" onclick="sendAxisReminder('${p.name}', '${p.phone}', ${net})"></i>
-    <i class="fas fa-qrcode text-indigo-500 text-lg" onclick="generateAxisQR(${net})"></i>
-    <i class="fas fa-edit ..." onclick="..."></i>
-    <i class="fas fa-trash ..." onclick="..."></i>
-</div>
             });
             document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
@@ -1088,87 +1073,6 @@ window.addEventListener('popstate', function (event) {
 function initNavigation() {
     history.pushState(null, null, window.location.pathname);
 }
-        // ১. স্মার্ট হোয়াটসঅ্যাপ রিমাইন্ডার
-function sendAxisReminder(name, phone, balance) {
-    if(balance <= 0) return alert("Account is already cleared!");
-    const msg = `Dear ${name},\nThis is a payment reminder from PayBook. Your pending balance is Rs. ${balance.toLocaleString('en-IN')}.\n\nPlease clear the dues by the committed date. Thank you!`;
-    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-}
-
-// ২. ডাইনামিক ইউপিআই কিউআর কোড
-function generateAxisQR(amount) {
-    const upiID = "yourname@axisbank"; // আপনার আসল UPI ID এখানে দিন
-    const upiName = db.admin.name;
-    const upiLink = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR`;
-    
-    // কিউআর কোড দেখানোর জন্য জুম মোডালটি ব্যবহার করছি
-    const container = document.getElementById('zoomImgContainer'); // বা আপনার মোডাল আইডি
-    document.getElementById('zoomModal').classList.remove('hidden');
-    document.getElementById('zoomImg').style.display = "none"; // ইমেজ লুকিয়ে কিউআর দেখাব
-    
-    const qrDiv = document.getElementById('qrArea') || document.createElement('div');
-    qrDiv.id = "qrArea";
-    qrDiv.innerHTML = "";
-    document.getElementById('zoomModal').appendChild(qrDiv);
-    
-    new QRCode(qrDiv, {
-        text: upiLink,
-        width: 250,
-        height: 250
-    });
-    alert("Scan to Pay Rs. " + amount);
-}
-        async function confirmAdd() {
-    const ph = document.getElementById('newPPhone').value;
-    
-    // ১. গ্লোবাল ডাটাবেসে চেক করা (পয়েন্ট ৯ ফিক্স)
-    const isDefaulter = await checkGlobalDefaulterStatus(ph);
-    
-    if(isDefaulter) {
-        const proceed = confirm("⚠️ WARNING: This number is marked as a GLOBAL DEFAULTER by other merchants. Do you still want to add this account?");
-        if(!proceed) return;
-    }
-
-    // ২. নরমাল অ্যাড প্রসেস...
-    db.people.unshift({
-        id: Date.now(),
-        name: document.getElementById('newPName').value,
-        phone: ph,
-        missedDates: 0,
-        isDefaulter: isDefaulter || false, // যদি গ্লোবালি থাকে তবে মার্ক হবে
-        transactions: []
-    });
-    saveDB();
-    // ...
-}
-
-// গ্লোবাল ডাটাবেস স্ক্যানার
-async function checkGlobalDefaulterStatus(phone) {
-    const querySnapshot = await db_fs.collection(COLLECTION).get();
-    let foundBad = false;
-    querySnapshot.forEach(doc => {
-        const otherDB = doc.data();
-        const badGuy = (otherDB.people || []).find(p => p.phone === phone && p.isDefaulter === true);
-        if(badGuy) foundBad = true;
-    });
-    return foundBad;
-}function checkDues() {
-    const today = new Date();
-    db.people.forEach(person => {
-        person.transactions.forEach(t => {
-            if(t.type === 'GIVEN' && t.status === 'active' && t.promiseDate) {
-                const promise = new Date(t.promiseDate);
-                if(today > promise) {
-                    // যদি আজকের তারিখ পার হয়ে যায়
-                    person.missedDates += 1;
-                    if(person.missedDates >= 3) person.isDefaulter = true;
-                }
-            }
-        });
-    });
-    saveDB();
-}
-        
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -1185,7 +1089,7 @@ async function checkGlobalDefaulterStatus(phone) {
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
         function triggerDrawer(t) { history.pushState(null, null, window.location.pathname);document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[];document.getElementById('collectionDate').value = ""; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
+        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[]; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
