@@ -151,7 +151,16 @@
             </div>
             <div class="space-y-4 mb-10">
                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
-               <input type="date" id="collectionDate" class="axis-input bg-slate-50 border-none mb-4">
+               <!-- কালেকশন ডেট ইনপুট উইথ হেডার (পয়েন্ট অনুযায়ী) -->
+<div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100 mb-4" onclick="document.getElementById('collectionDate').showPicker()">
+    <i class="fas fa-hand-holding-dollar text-slate-300 text-xl"></i>
+    <div class="flex-1">
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Next Collection Date</p>
+        <input type="date" id="collectionDate" 
+               class="bg-transparent outline-none w-full text-md font-bold text-[#861F41]">
+    </div>
+    <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
+</div>
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
                     <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
@@ -662,19 +671,18 @@ function renderHome() {
                     <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
                     <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
                         <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
-                        // ট্রানজ্যাকশন বাবলের নিচে এই বাটনগুলো থাকবে
-<div class="flex gap-4 mt-4 pt-3 border-t">
-    <i class="fab fa-whatsapp text-emerald-500 text-lg" onclick="sendAxisReminder('${p.name}', '${p.phone}', ${net})"></i>
-    <i class="fas fa-qrcode text-indigo-500 text-lg" onclick="generateAxisQR(${net})"></i>
-    <i class="fas fa-edit ..." onclick="..."></i>
-    <i class="fas fa-trash ..." onclick="..."></i>
-</div>
                         <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
                         <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
                         <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
                         <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
                         ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
                     </div></div>`;
+                <div class="flex gap-4 mt-4 pt-3 border-t">
+    <i class="fab fa-whatsapp text-emerald-500 text-lg" onclick="sendAxisReminder('${p.name}', '${p.phone}', ${net})"></i>
+    <i class="fas fa-qrcode text-indigo-500 text-lg" onclick="generateAxisQR(${net})"></i>
+    <i class="fas fa-edit ..." onclick="..."></i>
+    <i class="fas fa-trash ..." onclick="..."></i>
+</div>
             });
             document.getElementById('mainViewport').scrollTop = list.scrollHeight;
         }
@@ -1177,7 +1185,7 @@ async function checkGlobalDefaulterStatus(phone) {
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
         function triggerDrawer(t) { history.pushState(null, null, window.location.pathname);document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[]; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
+        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[];document.getElementById('collectionDate').value = ""; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
