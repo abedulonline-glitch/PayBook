@@ -241,16 +241,42 @@
 
     <script>
         // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (Point 13) ---
-        const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab", measurementId: "G-TFX1Y6FH29" };
-        firebase.initializeApp(firebaseConfig);
-        const db_fs = firebase.firestore();
-        const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
-        const MASTER_PIN = "5000";
-        const COLLECTION = "global_paybook_ledgers"; 
-        const DB_KEY = 'PayBook_V17_Master_Verified';
+        // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (V18: পিন-বেসড রাউটিং ফিক্স) ---
+const firebaseConfig = { 
+    apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", 
+    authDomain: "paybook-cc6be.firebaseapp.com", 
+    projectId: "paybook-cc6be", 
+    storageBucket: "paybook-cc6be.firebasestorage.app", 
+    messagingSenderId: "1000801647538", 
+    appId: "1:1000801647538:web:648ac804d8d75a0811c2ab", 
+    measurementId: "G-TFX1Y6FH29" 
+};
 
-        let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '' };
-        let holdTimer, autoExitTimer, capturedFiles = [];
+// ফায়ারবেস ইনিশিয়ালাইজেশন
+firebase.initializeApp(firebaseConfig);
+const db_fs = firebase.firestore();
+
+// কনস্ট্যান্টস (Constants)
+const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
+const MASTER_PIN = "5000"; 
+const COLLECTION = "global_paybook_ledgers"; // যেখানে মূল হিসাব থাকবে
+const ACCESS_KEYS = "access_keys"; // রাউটিং এর জন্য নতুন কালেকশন (পয়েন্ট ৯ ফিক্স)
+const DB_KEY = 'PayBook_V18_Master_Verified'; // নতুন ভার্সন কী
+
+// গ্লোবাল স্টেট (App State)
+let db = { 
+    admin: null, 
+    people: [], 
+    managers: [], 
+    secret: false, 
+    tab: 'CUSTOMER', 
+    activeId: null, 
+    role: 'ADMIN', // ADMIN অথবা MANAGER
+    opName: '', 
+    ownerPhone: '' // এই কি-টি দিয়ে ডাটা লোড হবে
+};
+
+let holdTimer, autoExitTimer, capturedImgFiles = [];
 
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = () => {
@@ -314,101 +340,131 @@ function syncCloud() {
             document.getElementById('tabReg').className = mode==='REG' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
         }
 
-        async function handleRegistration() {
-    const n = document.getElementById('regName').value.trim(), ph = document.getElementById('regPhone').value.trim(), p = document.getElementById('regPin').value.trim();
-    if(!n || ph.length !== 10) return alert("Valid data required!");
+        // ২. রেজিস্ট্রেশন ফাংশন সংশোধন (Point 2: পিন-বেসড রাউটিং লজিক সহ)
+async function handleRegistration() {
+    const n = document.getElementById('regName').value.trim();
+    const ph = document.getElementById('regPhone').value.trim();
+    const p = document.getElementById('regPin').value.trim();
+    const accessKey = ph + p; // ফোন এবং পিন যোগ করে ইউনিক এক্সেস কি তৈরি
 
-    const docRef = db_fs.collection(COLLECTION).doc(ph);
-    const doc = await docRef.get();
-
-    if (doc.exists) {
-        // যদি আপনি সুলতানকে আগে অ্যাড করে থাকেন, তবে তার ডাটা সেভ থাকবে
-        db = doc.data();
-        db.admin = { name: n, phone: ph, pin: p }; // তার নিজের পিন সেট হলো
-    } else {
-        // সম্পূর্ণ নতুন ইউজার
-        db = { admin: { name: n, phone: ph, pin: p }, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: n };
+    if(!n || ph.length !== 10 || p.length < 4) {
+        return alert("Error: Provide Owner Name, 10-digit Mobile, and 4-digit PIN!");
     }
 
     try {
-        await saveDB(); 
-        alert("Registration Successful!"); 
-        location.reload(); 
-    } catch(e) { alert("Error!"); }
+        // ১. চেক করা হচ্ছে এই ফোন এবং পিন কম্বিনেশন কি অলরেডি রেজিস্টার করা?
+        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
+        const keyDoc = await keyRef.get();
+
+        if(keyDoc.exists) {
+            return alert("Error: This Mobile and PIN combination is already in use. Please use a different PIN.");
+        }
+
+        // ২. আপনার মেইন ডাটাবেস ডক্যুমেন্ট খোঁজা
+        const docRef = db_fs.collection(COLLECTION).doc(ph);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            // যদি আপনি আগে কারো সাপ্লায়ার/কাস্টমার হিসেবে অ্যাড হয়ে থাকেন, সেই ডাটা লোড হবে
+            db = doc.data();
+            db.admin = { name: n, phone: ph, pin: p }; // এখন আপনি নিজেই এডমিন হয়ে গেলেন
+            db.ownerPhone = ph;
+            db.opName = n;
+        } else {
+            // সম্পূর্ণ নতুন ইউজার ডাটাবেস স্ট্রাকচার
+            db = {
+                admin: { name: n, phone: ph, pin: p },
+                people: [],
+                managers: [],
+                secret: false,
+                tab: 'CUSTOMER',
+                activeId: null,
+                role: 'ADMIN',
+                opName: n,
+                ownerPhone: ph // এই ফোনটি দিয়ে পরে ডাটা লোড হবে
+            };
+        }
+
+        // ৩. এক্সেস কি (Access Key) কালেকশনে রাউটিং ইনফো সেভ করা
+        await keyRef.set({
+            targetOwnerPhone: ph, // এই কি-টি কার ডাটাবেস খুলবে? উত্তর: আপনার নিজের।
+            role: 'ADMIN',
+            name: n
+        });
+
+        // ৪. মেইন ডাটা কালেকশনে সব হিসাব সেভ করা
+        await docRef.set(db);
+
+        // ৫. লোকাল স্টোরেজে সেশন সেভ করা
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+
+        alert("Registration Successful! Your unique ID is created.");
+        location.reload(); // পেজ রিফ্রেশ করে লগইন ট্যাবে নিয়ে যাবে
+
+    } catch(error) {
+        console.error("Registration Logic Error:", error);
+        alert("Registration Failed! Please check your internet connection.");
+    }
 }
-
-        // --- সংশোধিত handleLogin: মিরর লজিক সহ (পয়েন্ট ৯ অনুযায়ী) ---
-
-// --- ২. সংশোধিত লগইন লজিক (নিখুঁত পিন রাউটিং এবং সিকিউরিটি ফিক্স) ---
+// ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
 async function handleLogin() {
     const ph = document.getElementById('loginPhone').value.trim();
     const pin = document.getElementById('loginPin').value.trim();
+    const accessKey = ph + pin; // ফোন এবং পিন যোগ করে ইউনিক এক্সেস কি তৈরি
 
-    if(ph.length !== 10 || !pin) return alert("Please enter 10-digit Phone & PIN!");
+    if(ph.length !== 10 || pin.length < 4) {
+        return alert("Error: Please enter 10-digit Phone and correct PIN!");
+    }
 
     try {
-        // ১. ফায়ারস্টোর থেকে সমস্ত একাউন্ট ডাটা আনা (গ্লোবাল সিঙ্ক চেক করার জন্য)
-        const querySnapshot = await db_fs.collection(COLLECTION).get();
-        
-        let targetData = null;
-        let targetRole = '';
-        let targetOpName = '';
-        let accountFound = false;
+        // ধাপ ১: এক্সেস-কি (access_keys) কালেকশন থেকে সরাসরি এই কি-টি খোঁজা
+        // কোনো লুপ নেই, সরাসরি আইডি দিয়ে ডাটা ফেচ (Direct Fetch)
+        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
+        const keyDoc = await keyRef.get();
 
-        // ২. ডাটাবেস স্ক্যান করা: ইনপুট নম্বর এবং পিন দিয়ে সঠিক ডাটাবেস খুঁজে বের করা
-        querySnapshot.forEach(doc => {
-            if (accountFound) return; // একাউন্ট পাওয়া গেলে লুপ থামিয়ে দাও
+        if (keyDoc.exists) {
+            const routingInfo = keyDoc.data();
+            const targetOwnerPhone = routingInfo.targetOwnerPhone; // কার ডাটাবেস খুলবে?
+            const userRole = routingInfo.role; // তার রোল কী (ADMIN/MANAGER)?
+            const operatorName = routingInfo.name; // তার নাম কী?
 
-            const cloudData = doc.data();
-            
-            // --- কন্ডিশন ১: এটি কি ওই ইউজারের নিজস্ব (ADMIN) একাউন্ট? ---
-            // যদি ইনপুট ফোন এবং পিন ওই ডক্যুমেন্টের এডমিনের সাথে মিলে যায়
-            if (cloudData.admin && cloudData.admin.phone === ph && (pin === cloudData.admin.pin || pin === MASTER_PIN)) {
-                targetData = cloudData;
-                targetRole = 'ADMIN';
-                targetOpName = cloudData.admin.name;
-                accountFound = true;
-            } 
-            
-            // --- কন্ডিশন ২: ইউজার কি অন্য কারো একাউন্টে ম্যানেজার (MANAGER)? ---
-            // যদি ইনপুট ফোন এবং পিন কোনো এডমিনের ম্যানেজার লিস্টে থাকে
-            else if (cloudData.managers && cloudData.managers.length > 0) {
-                const matchedMgr = cloudData.managers.find(m => m.phone === ph && m.pin === pin);
-                if (matchedMgr) {
-                    targetData = cloudData; // ওই এডমিনের ডাটাবেসটি ইউজারের জন্য লোড হবে
-                    targetRole = 'MANAGER';
-                    targetOpName = matchedMgr.name;
-                    accountFound = true;
-                }
+            // ধাপ ২: টার্গেট এডমিনের অরিজিনাল ডাটাবেস ফেচ করা
+            const docRef = db_fs.collection(COLLECTION).doc(targetOwnerPhone);
+            const doc = await docRef.get();
+
+            if (doc.exists) {
+                const cloudData = doc.data();
+
+                // ৩. ডাটা লোড এবং অ্যাপ স্টেট সেটআপ
+                // ৩.১ সিক্রেট মোড অফ রেখে ফ্রেশ ডাটা লোড করা (Deep Copy)
+                db = JSON.parse(JSON.stringify(cloudData)); 
+                db.role = userRole;
+                db.opName = operatorName;
+                db.ownerPhone = targetOwnerPhone; // এটি দিয়ে পরে সেভ হবে
+                db.secret = false; // সব সময় পাক্কা মোডে শুরু হবে
+
+                // ৩.২ লোকাল মেমোরি আপডেট
+                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+
+                // ৩.৩ ড্যাশবোর্ডে প্রবেশ
+                enterApp();
+                
+                alert(`Verified Access: Welcome ${operatorName}! (${userRole})`);
+                console.log("Logged in successfully as " + userRole);
+            } else {
+                alert("Error: Main database not found. Please contact Admin.");
             }
-        });
-
-        // ৩. একাউন্ট পাওয়া গেলে ডাটা লোড করা
-        if (accountFound && targetData) {
-            // ৩.১ সিক্রেট মোড অফ রেখে ফ্রেশ ডাটা লোড করা (Deep Copy)
-            db = JSON.parse(JSON.stringify(targetData)); 
-            db.role = targetRole;
-            db.opName = targetOpName;
-            db.secret = false; // লগইনের সময় সব সময় পাক্কা মোডে থাকবে (পয়েন্ট অনুযায়ী)
-
-            // ৩.২ লোকাল মেমোরি আপডেট
-            localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-
-            // ৩.৩ ড্যাশবোর্ডে প্রবেশ
-            enterApp();
-            
-            alert(`Verified Access: Welcome ${targetOpName}! (${targetRole})`);
-            console.log("Logged in successfully as " + targetRole);
         } else {
-            // যদি কোনো ডাটাবেসেই এই পিন এবং নম্বর না পাওয়া যায়
+            // যদি এক্সেস-কি না পাওয়া যায়
             alert("Login Failed: Incorrect Phone or PIN. If you are new, please Register first.");
         }
 
     } catch (error) {
         console.error("Critical Login Error:", error);
-        alert("Sync Failure: Unable to connect to global database.");
+        alert("Sync Failure: Unable to connect to global database. Check your internet.");
     }
 }
+        
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
 function enterApp() {
     document.getElementById('authScreen').classList.add('hidden');
@@ -908,6 +964,55 @@ function confirmEditPerson() {
         renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
     }
 }
+        // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
+async function hireManager() {
+    const n = prompt("Enter Manager Name:");
+    if (!n) return;
+    const ph = prompt("Enter Manager 10-Digit Mobile Number:");
+    if (!ph || ph.length !== 10) return alert("Error: Provide a valid 10-digit mobile number!");
+    const p = prompt("Set a 4-Digit Secure PIN for this Manager:");
+    if (!p || p.length !== 4) return alert("Error: PIN must be exactly 4 digits!");
+
+    const accessKey = ph + p; // ম্যানেজারের নম্বর + পিন = ইউনিক আইডি
+
+    try {
+        // ১. চেক করা হচ্ছে এই ফোন এবং পিন কম্বিনেশন কি অন্য কোনো এডমিন অলরেডি ব্যবহার করছে?
+        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
+        const keyDoc = await keyRef.get();
+
+        if (keyDoc.exists) {
+            return alert("Error: This Phone and PIN combination is already registered. Please choose a different PIN for this manager.");
+        }
+
+        // ২. এডমিনের ম্যানেজার লিস্টে (Local DB) তথ্য যোগ করা
+        if (!db.managers) db.managers = [];
+        db.managers.push({
+            id: Date.now(),
+            name: n,
+            phone: ph,
+            pin: p
+        });
+
+        // ৩. এক্সেস কি (Access Key) কালেকশনে ম্যানেজারের রাউটিং ইনফো সেভ করা
+        // এটিই সবচেয়ে গুরুত্বপূর্ণ ধাপ: পিনটিকে এডমিনের ফোন নম্বরের সাথে লিঙ্ক করা হচ্ছে
+        await keyRef.set({
+            targetOwnerPhone: db.admin.phone, // এই পিন দিলে এডমিনের ডাটাবেস খুলবে
+            role: 'MANAGER',
+            name: n
+        });
+
+        // ৪. এডমিনের মেইন ডাটাবেস ক্লাউডে আপডেট করা
+        await saveDB();
+
+        // ৫. লিস্ট রিফ্রেশ করা
+        renderManagers(); 
+        alert(`Success! ${n} is now hired as a Manager. They can login using PIN: ${p}`);
+
+    } catch (error) {
+        console.error("Hiring System Error:", error);
+        alert("Failed to hire manager. Please check your internet connection.");
+    }
+}
         // ১. গ্লোবাল ব্যাক ফাংশন
 function handleGlobalBack() {
     const isLedgerVisible = !document.getElementById('pageLedger').classList.contains('hidden');
@@ -953,8 +1058,7 @@ function initNavigation() {
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-        function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
-        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
