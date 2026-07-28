@@ -308,23 +308,8 @@ let holdTimer, autoExitTimer, capturedImgFiles = [];
     document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
 };
-    // ১. ডাটাবেস সেভ ফাংশন (V18.1: পিন-বেসড রাউটিং সাপোর্ট)
-async function saveDB() {
-    // লোকাল ফোনে আগে সেভ (অফলাইন সাপোর্ট)
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
-    
-    // কার ডাটাবেসে সেভ হবে? (মালিকের ফোন নম্বর ব্যবহার করা হচ্ছে)
-    const targetDocId = db.ownerPhone || (db.admin ? db.admin.phone : null);
 
-    if (targetDocId) {
-        try {
-            await db_fs.collection(COLLECTION).doc(targetDocId).set(db);
-            console.log("Global Cloud Sync: Success ✅");
-        } catch (e) {
-            console.error("Cloud Sync Failed:", e);
-        }
-    }
-}
+        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
         // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
     if(db.admin && db.admin.phone) {
@@ -497,31 +482,50 @@ function enterApp() {
 }
 
 // --- মিরর সিঙ্ক লজিক (Point 9: অটোমেটিক পার্টনার আপডেট) ---
-// ৩. মিরর সিঙ্ক ফাংশন (পয়েন্ট ৯)
-async function syncToPartner(partnerPhone, txData) {
+// --- সার্জিক্যাল মিরর সিঙ্ক (Point 9: নিখুঁত দর্পণ লজিক) ---
+async function syncToPartner(partnerPhone, myTx) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
         const doc = await partnerRef.get();
-
+        
+        let pDB;
         if (doc.exists) {
-            const partnerData = doc.data();
-            // চেক করা হচ্ছে পার্টনারের লিস্টে আপনি আছেন কি না
-            let meInPartnerList = partnerData.people.find(p => p.phone === db.admin.phone);
-
-            if (meInPartnerList) {
-                // লেনদেনের টাইপ উল্টে দেওয়া (আপনার দেওয়া মানে ওর নেওয়া)
-                const mirrorTx = { 
-                    ...txData, 
-                    type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                    by: db.admin.name + " (Cloud Sync)"
-                };
-                meInPartnerList.transactions.push(mirrorTx);
-                await partnerRef.set(partnerData);
-                console.log("Mirror Sync Success to: " + partnerPhone);
-            }
+            pDB = doc.data();
+        } else {
+            // যদি পার্টনার রেজিস্টার না থাকে, তবে তার জন্য একটি নতুন ক্লিন ডক তৈরি হবে
+            pDB = { admin: { phone: partnerPhone, name: "New User", pin: "0000" }, people: [], managers: [], secret: false };
         }
+
+        // পার্টনারের লিস্টে আমাকে (এডমিনকে) খোঁজা
+        let meInPartner = pDB.people.find(p => p.phone === db.admin.phone);
+
+        if (!meInPartner) {
+            // যদি আমি তার লিস্টে না থাকি, তবে আমাকে অ্যাড করা (রোল হবে উল্টো)
+            meInPartner = {
+                id: Date.now() + Math.random(),
+                name: db.admin.name,
+                phone: db.admin.phone,
+                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                transactions: []
+            };
+            pDB.people.unshift(meInPartner);
+        }
+
+        // লেনদেনের টাইপ উল্টে দেওয়া (Mirror effect)
+        let mirrorType = (myTx.type === 'GIVEN') ? 'RECEIVED' : 'GIVEN';
+
+        // শুধুমাত্র নতুন ট্রানজ্যাকশনটি সুলতানের ওই কার্ডে পুশ করা
+        meInPartner.transactions.push({
+            ...myTx,
+            type: mirrorType,
+            by: db.admin.name + " (Cloud Sync)"
+        });
+
+        // শুধুমাত্র সুলতানের ডক্যুমেন্ট আপডেট করা
+        await partnerRef.set(pDB);
+        console.log("Mirror Synced to " + partnerPhone);
     } catch (e) {
-        console.error("Partner Mirror Sync Failed:", e);
+        console.error("Mirror Error: ", e);
     }
 }
          function enterApp() {
@@ -672,79 +676,62 @@ function renderHome() {
         }
 
         // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
-        // ২. ডাটা এন্ট্রি ফাংশন (V18.1: ইমেজ ও মিরর সিঙ্ক সহ)
-async function preSave(type) {
-    const amtInput = document.getElementById('txAmt');
-    const amt = parseFloat(amtInput.value);
-    
-    if(!amt || amt <= 0) return alert("Please enter a valid amount!");
+        async function preSave(t) {
+    const amt = parseFloat(document.getElementById('txAmt').value); 
+    if(!amt) return alert("Enter Amount!");
 
-    const action = async () => {
-        const btn = document.getElementById('mainConfirmBtn');
-        btn.innerText = "SYNCHING CLOUD...";
-        btn.disabled = true;
+    const act = async () => {
+        document.getElementById('mainConfirmBtn').innerText = "SYNCHING CLOUD...";
+        document.getElementById('mainConfirmBtn').disabled = true;
 
-        try {
-            // ১. মাল্টিপল ইমেজ আপলোড
-            let uploadedImages = [];
-            const files = (typeof capturedFiles !== 'undefined') ? capturedFiles : [];
-
-            for (let f of files) {
-                const fd = new FormData();
-                fd.append('image', f);
-                try {
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json();
-                    if(dat.success) uploadedImages.push(dat.data.url);
-                } catch(err) { console.error("Image Upload Failed"); }
-            }
-
-            // ২. নতুন ট্রানজ্যাকশন অবজেক্ট তৈরি
-            const newTx = {
-                id: Date.now(),
-                amount: amt,
-                type: type,
-                secret: !!db.secret,
-                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'),
-                note: document.getElementById('txNote').value.trim() || "No Reference",
-                images: uploadedImages,
-                by: db.opName || 'Owner', // ম্যানেজার নাকি এডমিন তা সেভ হলো
-                status: 'active'
-            };
-
-            const person = db.people.find(x => x.id === db.activeId);
-            
-            // ৩. নিজের লিস্টে সেভ করা
-            person.transactions.push(newTx);
-            await saveDB(); 
-
-            // ৪. পয়েন্ট ৯: মিরর সিঙ্ক (পার্টনারের ফোনে অটো আপডেট পাঠানো)
-            await syncToPartner(person.phone, newTx);
-
-            // ৫. ইউআই ক্লিন এবং আপডেট
-            renderLedger(); 
-            closeDrawer();
-            alert("Transaction Successfully Synced!");
-
-        } catch (error) {
-            console.error("PreSave Critical Error:", error);
-            alert("Sync Failed! Please check your internet connection.");
-        } finally {
-            btn.innerText = "Confirm Transaction";
-            btn.disabled = false;
-            if(db.secret) startTimer(); // সিক্রেট মোড হলে ১ মিনিটের টাইমার শুরু হবে
+        let imgs = [];
+        // মাল্টিপল ইমেজ আপলোড লুপ
+        for(let f of capturedFiles) {
+            const fd = new FormData();
+            fd.append('image', f);
+            try {
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) imgs.push(dat.data.url);
+            } catch(err) { console.error("Img Upload Fail"); }
         }
+
+        const p = db.people.find(x => x.id === db.activeId);
+        
+        // ১. নতুন ট্রানজ্যাকশন অবজেক্ট তৈরি
+        const newTx = { 
+            id: Date.now(), 
+            amount: amt, 
+            type: t, 
+            secret: !!db.secret, 
+            date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
+            note: document.getElementById('txNote').value, 
+            images: imgs, 
+            by: db.opName, 
+            status: 'active' 
+        };
+
+        // ২. নিজের লিস্টে সেভ করা
+        p.transactions.push(newTx);
+        await saveDB(); 
+
+        // ৩. পয়েন্ট ৯: পার্টনারের ফোনে মিরর সিঙ্ক পাঠানো
+        await syncToPartner(p.phone, newTx);
+
+        // ৪. ইউআই আপডেট এবং ড্রয়ার বন্ধ
+        renderLedger(); 
+        closeDrawer();
+        document.getElementById('mainConfirmBtn').innerText = "Confirm Transaction";
+        document.getElementById('mainConfirmBtn').disabled = false;
+        
+        if(db.secret) startTimer(); // সিক্রেট মোড হলে ১ মিনিটের টাইমার শুরু
     };
 
-    // সিক্রেট পিন ভেরিফিকেশন (শুধুমাত্র কাঁচা মোডে কাস্টমার পেমেন্টে)
-    if(db.secret && db.tab === 'CUSTOMER' && type === 'RECEIVED') {
-        askPin(action); 
-    } else {
-        action();
-    }
+    // আপনার পিন শর্ত: সিক্রেট মোডে কাস্টমার থেকে টাকা পেলে পিন চাইবে
+    if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
 }
+
        // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
-// --- ৬. স্মার্ট পিডিএফ জেনারেশন (V17.5 - Total Row & Summary Fix) ---
 function handleSmartPdfDownload() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('l', 'mm', 'a4'); // Landscape মোড
@@ -756,7 +743,7 @@ function handleSmartPdfDownload() {
     const BURGUNDY = [134, 31, 65];
 
     if (isLedger) {
-        // --- ১. ইন্ডিভিজুয়াল কাস্টমার/সাপ্লায়ার স্টেটমেন্ট ---
+        // --- ১. ইন্ডিভিজুয়াল লেজার রিপোর্ট ---
         const p = db.people.find(x => x.id === db.activeId);
         
         doc.setFontSize(22);
@@ -765,14 +752,13 @@ function handleSmartPdfDownload() {
         
         doc.setFontSize(10);
         doc.setTextColor(100);
-        doc.text(`Client: ${p.name} | Mobile: +91 ${p.phone} | Type: ${p.type}`, 14, 30);
+        doc.text(`Client: ${p.name} | Mobile: +91 ${p.phone} | Category: ${p.type}`, 14, 30);
         doc.text(`Report Mode: ${isSec ? 'Full Audit (Pakka + Kaccha)' : 'Official (Pakka Only)'}`, 14, 35);
         doc.text(`Generated By: ${db.opName || 'Owner'} | Date: ${new Date().toLocaleString()}`, 14, 40);
 
-        // কলাম সেটআপ
         const head = isSec 
             ? [['Date', 'Phone', 'Type', 'P-Given (OUT)', 'P-Rec. (IN)', 'K-Given (OUT)', 'K-Rec. (IN)']] 
-            : [['Date', 'Phone', 'Type', 'Given (Amount OUT)', 'Received (Amount IN)']];
+            : [['Date', 'Phone', 'Type', 'Given (OUT)', 'Received (IN)']];
 
         const rows = [];
         let tP_G = 0, tP_R = 0, tK_G = 0, tK_R = 0;
@@ -781,10 +767,6 @@ function handleSmartPdfDownload() {
             if (!isSec && t.secret) return; 
 
             const amt = t.amount;
-            // কালার লজিক: কাস্টমার গিভেন লাল, সাপ্লায়ার রিসিভড লাল
-            let isEntryRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
-            let color = isEntryRed ? RED : GREEN;
-
             if (isSec) {
                 let pG="-", pR="-", kG="-", kR="-";
                 if(!t.secret) {
@@ -803,32 +785,30 @@ function handleSmartPdfDownload() {
                 if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
                 rows.push([
                     t.date, p.phone, p.type,
-                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: isEntryRed ? RED : GREEN}},
-                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: !isEntryRed ? GREEN : RED}}
+                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN'?RED:GREEN}},
+                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED'?GREEN:RED}}
                 ]);
             }
         });
 
-        // টেবিলের নিচে টোটাল রো (পয়েন্ট অনুযায়ী)
-        let footerRow = isSec 
+        // কলাম অনুযায়ী ফুটার তৈরি (পয়েন্ট অনুযায়ী টোটাল রো)
+        let footer = isSec 
             ? [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN'), tK_G.toLocaleString('en-IN'), tK_R.toLocaleString('en-IN')]]
             : [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN')]];
 
         doc.autoTable({
-            startY: 45, head: head, body: rows, foot: footerRow, theme: 'grid',
+            startY: 45, head: head, body: rows, foot: footer, theme: 'grid',
             headStyles: { fillColor: BURGUNDY },
             footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
             styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' }
         });
 
-        // ফাইনাল সামারি সেকশন (নিচে)
         let finalY = doc.lastAutoTable.finalY + 15;
         let netBalance = isSec ? ((tP_G - tP_R) + (tK_G - tK_R)) : (tP_G - tP_R);
 
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
-        doc.text("FINAL STATEMENT SUMMARY:", 14, finalY);
-        
+        doc.text("FINAL SUMMARY:", 14, finalY);
         doc.setFontSize(14);
         if (netBalance > 0) {
             doc.setTextColor(RED[0], RED[1], RED[2]);
@@ -841,7 +821,7 @@ function handleSmartPdfDownload() {
         doc.save(`${p.name}_Statement.pdf`);
 
     } else {
-        // --- ২. গ্লোবাল বিজনেস সামারি রিপোর্ট (Home Screen) ---
+        // --- ২. গ্লোবাল বিজনেস সামারি রিপোর্ট ---
         doc.setFontSize(20);
         doc.setTextColor(BURGUNDY[0], BURGUNDY[1], BURGUNDY[2]);
         doc.text(`Business Portfolio Summary`, 14, 20);
@@ -853,14 +833,14 @@ function handleSmartPdfDownload() {
             ? [['Name', 'Mobile', 'Type', 'Pakka Balance', 'Kaccha Balance', 'Net Total']] 
             : [['Name', 'Mobile', 'Type', 'Current Balance']];
 
-        let grandP = 0, grandK = 0;
+        let gP = 0, gK = 0;
         const rows = db.people.map(p => {
             let pB=0, kB=0;
             p.transactions.filter(t => t.status==='active').forEach(t => {
                 let v = (t.type==='RECEIVED' ? -t.amount : t.amount);
                 if(t.secret) kB += v; else pB += v;
             });
-            grandP += pB; grandK += kB;
+            gP += pB; gK += kB;
 
             if(isSec) {
                 let net = pB + kB;
@@ -871,16 +851,16 @@ function handleSmartPdfDownload() {
         });
 
         let gFooter = isSec 
-            ? [['GRAND TOTAL', '', '', grandP.toLocaleString('en-IN'), grandK.toLocaleString('en-IN'), (grandP+grandK).toLocaleString('en-IN')]]
-            : [['GRAND TOTAL', '', '', grandP.toLocaleString('en-IN')]];
+            ? [['GRAND TOTAL', '', '', gP.toLocaleString('en-IN'), gK.toLocaleString('en-IN'), (gP+gK).toLocaleString('en-IN')]]
+            : [['GRAND TOTAL', '', '', gP.toLocaleString('en-IN')]];
 
         doc.autoTable({ 
             startY: 35, head: head, body: rows, foot: gFooter,
             headStyles: {fillColor: BURGUNDY}, 
-            footStyles: {fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold'},
+            footStyles: {fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold'},
             theme: 'striped', styles: { font: 'helvetica' } 
         });
-        doc.save("PayBook_Business_Summary.pdf");
+        doc.save("Full_Business_Summary.pdf");
     }
 }
         function showSettings() {
