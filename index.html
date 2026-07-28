@@ -38,6 +38,13 @@
         .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
         @keyframes blinker { 50% { opacity: 0.2; } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+         /* বাটন হাইড হওয়ার এনিমেশন */
+          #ledgerFooter {
+            transition: transform 0.3s ease-in-out;
+            }
+            .footer-hidden {
+            transform: translateY(110%); /* স্ক্রিনের নিচে লুকিয়ে যাবে */
+           }
     </style>
 </head>
 <body>
@@ -283,6 +290,22 @@ let db = {
     opName: '', 
     ownerPhone: '' // এই কি-টি দিয়ে ডাটা লোড হবে
 };
+        let lastScroll = 0;
+const viewport = document.getElementById('mainViewport');
+const footer = document.getElementById('ledgerFooter');
+
+viewport.addEventListener('scroll', () => {
+    const currentScroll = viewport.scrollTop;
+
+    if (currentScroll > lastScroll && currentScroll > 50) {
+        // নিচের দিকে স্ক্রল করলে বাটন হাইড হবে
+        footer.classList.add('footer-hidden');
+    } else {
+        // উপরের দিকে স্ক্রল করলে বাটন ফিরে আসবে
+        footer.classList.remove('footer-hidden');
+    }
+    lastScroll = currentScroll;
+});
 
 let holdTimer, autoExitTimer, capturedImgFiles = [];
 
