@@ -829,14 +829,14 @@ async function preSave(t) {
             person.transactions.push(newTx);
             await saveDB(); // নিজের ডাটাবেস সেভ
             await syncToPartner(person.phone, newTx); // মিরর সিঙ্ক (Point 9)
-             renderLedger(); 
+             //renderLedger(); 
             nextCollDate: document.getElementById('nextCollDate').value || null,
     status: 'active'
 });
 
 // ড্রয়ার বন্ধ করার সময় এটি ক্লিন করুন
 document.getElementById('nextCollDate').value = "";
-            //renderLedger();
+            renderLedger();
             // কাজ শেষ হলে ডাটা ক্লিয়ার করা (যাতে স্ক্রিন আটকে না থাকে)
             capturedFiles = []; 
             if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
