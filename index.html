@@ -215,110 +215,157 @@
             </div>
         </div>
     </div>
+/* --- ৫. কাস্টমার এবং সাপ্লায়ার ম্যানেজমেন্ট (Point 2, 9, 10, 12) --- */
+    async function confirmAdd() {
+        const n = document.getElementById('newPName').value.trim(), ph = document.getElementById('newPPhone').value.trim();
+        if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
+        
+        const saveBtn = document.querySelector('#addModal button:last-child'); saveBtn.innerText = "SECURITY CHECKING..."; saveBtn.disabled = true;
+        
+        const doc = await db_fs.collection(GLOBAL_DEFAULTERS).doc(ph).get();
+        if(doc.exists && !confirm(`🚨 DEFULTER DETECTED!\nReported by: ${doc.data().reportedBy}\nDo you still want to add them?`)) {
+            saveBtn.innerText = "SAVE"; saveBtn.disabled = false; return;
+        }
 
-    <script>
-    /* --- ১. কনফিগ এবং ইনিশিয়ালাইজেশন (Point 13) --- */
-    const firebaseConfig = { apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", authDomain: "paybook-cc6be.firebaseapp.com", projectId: "paybook-cc6be", storageBucket: "paybook-cc6be.firebasestorage.app", messagingSenderId: "1000801647538", appId: "1:1000801647538:web:648ac804d8d75a0811c2ab", measurementId: "G-TFX1Y6FH29" };
-    firebase.initializeApp(firebaseConfig);
-    const db_fs = firebase.firestore();
-    const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
-    const MASTER_PIN = "5000"; 
-    const COLLECTION = "global_paybook_ledgers"; 
-    const ACCESS_KEYS = "access_keys"; // (Point 9 ffix)
-    const GLOBAL_DEFAULTERS = "global_defaulters"; // (Point 12 fix)
-    const DB_KEY = 'Verified_Axis_Pro_Master_V15';
-
-    let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '', ownerPhone: '' };
-    let holdTimer, autoExitTimer, capturedImgFiles = [];
-
-    /* --- ২. অ্যাপ বুট এবং সিঙ্ক লজিক (Point 6, 12, 14) --- */
-    window.onload = () => {
-        const data = localStorage.getItem(DB_KEY);
-        if(data) {
-            db = JSON.parse(data);
-            db.secret = false; // সর্বদা পাক্কা মোড নিশ্চিত করা
-            if(db.admin) { toggleAuth('LOGIN'); syncCloud(); } else toggleAuth('REG');
-        } else toggleAuth('REG');
-        initSecretGesture();
-        setupBackHandler();
-        document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
-        document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
-    };
-
-    async function saveDB() {
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-        const ph = db.ownerPhone || (db.admin ? db.admin.phone : null);
-        if(ph) await db_fs.collection(COLLECTION).doc(ph).set(db);
+        db.people.unshift({ id: Date.now(), name: n, phone: ph, type: db.tab, isDefaulter: doc.exists, transactions: [] });
+        await saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome();
+        saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
     }
 
-    async function syncCloud() {
-        const ph = db.admin?.phone || db.ownerPhone;
-        if(ph) {
-            const doc = await db_fs.collection(COLLECTION).doc(ph).get();
-            if(doc.exists) { db = doc.data(); db.secret = false; renderHome(); }
+    function renderHome() {
+        const list = document.getElementById('contactList'); 
+        const search = document.getElementById('searchInput')?.value.toLowerCase() || "";
+        list.innerHTML = "";
+        document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden');
+        
+        db.people.filter(p => p.type === db.tab && (p.name.toLowerCase().includes(search) || p.phone.includes(search))).forEach(p => {
+            const bal = calcBal(p.transactions, db.secret, p.type);
+            const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+            
+            let missedCount = 0;
+            p.transactions.forEach(t => { if(t.status==='active' && t.nextCollDate && new Date() > new Date(t.nextCollDate)) missedCount++; });
+            const isDef = (p.isDefaulter || missedCount >= 3);
+            const odBadge = (missedCount > 0) ? `<span class="bg-white text-amber-500 border border-amber-500 px-1.5 py-0.5 rounded text-[7px] font-black ml-2">OD-${missedCount}</span>` : "";
+            const defBadge = isDef ? `<span class="blink-secret bg-white text-rose-600 border-2 border-rose-600 px-2 py-0.5 rounded text-[8px] font-black ml-2 shadow-sm">DEFAULTER</span>` : "";
+
+            list.innerHTML += `<div onclick="openLedger(${p.id})" class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all border mb-3">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
+                    <div class="flex flex-col">
+                        <div class="flex items-center"><h4 class="font-bold text-sm text-slate-800">${p.name} ${odBadge}</h4></div>
+                        <div class="flex items-center mt-1"><p class="text-[9px] text-slate-400 font-bold">${p.phone}</p>${defBadge}</div>
+                    </div>
+                </div>
+                <div class="text-right flex items-center gap-4">
+                    <div><h5 class="font-black text-sm ${bal > 0 ? 'text-rose-500' : 'text-emerald-600'}">₹${dAmt}</h5><p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'DUE' : 'CLEAR'}</p></div>
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="text-slate-200 hover:text-rose-500 transition-all"><i class="fas fa-trash-alt text-xs"></i></button>
+                </div></div>`;
+        });
+    }
+
+    /* --- ৬. লেনদেন এবং ইমেজ ম্যানেজমেন্ট (Point 3, 5, 9) --- */
+    function renderLedger() {
+        const p = db.people.find(x => x.id === db.activeId);
+        const list = document.getElementById('ledgerList'); list.innerHTML = "";
+        const net = calcBal(p.transactions, db.secret, p.type);
+        const dNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+        document.getElementById('mainTotal').innerText = dNet;
+        document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+
+        p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+            const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
+            const dAmt = t.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
+            let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
+            let overdue = (t.nextCollDate && new Date() > new Date(t.nextCollDate) && t.status==='active') ? `<span class="bg-rose-50 text-rose-600 text-[7px] font-bold px-1.5 py-0.5 rounded border border-rose-100 ml-2">Overdue</span>` : "";
+
+            list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="text-[9px] font-black text-slate-500 uppercase mb-2 px-2">${t.date} ${overdue}</div>
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                    <div class="flex gap-2 overflow-x-auto no-scrollbar mb-4">${(t.images||[]).map(i=>`<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-1" onclick="openZoom('${i}')">`).join("")}</div>
+                    <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">${t.type}</p></div>
+                    <p class="text-[11px] text-slate-700 font-medium mt-2 leading-tight">${t.note || ''}</p>
+                    <p class="text-[7px] text-slate-500 mt-2 border-t pt-1 font-black uppercase tracking-tighter">By: ${t.by || 'Owner'}</p>
+                    <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
+                        <i class="fas fa-edit text-indigo-400 text-sm" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash text-rose-300 text-sm" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                    </div></div></div>`;
+        });
+        document.getElementById('mainViewport').scrollTop = list.scrollHeight;
+    }
+
+    async function preSave(t) {
+        const amt = parseFloat(document.getElementById('txAmt').value); if(!amt) return alert("Enter Amount!");
+        const action = async () => {
+            document.getElementById('mainConfirmBtn').innerText = "SYNCHING CLOUD...";
+            let imgs = [];
+            for(let f of capturedImgFiles) {
+                const fd = new FormData(); fd.append('image', f);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json(); if(dat.success) imgs.push(dat.data.url);
+            }
+            const p = db.people.find(x => x.id === db.activeId);
+            const newTx = { id:Date.now(), amount:amt, type:t, secret:!!db.secret, date:document.getElementById('txDate').value||new Date().toLocaleDateString('en-GB'), note:document.getElementById('txNote').value, nextCollDate:document.getElementById('nextCollDate').value, images:imgs, by: db.opName, status:'active' };
+            p.transactions.push(newTx);
+            
+            // ডিফোল্টার চেক এবং গ্লোবাল রিপর্টিং
+            let missed = 0; p.transactions.forEach(tx => { if(tx.nextCollDate && new Date() > new Date(tx.nextCollDate)) missed++; });
+            if(missed >= 3) { p.isDefaulter = true; await db_fs.collection(GLOBAL_DEFAULTERS).doc(p.phone).set({ phone:p.phone, reportedBy:db.admin.name, status:"DEFAULTER" }); }
+
+            await saveDB(); await syncToPartner(p.phone, newTx); renderLedger(); closeDrawer();
+            document.getElementById('mainConfirmBtn').innerText = "Confirm Transaction";
+        };
+        if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(action); else action();
+    }
+
+    /* --- ৭. পিডিএফ এবং ইউটিলিটিস (Point 3, 5, 6, 7, 11) --- */
+    function handleSmartPdfDownload() {
+        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', 'a4'); const isSec = !!db.secret;
+        if(!document.getElementById('pageLedger').classList.contains('hidden')) {
+            const p = db.people.find(x => x.id === db.activeId); doc.text(`Ledger Statement: ${p.name}`, 14, 20);
+            const head = isSec ? [['Date', 'Phone', 'Type', 'P-Given', 'P-Rec.', 'K-Given', 'K-Rec.']] : [['Date', 'Phone', 'Type', 'Given (OUT)', 'Received (IN)']];
+            const rows = p.transactions.filter(t => t.status === 'active').map(t => { 
+                if(!isSec && t.secret) return null; const aS = t.amount.toLocaleString('en-IN');
+                return isSec ? [t.date, p.phone, p.type, t.secret?'-':aS, t.secret?aS:'-', t.secret?aS:'-', t.secret?'-':aS] : [t.date, p.phone, p.type, t.type==='GIVEN'?aS:'-', t.type==='RECEIVED'?aS:'-'];
+            }).filter(x=>x);
+            doc.autoTable({ startY:30, head: head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save(`${p.name}_Report.pdf`);
+        } else {
+            doc.text(`Portfolio Summary`, 14, 20);
+            const head = isSec ? [['Name', 'Mobile', 'Pakka Bal', 'Kaccha Bal', 'Net Rs.']] : [['Name', 'Mobile', 'Balance']];
+            const rows = db.people.map(p => { 
+                let pb=0, kb=0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?t.amount:-t.amount); if(t.secret) kb+=v; else pb+=v; });
+                return isSec ? [p.name, p.phone, pb, kb, pb+kb] : [p.name, p.phone, pb];
+            });
+            doc.autoTable({ startY:30, head: head, body:rows, headStyles:{fillColor:[134,31,65]} }); doc.save("BusinessSummary.pdf");
         }
     }
 
-    /* --- ৩. অথেনটিকেশন এবং লগইন রাউটিং (Point 1a, 8, 9, 12) --- */
-    function toggleAuth(mode) {
-        document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
-        document.getElementById('regBox').classList.toggle('hidden', mode==='LOGIN');
-        document.getElementById('tabLogin').className = mode==='LOGIN' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
-        document.getElementById('tabReg').className = mode==='REG' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
-    }
-
-    async function handleRegistration() {
-        const n = document.getElementById('regName').value.trim(), ph = document.getElementById('regPhone').value.trim(), p = document.getElementById('regPin').value.trim();
-        if(!n || ph.length !== 10) return alert("Error: 10-digit mobile & Owner name required!");
-        
-        const accessKey = ph + p;
-        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
-        const keyDoc = await keyRef.get();
-        if(keyDoc.exists) return alert("This PIN combination already exists. Use another.");
-
-        db = { admin: { name: n, phone: ph, pin: p }, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: n, ownerPhone: ph };
-        await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
-        await saveDB(); alert("Registration Successful!"); location.reload();
-    }
-
-    async function handleLogin() {
-        const ph = document.getElementById('loginPhone').value.trim(), pin = document.getElementById('loginPin').value.trim();
-        if(ph.length !== 10) return alert("Enter 10-digit Phone!");
-        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(ph + pin).get();
-        if(keyDoc.exists) {
-            const r = keyDoc.data();
-            const doc = await db_fs.collection(COLLECTION).doc(r.targetOwnerPhone).get();
-            if(doc.exists) {
-                db = JSON.parse(JSON.stringify(doc.data()));
-                db.role = r.role; db.opName = r.name; db.ownerPhone = r.targetOwnerPhone;
-                db.secret = false; localStorage.setItem(DB_KEY, JSON.stringify(db));
-                enterApp();
-            }
-        } else alert("No account found! Please Register.");
-    }
-
-    function enterApp() { 
-        document.getElementById('authScreen').classList.add('hidden'); document.getElementById('appBody').classList.remove('hidden'); 
-        if(db.admin) document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
-        renderHome(); 
-    }
-    function logout() { if(confirm("Securely Logout?")) location.reload(); }
-
-    /* --- ৪. ক্যালকুলেশন এবং সিক্রেট মোড (Point 3, 4, 6, 7, 8) --- */
-    function calcBal(txs, isSec, pType) {
-        let b = 0;
-        txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
-            if(pType==='CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount);
-            else b += (t.type==='RECEIVED' ? t.amount : -t.amount);
-        });
-        return b;
-    }
-
-    function initSecretGesture() {
-        const el = document.getElementById('secretTrigger');
-        el.onclick = () => { if(db.secret) exitSecret(); };
-        el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); };
-        el.onpointerup = () => clearTimeout(holdTimer);
-    }
-    function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); } // ১ মিনিট (Point 7)
-    function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
+    // --- অন্যান্য ছোট ফাংশন সমূহ (Back, Modals, PIN) ---
+    function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { if(document.getElementById('confirmPinInput').value === db.admin.pin || document.getElementById('confirmPinInput').value === MASTER_PIN) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("Wrong PIN!"); }; }
+    function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
+    function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
+    function switchTab(t) { db.tab = t; const c=document.getElementById('tabCust'), s=document.getElementById('tabSupp'); if(t==='CUSTOMER'){c.className="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md"; s.className="flex-1 py-3 rounded-lg text-xs font-black text-slate-400";} else{s.className="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md"; c.className="flex-1 py-3 rounded-lg text-xs font-black text-slate-400";} renderHome(); }
+    function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
+    function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
+    function showSettings() { if(db.role==='MANAGER') return alert("Admin Only!"); renderManagers(); document.getElementById('settingsModal').classList.remove('hidden'); }
+    function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Smart Ledger. Download: ' + window.location.href)}`); }
+    function triggerDrawer(t) { history.pushState(null, null, window.location.pathname); document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
+    function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedImgFiles=[]; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
+    function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+    function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
+    function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
+    function handleImageFiles(f) { if(!f) return; capturedImgFiles.push(f); document.getElementById('multiImgPreview').innerHTML += `<img src="${URL.createObjectURL(f)}" class="w-10 h-10 rounded">`; document.getElementById('multiImgPreview').classList.remove('hidden'); }
+    function openZoom(src) { document.getElementById('zoomedImg').src=src; document.getElementById('imageZoomModal').classList.remove('hidden'); }
+    function closeZoom() { document.getElementById('imageZoomModal').classList.add('hidden'); }
+    function setupHistoryBack() { window.addEventListener('popstate', () => { if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome(); }); }
+    function deletePerson(id) { if(confirm("Confirm Delete Account?")) { db.people = db.people.filter(p=>p.id!==id); saveDB(); renderHome(); } }
+    function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(()=>{ const n=parseFloat(prompt("New Amt:", t.amount)); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; saveDB(); renderLedger(); }); }
+    function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
+    function hireManager() { const n=prompt("Name:"), ph=prompt("Phone:"), p=prompt("PIN:"); if(n && ph.length===10) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
+    function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-3 bg-slate-100 rounded-xl flex justify-between mb-1"><span>${m.name} (${m.phone})</span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+    function delMgr(ph) { if(confirm("Remove?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
+    function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: '+n+'\n'+t+': Rs.'+amt)}`); }
+</script>
+</body>
+</html>
+    
