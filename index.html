@@ -633,6 +633,7 @@ function renderHome() {
     document.getElementById('headerMain').classList.remove('hidden'); 
     document.getElementById('headerLedger').classList.add('hidden');
     
+    // ডাটা ফিল্টার করা (ট্যাব অনুযায়ী + সার্চ অনুযায়ী)
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
         const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
@@ -643,7 +644,7 @@ function renderHome() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- নতুন লজিক: ডিফোল্টার চেক (পর পর ৩ বার ডেট ফেল করলে) ---
+        // --- ওভারডিউ (OD) এবং ডিফোল্টার লজিক ---
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         
@@ -654,15 +655,21 @@ function renderHome() {
             }
         });
 
+        // ১. ডিফোল্টার ব্যাজ (৩ বা তার বেশি ফেল করলে)
         const isDefaulter = missedCount >= 3;
-        const defaulterBadge = isDefaulter ? `<span class="blink-secret bg-rose-600 text-white text-[7px] font-black px-2 py-0.5 rounded-full ml-2 shadow-sm">DEFAULTER</span>` : "";
+        const defaulterBadge = isDefaulter ? `<span class="blink-secret bg-rose-600 text-white text-[7px] font-black px-2 py-0.5 rounded-full ml-2 shadow-sm uppercase">Defaulter</span>` : "";
+
+        // ২. ওভারডিউ (OD) কাউন্টার ব্যাজ (অন্তত ১টি ডেট ফেল করলে দেখাবে)
+        const overdueBadge = (missedCount > 0) ? `<span class="bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-0.5 rounded-md ml-2 border border-amber-200">OD - ${missedCount}</span>` : "";
 
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
                     <div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
                     <div>
-                        <h4 class="font-bold text-sm text-slate-800 flex items-center">${p.name} ${defaulterBadge}</h4>
+                        <h4 class="font-bold text-sm text-slate-800 flex items-center flex-wrap gap-1">
+                            ${p.name} ${overdueBadge} ${defaulterBadge}
+                        </h4>
                         <p class="text-[8px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
                     </div>
                 </div>
