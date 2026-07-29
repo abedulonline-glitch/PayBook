@@ -245,6 +245,15 @@
         </div>
     </div>
 </div>
+    <!-- Image Full-Screen Zoom Modal -->
+<div id="imageZoomModal" class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" onclick="closeZoom()">
+    <!-- ক্লোজ বাটন -->
+    <button class="absolute top-10 right-8 text-white text-3xl opacity-70 hover:opacity-100 transition-all">
+        <i class="fas fa-times-circle"></i>
+    </button>
+    <!-- জুম হওয়া ইমেজ -->
+    <img id="zoomedImg" src="" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl transition-transform duration-300 transform scale-95" onclick="event.stopPropagation()">
+</div>
 
     <script>
         // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (Point 13) ---
@@ -664,10 +673,11 @@ function renderHome() {
         let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
         let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
 
-        let imgs = (t.images || []).map(i => `
-            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-200" 
-                 onclick="window.open('${i}')">
-        `).join("");
+        // আপনার renderLedger লুপের ভেতরে ইমেজের লাইনটি এরকম হবে:
+let imgs = (t.images || []).map(i => `
+    <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
+         onclick="openZoom(this.src)">
+`).join("");
 
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
@@ -1198,6 +1208,35 @@ function removeImage(index) {
     capturedFiles.push(f); 
     renderThumbnails(); // এটি কল করতে হবে
 }
+        // ১. ছবি বড় করে দেখানোর ফাংশন
+function openZoom(src) {
+    const modal = document.getElementById('imageZoomModal');
+    const img = document.getElementById('zoomedImg');
+    
+    img.src = src;
+    modal.classList.remove('hidden');
+    
+    // হালকা এনিমেশন ফিল দেওয়ার জন্য
+    setTimeout(() => {
+        img.classList.remove('scale-95');
+        img.classList.add('scale-100');
+    }, 10);
+}
+
+// ২. জুম বন্ধ করার ফাংশন
+function closeZoom() {
+    const modal = document.getElementById('imageZoomModal');
+    const img = document.getElementById('zoomedImg');
+    
+    img.classList.remove('scale-100');
+    img.classList.add('scale-95');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        img.src = ""; // মেমোরি ক্লিয়ার করা
+    }, 200);
+}
+        
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
