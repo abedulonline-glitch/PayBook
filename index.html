@@ -1211,20 +1211,55 @@ function initNavigation() {
         document.getElementById('multiImgPreview').innerHTML = "";
     }, 400); 
 }
-        function confirmAdd() { 
-    const n = document.getElementById('newPName').value; 
-    const ph = document.getElementById('newPPhone').value; 
+        async function confirmAdd() { 
+    const nInput = document.getElementById('newPName');
+    const phInput = document.getElementById('newPPhone');
+    const n = nInput.value.trim(); 
+    const ph = phInput.value.trim(); 
     
     if(n && ph.length === 10) { 
-        db.people.unshift({id: Date.now(), name: n, phone: ph, type: db.tab, transactions: []}); 
-        saveDB(); 
+        // বাটন লোডিং স্টেট (ইউজার যাতে বুঝতে পারে চেক হচ্ছে)
+        const saveBtn = document.querySelector('#addModal button:last-child');
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = "SECURITY CHECKING...";
+        saveBtn.disabled = true;
+
+        // ১. গ্লোবাল চেক রান করা
+        const badRecord = await getGlobalDefaulterDetails(ph);
+
+        if (badRecord) {
+            const warningMsg = `⚠️ DEFAULTER DETECTED!\n\nThis person owes Rs. ${badRecord.totalDue.toLocaleString()} to ${badRecord.adminName} (+91 ${badRecord.adminPhone}).\n\nThey have missed ${badRecord.failedPromises} payment promises.\n\nDo you still want to add them to your list?`;
+            
+            if (!confirm(warningMsg)) {
+                saveBtn.innerText = originalText;
+                saveBtn.disabled = false;
+                return; // ইউজার না বললে অ্যাড হবে না
+            }
+        }
+
+        // ২. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
+        db.people.unshift({
+            id: Date.now(), 
+            name: n, 
+            phone: ph, 
+            type: db.tab, 
+            isDefaulter: !!badRecord, // যদি রেকর্ড থাকে তবে অটো মার্ক হবে
+            missedDates: badRecord ? badRecord.failedPromises : 0,
+            transactions: []
+        }); 
+
+        await saveDB(); 
         
-        // সেভ হওয়ার পর ইনপুট খালি করা হচ্ছে
-        document.getElementById('newPName').value = ""; 
-        document.getElementById('newPPhone').value = ""; 
+        // ৩. ফর্ম ক্লিন করা
+        nInput.value = ""; 
+        phInput.value = ""; 
+        saveBtn.innerText = originalText;
+        saveBtn.disabled = false;
         
         document.getElementById('addModal').classList.add('hidden'); 
         renderHome(); 
+        alert("Account Created with Security Verification.");
+
     } else {
         alert("Invalid Name or 10-digit Phone Number!"); 
     }
@@ -1313,6 +1348,42 @@ function closeZoom() {
     document.getElementById('drawerActionType').innerText = t;
     document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('mainConfirmBtn').onclick = () => preSave(t);
+}
+        // এই ফাংশনটি আপনার স্ক্রিপ্টের একদম শেষে বা অন্য ফাংশনের পাশে যোগ করুন
+async function getGlobalDefaulterDetails(phone) {
+    try {
+        const querySnapshot = await db_fs.collection(COLLECTION).get();
+        let report = null;
+
+        querySnapshot.forEach(doc => {
+            const adminData = doc.data();
+            // নিজের রেকর্ড চেক করার দরকার নেই
+            if(adminData.admin.phone === db.admin.phone) return;
+
+            const target = (adminData.people || []).find(p => p.phone === phone);
+            
+            // যদি ওই ব্যক্তিকে অন্য কারো লিস্টে পাওয়া যায় এবং সে ডিফোল্টার হয়
+            if (target && target.isDefaulter) {
+                // তার বাকি থাকা আসল এমাউন্ট বের করা
+                let pB = 0, kB = 0;
+                (target.transactions || []).filter(t => t.status === 'active').forEach(t => {
+                    let v = (t.type === 'RECEIVED' ? -t.amount : t.amount);
+                    if (t.secret) kB += v; else pB += v;
+                });
+
+                report = {
+                    adminName: adminData.admin.name,
+                    adminPhone: adminData.admin.phone,
+                    totalDue: pB + kB,
+                    failedPromises: target.missedDates || 3
+                };
+            }
+        });
+        return report;
+    } catch (e) {
+        console.error("Global Check Error:", e);
+        return null;
+    }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
