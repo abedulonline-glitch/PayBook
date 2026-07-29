@@ -1211,57 +1211,96 @@ function initNavigation() {
         document.getElementById('multiImgPreview').innerHTML = "";
     }, 400); 
 }
-        async function confirmAdd() { 
+        // --- ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (V18.5: গ্লোবাল মিরর ডিফোল্টার চেক সহ) ---
+async function confirmAdd() { 
     const nInput = document.getElementById('newPName');
     const phInput = document.getElementById('newPPhone');
     const n = nInput.value.trim(); 
     const ph = phInput.value.trim(); 
-    
+
     if(n && ph.length === 10) { 
-        // বাটন লোডিং স্টেট (ইউজার যাতে বুঝতে পারে চেক হচ্ছে)
+        // বাটন লোডিং স্টেট (পেশাদার লুকের জন্য)
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
         saveBtn.innerText = "SECURITY CHECKING...";
         saveBtn.disabled = true;
 
-        // ১. গ্লোবাল চেক রান করা
-        const badRecord = await getGlobalDefaulterDetails(ph);
+        try {
+            // ১. গ্লোবাল ডাটাবেস থেকে মিরর রেকর্ড ফ্যাচ করা (পয়েন্ট ৯ ফিক্স)
+            const querySnapshot = await db_fs.collection(COLLECTION).get();
+            let badRecord = null;
 
-        if (badRecord) {
-            const warningMsg = `⚠️ DEFAULTER DETECTED!\n\nThis person owes Rs. ${badRecord.totalDue.toLocaleString()} to ${badRecord.adminName} (+91 ${badRecord.adminPhone}).\n\nThey have missed ${badRecord.failedPromises} payment promises.\n\nDo you still want to add them to your list?`;
-            
-            if (!confirm(warningMsg)) {
-                saveBtn.innerText = originalText;
-                saveBtn.disabled = false;
-                return; // ইউজার না বললে অ্যাড হবে না
+            querySnapshot.forEach(doc => {
+                const otherAdminData = doc.data();
+                if(otherAdminData.admin && otherAdminData.admin.phone === db.admin.phone) return; // নিজের ডাটা বাদ
+
+                // চেক করা হচ্ছে অন্য কোনো এডমিনের লিস্টে এই নম্বরটি ডিফোল্টার হিসেবে আছে কি না
+                const foundInOtherList = (otherAdminData.people || []).find(p => p.phone === ph && p.isDefaulter === true);
+                
+                if (foundInOtherList) {
+                    // তার বকেয়া আসল এমাউন্ট ক্যালকুলেট করা (পাক্কা + কাঁচা)
+                    let pB = 0, kB = 0;
+                    (foundInOtherList.transactions || []).filter(t => t.status === 'active').forEach(t => {
+                        let v = (t.type === 'RECEIVED' ? -t.amount : t.amount);
+                        if (t.secret) kB += v; else pB += v;
+                    });
+
+                    badRecord = {
+                        adminName: otherAdminData.admin.name,
+                        adminPhone: otherAdminData.admin.phone,
+                        totalDue: pB + kB,
+                        failedPromises: foundInOtherList.missedDates || 3
+                    };
+                }
+            });
+
+            // ২. যদি ডিফোল্টার পাওয়া যায়, তবে প্রমাণসহ ওয়ার্নিং দেওয়া
+            if (badRecord) {
+                const warningMsg = `⚠️ CRITICAL SECURITY ALERT!\n\nThis person is a REPORTED DEFAULTER in PayBook network.\n\n• Owed to: ${badRecord.adminName}\n• Admin Phone: +91 ${badRecord.adminPhone}\n• Total Outstanding: Rs. ${badRecord.totalDue.toLocaleString()}\n• Missed Dates: ${badRecord.failedPromises} times\n\nDo you still want to risk adding this account?`;
+                
+                if (!confirm(warningMsg)) {
+                    saveBtn.innerText = originalText;
+                    saveBtn.disabled = false;
+                    return; // ইউজার না বললে অ্যাড হবে না
+                }
             }
+
+            // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
+            db.people.unshift({
+                id: Date.now(), 
+                name: n, 
+                phone: ph, 
+                type: db.tab, 
+                isDefaulter: !!badRecord, // গ্লোবাল রেকর্ড থাকলে অটো ডিফোল্টার মার্ক হবে
+                missedDates: badRecord ? badRecord.failedPromises : 0,
+                transactions: []
+            }); 
+
+            await saveDB(); // ক্লাউড এবং লোকাল সেভ
+            
+            // ৪. ফর্ম ক্লিন করা এবং ইউআই আপডেট
+            nInput.value = ""; 
+            phInput.value = ""; 
+            saveBtn.innerText = originalText;
+            saveBtn.disabled = false;
+            document.getElementById('addModal').classList.add('hidden'); 
+            renderHome(); 
+
+            if(badRecord) {
+                alert("Profile created with DEFAULTER status tag.");
+            } else {
+                alert("Account Created with Security Verification.");
+            }
+
+        } catch (error) {
+            console.error("Global Sync Error:", error);
+            alert("Error: Unable to verify global reputation. Check internet.");
+            saveBtn.innerText = originalText;
+            saveBtn.disabled = false;
         }
 
-        // ২. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
-        db.people.unshift({
-            id: Date.now(), 
-            name: n, 
-            phone: ph, 
-            type: db.tab, 
-            isDefaulter: !!badRecord, // যদি রেকর্ড থাকে তবে অটো মার্ক হবে
-            missedDates: badRecord ? badRecord.failedPromises : 0,
-            transactions: []
-        }); 
-
-        await saveDB(); 
-        
-        // ৩. ফর্ম ক্লিন করা
-        nInput.value = ""; 
-        phInput.value = ""; 
-        saveBtn.innerText = originalText;
-        saveBtn.disabled = false;
-        
-        document.getElementById('addModal').classList.add('hidden'); 
-        renderHome(); 
-        alert("Account Created with Security Verification.");
-
     } else {
-        alert("Invalid Name or 10-digit Phone Number!"); 
+        alert("Error: Please provide Name and a valid 10-digit Phone!"); 
     }
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
@@ -1350,48 +1389,24 @@ function closeZoom() {
     document.getElementById('mainConfirmBtn').onclick = () => preSave(t);
 }
         // এই ফাংশনটি আপনার স্ক্রিপ্টের একদম শেষে বা অন্য ফাংশনের পাশে যোগ করুন
-async function getGlobalDefaulterDetails(phone) {
+// ৯. গ্লোবাল রেপুটেশন ইঞ্জিন (মিরর স্টাইল ফ্যাচিং)
+async function getGlobalReputation(phone) {
     try {
-        // ১. পুরো গ্লোবাল লেজার কালেকশন আনা
         const querySnapshot = await db_fs.collection(COLLECTION).get();
-        let report = null;
+        let status = { isDefaulter: false, reason: "" };
 
         querySnapshot.forEach(doc => {
             const adminData = doc.data();
-            // নিজের প্রোফাইল স্কিপ করা (যাতে নিজের ডাটা নিজে চেক না হয়)
-            if(db.admin && adminData.admin.phone === db.admin.phone) return;
+            if(adminData.admin.phone === db.admin.phone) return; // নিজের ডাটা বাদ
 
-            // অন্য কারো লিস্টে এই কাস্টমার আছে কি না দেখা
-            const target = (adminData.people || []).find(p => p.phone === phone);
-            
-            // কন্ডিশন: যদি সে অন্য কারো কাছে ডিফোল্টার হয় অথবা ৩ বারের বেশি প্রতিশ্রুতি ভঙ্গ করে
-            if (target && (target.isDefaulter === true || (target.missedDates && target.missedDates >= 3))) {
-                
-                // তার অরিজিনাল ব্যালেন্স ক্যালকুলেট করা
-                let pB = 0, kB = 0;
-                (target.transactions || []).forEach(t => {
-                    if (t.status === 'active') {
-                        let v = (t.type === 'RECEIVED' ? -t.amount : t.amount);
-                        if (t.secret) kB += v; else pB += v;
-                    }
-                });
-
-                // যদি সত্যিই টাকা বাকি থাকে (বকেয়া > ০)
-                if ((pB + kB) > 0) {
-                    report = {
-                        adminName: adminData.admin.name,
-                        adminPhone: adminData.admin.phone,
-                        totalDue: pB + kB,
-                        failedPromises: target.missedDates || 3
-                    };
-                }
+            const foundMe = (adminData.people || []).find(p => p.phone === phone);
+            if (foundMe && foundMe.isDefaulter) {
+                status.isDefaulter = true;
+                status.reason = `Reported by ${adminData.admin.name}`;
             }
         });
-        return report;
-    } catch (e) {
-        console.error("Critical Security Check Error:", e);
-        return null;
-    }
+        return status;
+    } catch (e) { return { isDefaulter: false }; }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
