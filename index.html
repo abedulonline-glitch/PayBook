@@ -1352,36 +1352,44 @@ function closeZoom() {
         // এই ফাংশনটি আপনার স্ক্রিপ্টের একদম শেষে বা অন্য ফাংশনের পাশে যোগ করুন
 async function getGlobalDefaulterDetails(phone) {
     try {
+        // ১. পুরো গ্লোবাল লেজার কালেকশন আনা
         const querySnapshot = await db_fs.collection(COLLECTION).get();
         let report = null;
 
         querySnapshot.forEach(doc => {
             const adminData = doc.data();
-            // নিজের রেকর্ড চেক করার দরকার নেই
-            if(adminData.admin.phone === db.admin.phone) return;
+            // নিজের প্রোফাইল স্কিপ করা (যাতে নিজের ডাটা নিজে চেক না হয়)
+            if(db.admin && adminData.admin.phone === db.admin.phone) return;
 
+            // অন্য কারো লিস্টে এই কাস্টমার আছে কি না দেখা
             const target = (adminData.people || []).find(p => p.phone === phone);
             
-            // যদি ওই ব্যক্তিকে অন্য কারো লিস্টে পাওয়া যায় এবং সে ডিফোল্টার হয়
-            if (target && target.isDefaulter) {
-                // তার বাকি থাকা আসল এমাউন্ট বের করা
+            // কন্ডিশন: যদি সে অন্য কারো কাছে ডিফোল্টার হয় অথবা ৩ বারের বেশি প্রতিশ্রুতি ভঙ্গ করে
+            if (target && (target.isDefaulter === true || (target.missedDates && target.missedDates >= 3))) {
+                
+                // তার অরিজিনাল ব্যালেন্স ক্যালকুলেট করা
                 let pB = 0, kB = 0;
-                (target.transactions || []).filter(t => t.status === 'active').forEach(t => {
-                    let v = (t.type === 'RECEIVED' ? -t.amount : t.amount);
-                    if (t.secret) kB += v; else pB += v;
+                (target.transactions || []).forEach(t => {
+                    if (t.status === 'active') {
+                        let v = (t.type === 'RECEIVED' ? -t.amount : t.amount);
+                        if (t.secret) kB += v; else pB += v;
+                    }
                 });
 
-                report = {
-                    adminName: adminData.admin.name,
-                    adminPhone: adminData.admin.phone,
-                    totalDue: pB + kB,
-                    failedPromises: target.missedDates || 3
-                };
+                // যদি সত্যিই টাকা বাকি থাকে (বকেয়া > ০)
+                if ((pB + kB) > 0) {
+                    report = {
+                        adminName: adminData.admin.name,
+                        adminPhone: adminData.admin.phone,
+                        totalDue: pB + kB,
+                        failedPromises: target.missedDates || 3
+                    };
+                }
             }
         });
         return report;
     } catch (e) {
-        console.error("Global Check Error:", e);
+        console.error("Critical Security Check Error:", e);
         return null;
     }
 }
