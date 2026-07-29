@@ -663,10 +663,58 @@ function renderHome() {
                             <p class="text-[10px] text-slate-400 font-bold tracking-widest leading-none">${p.phone}</p>
                             ${defBadge}
                         </div>
+function renderHome() {
+    const list = document.getElementById('contactList'); 
+    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    list.innerHTML = "";
+    
+    document.getElementById('headerMain').classList.remove('hidden'); 
+    document.getElementById('headerLedger').classList.add('hidden');
+    
+    const filteredPeople = db.people.filter(p => {
+        const matchesTab = p.type === db.tab;
+        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
+        return matchesTab && matchesSearch;
+    });
+
+    filteredPeople.forEach(p => {
+        const bal = calcBal(p.transactions, db.secret, p.type);
+        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+        
+        let missedCount = 0;
+        const today = new Date().setHours(0,0,0,0);
+        (p.transactions || []).forEach(tx => {
+            if (tx.status === 'active' && tx.nextCollDate) {
+                const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
+                if (today > promised) missedCount++;
+            }
+        });
+
+        // ১. ওডি ব্যাজ (হোয়াইট ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার ও টেক্সট)
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] text-[9px] font-black rounded border-2 border-[#f59e0b] uppercase shadow-sm">OD-${missedCount}</span>` : "";
+
+        // ২. ডিফোল্টার ব্যাজ (হোয়াইট ব্যাকগ্রাউন্ড + লাল বর্ডার ও টেক্সট + ব্লিনকিং)
+        const isDefaulter = missedCount >= 3;
+        const defBadge = isDefaulter ? 
+            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] text-[9px] font-black rounded border-2 border-[#dc2626] uppercase shadow-sm">DEFAULTER</span>` : "";
+
+        list.innerHTML += `
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
+                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
+                    <div class="flex flex-col">
+                        <div class="flex items-center">
+                            <h4 class="font-bold text-sm text-slate-800 leading-tight tracking-tight">${p.name}</h4>
+                            ${odBadge}
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <p class="text-[10px] text-slate-400 font-bold tracking-widest leading-none">${p.phone}</p>
+                            ${defBadge}
+                        </div>
                     </div>
                 </div>
                 
-                <!-- ডান পাশ: ব্যালেন্স এবং ডিলেট -->
                 <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
