@@ -167,6 +167,16 @@
             </div>
             <div class="space-y-4 mb-10">
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
+                <!-- Next Collection Date Input -->
+<div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4 mt-3 border border-slate-100" 
+     onclick="document.getElementById('nextCollDate').showPicker()">
+    <i class="fas fa-hand-holding-dollar text-slate-300 text-lg"></i>
+    <div class="flex-1">
+        <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Next Collection Date</p>
+        <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-sm font-bold text-[#861F41]">
+    </div>
+    <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
+</div>
                 <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
                     <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
@@ -623,7 +633,6 @@ function renderHome() {
     document.getElementById('headerMain').classList.remove('hidden'); 
     document.getElementById('headerLedger').classList.add('hidden');
     
-    // ডাটা ফিল্টার করা (ট্যাব অনুযায়ী + সার্চ অনুযায়ী)
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
         const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
@@ -634,12 +643,26 @@ function renderHome() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
+        // --- নতুন লজিক: ডিফোল্টার চেক (পর পর ৩ বার ডেট ফেল করলে) ---
+        let missedCount = 0;
+        const today = new Date().setHours(0,0,0,0);
+        
+        (p.transactions || []).forEach(tx => {
+            if (tx.status === 'active' && tx.nextCollDate) {
+                const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
+                if (today > promised) missedCount++;
+            }
+        });
+
+        const isDefaulter = missedCount >= 3;
+        const defaulterBadge = isDefaulter ? `<span class="blink-secret bg-rose-600 text-white text-[7px] font-black px-2 py-0.5 rounded-full ml-2 shadow-sm">DEFAULTER</span>` : "";
+
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-3 flex-1 cursor-pointer">
                     <div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg">${p.name[0]}</div>
                     <div>
-                        <h4 class="font-bold text-sm text-slate-800">${p.name}</h4>
+                        <h4 class="font-bold text-sm text-slate-800 flex items-center">${p.name} ${defaulterBadge}</h4>
                         <p class="text-[8px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
                     </div>
                 </div>
@@ -657,7 +680,6 @@ function renderHome() {
             </div>`;
     });
 
-    // রেজাল্ট না থাকলে মেসেজ
     if(filteredPeople.length === 0) {
         list.innerHTML = `<div class="text-center py-20 opacity-30 uppercase font-bold text-xs tracking-widest">No Match Found</div>`;
     }
@@ -677,39 +699,42 @@ function renderHome() {
     const list = document.getElementById('ledgerList'); 
     list.innerHTML = "";
     
-    // ১. ব্যালেন্স ক্যালকুলেশন (নিশ্চিত করুন calcBal এ status === 'active' চেক আছে)
     const net = calcBal(p.transactions, db.secret, p.type);
-    
-    // ২. হেডার ব্যালেন্স এবং ১০০ দিয়ে ভাগ (সিক্রেট মোডে)
     const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
     const balEl = document.getElementById('mainTotal');
     balEl.innerText = "₹ " + displayHeaderTotal;
-
-    // মেইন ব্যালেন্স কালার: পজিটিভ মানে বকেয়া (লাল), নেগেটিভ মানে অ্যাডভান্স (সবুজ)
     balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
 
-    // ৩. বর্তমান মোড অনুযায়ী ট্রানজ্যাকশন ফিল্টার করা
     p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
         const isR = t.type === 'RECEIVED';
-        const isDel = t.status === 'deleted'; // ডিলিট স্ট্যাটাস চেক
-        
-        // ১০০ দিয়ে ভাগ করার লজিক (ইন্ডিভিজুয়াল এন্ট্রি)
+        const isDel = t.status === 'deleted'; 
         const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
         
-        // ৪. কালার লজিক: কাস্টমার গিভেন লাল, সাপ্লায়ার রিসিভড লাল
         let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
         let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
 
-        // আপনার renderLedger লুপের ভেতরে ইমেজের লাইনটি এরকম হবে:
-let imgs = (t.images || []).map(i => `
-    <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
-         onclick="openZoom(this.src)">
-`).join("");
+        // --- নতুন লজিক: Overdue দিন গণনা (Point Update) ---
+        let overdueHTML = "";
+        if (t.nextCollDate && t.status === 'active') {
+            const today = new Date().setHours(0,0,0,0);
+            const promised = new Date(t.nextCollDate).setHours(0,0,0,0);
+            if (today > promised) {
+                const diffTime = Math.abs(today - promised);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                overdueHTML = `<span class="bg-rose-50 text-rose-600 text-[8px] font-bold px-2 py-0.5 rounded ml-2 border border-rose-100">Overdue: ${diffDays} Days</span>`;
+            }
+        }
+
+        let imgs = (t.images || []).map(i => `
+            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
+                 onclick="openZoom(this.src)">
+        `).join("");
 
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                <!-- Date (একটু ডিপ করা হলো - text-slate-500) -->
-                <div class="text-[9px] font-bold text-slate-600 uppercase mb-2 px-2 tracking-wider">${t.date}</div>
+                <div class="text-[9px] font-bold text-slate-600 uppercase mb-2 px-2 tracking-wider">
+                    ${t.date} ${overdueHTML}
+                </div>
                 
                 <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
                     ${imgs ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>` : ''}
@@ -718,14 +743,11 @@ let imgs = (t.images || []).map(i => `
                         <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
                             ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
                         </h3>
-                        <!-- Type Label (ডিপ করা হলো - text-slate-500) -->
                         <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">${t.type}</p>
                     </div>
 
-                    <!-- Note (টেক্সট ডিপ করা হলো - text-slate-700) -->
                     <p class="text-[11px] text-slate-800 font-medium mt-2 leading-tight">${t.note || ''}</p>
                     
-                    <!-- Managed By Section (কালার ডিপ করা হলো - text-slate-500) -->
                     <div class="mt-2 border-t border-slate-100 pt-1 flex justify-between items-center">
                         <p class="text-[8px] text-slate-600 uppercase font-black">
                             <i class="fas fa-user text-[7px] mr-1 opacity-70"></i> By: ${t.by || 'Owner'}
@@ -733,7 +755,6 @@ let imgs = (t.images || []).map(i => `
                         ${isDel ? '<span class="text-[8px] text-rose-500 font-bold uppercase italic">Canceled</span>' : ''}
                     </div>
 
-                    <!-- Action Icons -->
                     ${!isDel ? `
                     <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
                         <i class="fas fa-edit text-indigo-400 text-sm active:text-indigo-700" onclick="editTx(${p.id}, ${t.id})"></i>
@@ -746,7 +767,6 @@ let imgs = (t.images || []).map(i => `
             </div>`;
     });
 
-    // স্ক্রিন একদম নিচে নিয়ে যাওয়া
     const viewport = document.getElementById('mainViewport');
     setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
 }
@@ -809,9 +829,14 @@ async function preSave(t) {
             person.transactions.push(newTx);
             await saveDB(); // নিজের ডাটাবেস সেভ
             await syncToPartner(person.phone, newTx); // মিরর সিঙ্ক (Point 9)
+             renderLedger(); 
+            nextCollDate: document.getElementById('nextCollDate').value || null,
+    status: 'active'
+});
 
-            renderLedger(); 
-            
+// ড্রয়ার বন্ধ করার সময় এটি ক্লিন করুন
+document.getElementById('nextCollDate').value = "";
+            //renderLedger();
             // কাজ শেষ হলে ডাটা ক্লিয়ার করা (যাতে স্ক্রিন আটকে না থাকে)
             capturedFiles = []; 
             if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
