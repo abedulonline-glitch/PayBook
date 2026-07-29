@@ -45,6 +45,14 @@
         text-decoration: line-through; /* মাঝখানে কাটা দাগ পড়বে */
         pointer-events: none; /* আর কোনো ক্লিক কাজ করবে না */
 }
+        /* বাটন হাইড করার এনিমেশন */
+#ledgerFooter {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.footer-hidden {
+    transform: translateY(120%); /* এটি বাটনকে স্ক্রিনের নিচে ঠেলে দিবে */
+}
     </style>
 </head>
 <body>
@@ -313,7 +321,26 @@ let capturedFiles = [];
     } else {
         toggleAuth('REG');
     }
+
+     let lastScrollTop = 0;
+const viewport = document.getElementById('mainViewport');
+const footer = document.getElementById('ledgerFooter');
+
+// স্ক্রোল ডিটেকশন লজিক
+viewport.addEventListener('scroll', function() {
+    let scrollTop = viewport.scrollTop;
+
+    if (scrollTop > lastScrollTop && scrollTop > 100) {
+        // নিচে স্ক্রোল করলে বাটন হাইড হবে
+        footer.classList.add('footer-hidden');
+    } else {
+        // উপরে স্ক্রোল করলে বাটন আবার আসবে
+        footer.classList.remove('footer-hidden');
+    }
     
+    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
+}, { passive: true });
+            
     // UI থেকে সিক্রেট ব্লিনকিং ইফেক্ট সরিয়ে ফেলা
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
@@ -1236,7 +1263,21 @@ function closeZoom() {
         img.src = ""; // মেমোরি ক্লিয়ার করা
     }, 200);
 }
-        
+        function triggerDrawer(t) {
+    // নতুন যোগ করা লাইন: ড্রয়ার খোলার সময় ফুটার বাটন শো নিশ্চিত করা
+    if(document.getElementById('ledgerFooter')) {
+        document.getElementById('ledgerFooter').classList.remove('footer-hidden');
+    }
+
+    history.pushState(null, null, window.location.pathname);
+    document.getElementById('entryDrawer').classList.remove('hidden');
+    
+    setTimeout(() => document.getElementById('entryDrawer').classList.add('open'), 10);
+    
+    document.getElementById('drawerActionType').innerText = t;
+    document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('mainConfirmBtn').onclick = () => preSave(t);
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -1250,8 +1291,7 @@ function closeZoom() {
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
-        function triggerDrawer(t) { history.pushState(null, null, window.location.pathname);document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
-        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function setupHistoryBack() { window.addEventListener('popstate', () => { if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome(); }); }
