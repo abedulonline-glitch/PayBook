@@ -38,6 +38,13 @@
         .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
         @keyframes blinker { 50% { opacity: 0.2; } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+   
+        .tx-deleted { 
+        opacity: 0.3 !important; /* হালকা ধূসর দেখাবে */
+        filter: grayscale(1); /* রঙ চলে যাবে */
+        text-decoration: line-through; /* মাঝখানে কাটা দাগ পড়বে */
+        pointer-events: none; /* আর কোনো ক্লিক কাজ করবে না */
+}
     </style>
 </head>
 <body>
