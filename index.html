@@ -630,31 +630,79 @@ function renderHome() {
         }
 
         function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList'); list.innerHTML = "";
-            const net = calcBal(p.transactions, db.secret, p.type);
-            document.getElementById('mainTotal').innerText = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); 
+    list.innerHTML = "";
+    
+    // ১. ব্যালেন্স ক্যালকুলেশন (নিশ্চিত করুন calcBal এ status === 'active' চেক আছে)
+    const net = calcBal(p.transactions, db.secret, p.type);
+    
+    // ২. হেডার ব্যালেন্স এবং ১০০ দিয়ে ভাগ (সিক্রেট মোডে)
+    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    const balEl = document.getElementById('mainTotal');
+    balEl.innerText = "₹ " + displayHeaderTotal;
 
-            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-                const dAmt = db.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                let isRed = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-                let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="window.open('${i}')">`).join("");
+    // মেইন ব্যালেন্স কালার: পজিটিভ মানে বকেয়া (লাল), নেগেটিভ মানে অ্যাডভান্স (সবুজ)
+    balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
 
-                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                    <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
-                    <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                        <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
-                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRed?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${t.type}</p></div>
-                        <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
-                        <p class="text-[7px] text-slate-300 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
-                        <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50"><i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i><i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i><i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}</div>
-                    </div></div>`;
-            });
-            document.getElementById('mainViewport').scrollTop = list.scrollHeight;
-        }
+    // ৩. বর্তমান মোড অনুযায়ী ট্রানজ্যাকশন ফিল্টার করা
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isR = t.type === 'RECEIVED';
+        const isDel = t.status === 'deleted'; // ডিলিট স্ট্যাটাস চেক
+        
+        // ১০০ দিয়ে ভাগ করার লজিক (ইন্ডিভিজুয়াল এন্ট্রি)
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+        
+        // ৪. কালার লজিক: কাস্টমার গিভেন লাল, সাপ্লায়ার রিসিভড লাল
+        let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
+        let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
+
+        // ৫. মাল্টিপল ইমেজ রেন্ডার করা
+        let imgs = (t.images || []).map(i => `
+            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100" 
+                 onclick="window.open('${i}')">
+        `).join("");
+
+        // ৬. লিস্টে ডাটা পুশ (পয়েন্ট অনুযায়ী ডিলিট হলে ধূসর কালার)
+        list.innerHTML += `
+            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
+                
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                    <!-- Images Area -->
+                    ${imgs ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>` : ''}
+                    
+                    <div class="flex justify-between items-center gap-6">
+                        <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
+                            ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
+                        </h3>
+                        <p class="text-[8px] font-bold text-slate-300 uppercase">${t.type}</p>
+                    </div>
+
+                    <!-- Note & Managed By -->
+                    <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
+                    <div class="mt-2 border-t border-slate-50 pt-1 flex justify-between items-center">
+                        <p class="text-[7px] text-slate-300 uppercase font-black">By: ${t.by || 'Owner'}</p>
+                        ${isDel ? '<span class="text-[8px] text-rose-300 font-bold uppercase italic">Canceled Entry</span>' : ''}
+                    </div>
+
+                    <!-- Action Icons (ডিলিট করা থাকলে এগুলো কাজ করবে না) -->
+                    ${!isDel ? `
+                    <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50 items-center">
+                        <i class="fas fa-edit text-indigo-300 text-xs active:text-indigo-600" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash text-rose-200 text-xs active:text-rose-600" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto active:text-emerald-600" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>`;
+    });
+
+    // স্ক্রিন একদম নিচে নিয়ে যাওয়া
+    const viewport = document.getElementById('mainViewport');
+    setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
+}
 
         // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
       // ১. ছবি ধরার ফাংশন (V18.2)
