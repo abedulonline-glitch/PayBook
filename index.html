@@ -630,7 +630,7 @@ function renderHome() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ওভারডিউ এবং ডিফোল্টার লজিক ---
+        // --- ওভারডিউ এবং ডিফোল্টার ক্যালকুলেশন ---
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -640,87 +640,40 @@ function renderHome() {
             }
         });
 
-        // ১. ওডি ব্যাজ (সলিড অ্যাম্বার কালার)
+        // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার ও টেক্সট)
         const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-[#f59e0b] text-white text-[9px] font-black rounded uppercase shadow-sm border border-white/20">OD-${missedCount}</span>` : "";
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
 
-        // ২. ডিফোল্টার ব্যাজ (সলিড ডার্ক রেড এবং ব্লিঙ্কিং)
+        // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার ও টেক্সট + ব্লিঙ্কিং)
         const isDefaulter = missedCount >= 3;
         const defBadge = isDefaulter ? 
-            `<span class="blink-secret ml-2 px-2 py-0.5 bg-[#dc2626] text-white text-[9px] font-black rounded uppercase border border-white/30 shadow-md">DEFAULTER</span>` : "";
+            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
 
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
-                <!-- বাম পাশ: তথ্য এরিয়া -->
+                <!-- তথ্য সেকশন -->
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
                     <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
                     <div class="flex flex-col">
                         <div class="flex items-center">
-                            <h4 class="font-bold text-sm text-slate-800 leading-tight tracking-tight">${p.name}</h4>
+                            <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
                             ${odBadge}
                         </div>
-                        <div class="flex items-center mt-1.5">
-                            <p class="text-[10px] text-slate-400 font-bold tracking-widest leading-none">${p.phone}</p>
-                            ${defBadge}
-                        </div>
-function renderHome() {
-    const list = document.getElementById('contactList'); 
-    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
-    list.innerHTML = "";
-    
-    document.getElementById('headerMain').classList.remove('hidden'); 
-    document.getElementById('headerLedger').classList.add('hidden');
-    
-    const filteredPeople = db.people.filter(p => {
-        const matchesTab = p.type === db.tab;
-        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
-        return matchesTab && matchesSearch;
-    });
-
-    filteredPeople.forEach(p => {
-        const bal = calcBal(p.transactions, db.secret, p.type);
-        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-        
-        let missedCount = 0;
-        const today = new Date().setHours(0,0,0,0);
-        (p.transactions || []).forEach(tx => {
-            if (tx.status === 'active' && tx.nextCollDate) {
-                const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
-                if (today > promised) missedCount++;
-            }
-        });
-
-        // ১. ওডি ব্যাজ (হোয়াইট ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার ও টেক্সট)
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] text-[9px] font-black rounded border-2 border-[#f59e0b] uppercase shadow-sm">OD-${missedCount}</span>` : "";
-
-        // ২. ডিফোল্টার ব্যাজ (হোয়াইট ব্যাকগ্রাউন্ড + লাল বর্ডার ও টেক্সট + ব্লিনকিং)
-        const isDefaulter = missedCount >= 3;
-        const defBadge = isDefaulter ? 
-            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] text-[9px] font-black rounded border-2 border-[#dc2626] uppercase shadow-sm">DEFAULTER</span>` : "";
-
-        list.innerHTML += `
-            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
-                    <div class="flex flex-col">
-                        <div class="flex items-center">
-                            <h4 class="font-bold text-sm text-slate-800 leading-tight tracking-tight">${p.name}</h4>
-                            ${odBadge}
-                        </div>
-                        <div class="flex items-center mt-2">
-                            <p class="text-[10px] text-slate-400 font-bold tracking-widest leading-none">${p.phone}</p>
+                        <div class="flex items-center mt-1">
+                            <p class="text-[10px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
                             ${defBadge}
                         </div>
                     </div>
                 </div>
                 
+                <!-- ব্যালেন্স সেকশন -->
                 <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
-                        <p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
                     
+                    <!-- ডিলিট বাটন -->
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -729,7 +682,7 @@ function renderHome() {
     });
 
     if(filteredPeople.length === 0) {
-        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Found</div>`;
+        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Account Found</div>`;
     }
 }
 
