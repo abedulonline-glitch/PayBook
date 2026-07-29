@@ -562,22 +562,7 @@ async function syncToPartner(partnerPhone, txData) {
 
     } catch (e) { console.error("Mirror Sync Error:", e); }
 }
-         function enterApp() {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appBody').classList.remove('hidden');
-    
-    // ১. পিন দিয়ে ঢোকার পর ডিফল্টভাবে কাস্টমার ট্যাব সেট করা (যাতে কালার এবং ডাটা মেলে)
-    // যদি আপনি চান প্রথমে সাপ্লায়ার দেখাবে, তবে এখানে 'SUPPLIER' লিখে দিন
-    db.tab = 'CUSTOMER'; 
-
-    // ২. switchTab কল করা যাতে বাটন হাইলাইট এবং ডাটা লোড—দুটোই একসাথে হয়
-    switchTab(db.tab); 
-
-    // ৩. ইউজার ইনিশিয়াল আপডেট করা
-    if(db.admin && document.getElementById('userInitials')) {
-        document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
-    }
-}
+         
           function logout() {
     if(confirm("Are you sure you want to terminate this secure session?")) {
         // লগআউট করার সময় সিক্রেট মোড পার্মানেন্টলি অফ করে রিফ্রেশ করা
