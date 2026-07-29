@@ -664,42 +664,45 @@ function renderHome() {
         let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
         let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
 
-        // ৫. মাল্টিপল ইমেজ রেন্ডার করা
         let imgs = (t.images || []).map(i => `
-            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100" 
+            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-200" 
                  onclick="window.open('${i}')">
         `).join("");
 
-        // ৬. লিস্টে ডাটা পুশ (পয়েন্ট অনুযায়ী ডিলিট হলে ধূসর কালার)
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                <div class="text-[8px] font-black text-slate-300 uppercase mb-2 px-2">${t.date}</div>
+                <!-- Date (একটু ডিপ করা হলো - text-slate-500) -->
+                <div class="text-[9px] font-bold text-slate-600 uppercase mb-2 px-2 tracking-wider">${t.date}</div>
                 
                 <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                    <!-- Images Area -->
                     ${imgs ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>` : ''}
                     
                     <div class="flex justify-between items-center gap-6">
                         <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
                             ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
                         </h3>
-                        <p class="text-[8px] font-bold text-slate-300 uppercase">${t.type}</p>
+                        <!-- Type Label (ডিপ করা হলো - text-slate-500) -->
+                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">${t.type}</p>
                     </div>
 
-                    <!-- Note & Managed By -->
-                    <p class="text-[10px] text-slate-600 italic mt-2 leading-tight">${t.note || ''}</p>
-                    <div class="mt-2 border-t border-slate-50 pt-1 flex justify-between items-center">
-                        <p class="text-[7px] text-slate-300 uppercase font-black">By: ${t.by || 'Owner'}</p>
-                        ${isDel ? '<span class="text-[8px] text-rose-300 font-bold uppercase italic">Canceled Entry</span>' : ''}
+                    <!-- Note (টেক্সট ডিপ করা হলো - text-slate-700) -->
+                    <p class="text-[11px] text-slate-800 font-medium mt-2 leading-tight">${t.note || ''}</p>
+                    
+                    <!-- Managed By Section (কালার ডিপ করা হলো - text-slate-500) -->
+                    <div class="mt-2 border-t border-slate-100 pt-1 flex justify-between items-center">
+                        <p class="text-[8px] text-slate-600 uppercase font-black">
+                            <i class="fas fa-user text-[7px] mr-1 opacity-70"></i> By: ${t.by || 'Owner'}
+                        </p>
+                        ${isDel ? '<span class="text-[8px] text-rose-500 font-bold uppercase italic">Canceled</span>' : ''}
                     </div>
 
-                    <!-- Action Icons (ডিলিট করা থাকলে এগুলো কাজ করবে না) -->
+                    <!-- Action Icons -->
                     ${!isDel ? `
-                    <div class="flex gap-5 mt-4 pt-2 border-t border-slate-50 items-center">
-                        <i class="fas fa-edit text-indigo-300 text-xs active:text-indigo-600" onclick="editTx(${p.id}, ${t.id})"></i>
-                        <i class="fas fa-trash text-rose-200 text-xs active:text-rose-600" onclick="deleteTx(${t.id})"></i>
-                        <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto active:text-emerald-600" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                        ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
+                    <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
+                        <i class="fas fa-edit text-indigo-400 text-sm active:text-indigo-700" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash-alt text-rose-300 text-sm active:text-rose-600" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto active:text-emerald-700" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-400 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
                     </div>
                     ` : ''}
                 </div>
@@ -1117,12 +1120,88 @@ window.addEventListener('popstate', function (event) {
 function initNavigation() {
     history.pushState(null, null, window.location.pathname);
 }
+        function openAddModal() { 
+    // ইনপুট ফিল্ডগুলো খালি করা হচ্ছে
+    document.getElementById('newPName').value = ""; 
+    document.getElementById('newPPhone').value = ""; 
+    // মোডাল শো করা হচ্ছে
+    document.getElementById('addModal').classList.remove('hidden'); 
+}
+        function closeDrawer() { 
+    document.getElementById('entryDrawer').classList.remove('open'); 
+    setTimeout(() => {
+        document.getElementById('entryDrawer').classList.add('hidden'); 
+        // ইনপুট এবং ছবি ক্লিয়ার করা হচ্ছে
+        document.getElementById('txAmt').value = ""; 
+        document.getElementById('txNote').value = ""; 
+        capturedFiles = []; 
+        document.getElementById('multiImgPreview').innerHTML = "";
+    }, 400); 
+}
+        function confirmAdd() { 
+    const n = document.getElementById('newPName').value; 
+    const ph = document.getElementById('newPPhone').value; 
+    
+    if(n && ph.length === 10) { 
+        db.people.unshift({id: Date.now(), name: n, phone: ph, type: db.tab, transactions: []}); 
+        saveDB(); 
+        
+        // সেভ হওয়ার পর ইনপুট খালি করা হচ্ছে
+        document.getElementById('newPName').value = ""; 
+        document.getElementById('newPPhone').value = ""; 
+        
+        document.getElementById('addModal').classList.add('hidden'); 
+        renderHome(); 
+    } else {
+        alert("Invalid Name or 10-digit Phone Number!"); 
+    }
+}
+        // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
+function removeImage(index) {
+    // ১. গ্লোবাল অ্যারে থেকে ছবিটি বাদ দেওয়া
+    capturedFiles.splice(index, 1);
+    
+    // ২. প্রিভিউ লিস্ট পুনরায় রেন্ডার করা
+    renderThumbnails();
+}
+        function renderThumbnails() {
+    const container = document.getElementById('multiImgPreview');
+    if(!container) return;
+    
+    container.innerHTML = ""; // আগের প্রিভিউ ক্লিয়ার করা
+    
+    capturedFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        
+        // প্রতিটি ইমেজের জন্য একটি কন্টেইনার এবং ক্রস বাটন তৈরি
+        container.innerHTML += `
+            <div class="relative w-14 h-14 mr-1 mb-1">
+                <img src="${url}" class="w-full h-full object-cover rounded-lg border shadow-sm">
+                <!-- লাল ক্রস বাটন -->
+                <div onclick="removeImage(${index})" 
+                     class="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full w-5 h-5 flex items-center justify-center shadow-md border border-slate-100 cursor-pointer active:scale-90 transition-transform">
+                    <i class="fas fa-times-circle text-[12px]"></i>
+                </div>
+            </div>
+        `;
+    });
+    
+    // যদি কোনো ছবি না থাকে তবে কন্টেইনার হাইড রাখা
+    if(capturedFiles.length > 0) {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+}
+        function handleImageFiles(f) { 
+    if(!f) return; 
+    capturedFiles.push(f); 
+    renderThumbnails(); // এটি কল করতে হবে
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
-        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
-        function confirmAdd() { const n=document.getElementById('newPName').value, ph=document.getElementById('newPPhone').value; if(n && ph.length===10) { db.people.unshift({id:Date.now(), name:n, phone:ph, type:db.tab, transactions:[]}); saveDB(); document.getElementById('addModal').classList.add('hidden'); renderHome(); } else alert("Invalid Name/Phone!"); }
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
@@ -1133,7 +1212,6 @@ function initNavigation() {
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
         function triggerDrawer(t) { history.pushState(null, null, window.location.pathname);document.getElementById('entryDrawer').classList.remove('hidden'); setTimeout(()=>document.getElementById('entryDrawer').classList.add('open'), 10); document.getElementById('drawerActionType').innerText=t; document.getElementById('txDate').value=new Date().toISOString().split('T')[0]; document.getElementById('mainConfirmBtn').onclick=()=>preSave(t); }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[]; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
