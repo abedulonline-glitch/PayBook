@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PayBook Pro | Axis Premium Edition</title>
     
-    <!-- External Dependencies -->
+    <!-- লাইব্রেরি এবং ডিপেন্ডেন্সি সমূহ (Point 13: Firebase Config) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -14,42 +14,50 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        /* ১. ফন্ট এবং গ্লোবাল স্টাইল */
+        /* এক্সিস ব্যাংক প্রিমিয়াম থিম (Point 7) */
         @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700;900&display=swap');
         :root { --axis-burgundy: #861F41; --axis-grey: #F4F7F9; }
         body { font-family: 'Public Sans', sans-serif; background-color: var(--axis-grey); color: #333; margin: 0; overflow: hidden; user-select: none; }
-        
         .axis-gradient { background: linear-gradient(135deg, #861F41 0%, #631430 100%); }
         .axis-input { @apply w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#861F41] bg-white text-slate-700; }
         
-        /* ২. ট্রানজ্যাকশন বাবল ডিজাইন */
+        /* ট্রানজ্যাকশন বাবল (পয়েন্ট ৫: Given/Received চেনা যাবে) */
         .bubble { max-width: 85%; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); background: white; border-radius: 1.2rem; border: 1px solid #eee; }
         .bubble-left { align-self: flex-start; border-left: 5px solid #861F41; border-top-left-radius: 0; }
         .bubble-right { align-self: flex-end; border-right: 5px solid #10b981; border-top-right-radius: 0; }
 
-        /* ৩. এনিমেশন এবং ইউটিলিটি */
+        /* পিন ইনপুট (পয়েন্ট ৮: ছোট এবং স্মার্ট) */
+        .pin-box { height: 50px !important; font-size: 1.5rem !important; letter-spacing: 0.8rem !important; }
+
         #entryDrawer { transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
         #entryDrawer.open { transform: translateY(0); }
-        .tx-deleted { opacity: 0.3 !important; filter: grayscale(1); text-decoration: line-through; pointer-events: none; }
         .hidden { display: none !important; }
         #mainViewport { height: calc(100vh - 65px); overflow-y: auto; scroll-behavior: smooth; }
         
-        /* ৪. সিক্রেট ব্লিনকিং ইফেক্ট */
+        /* সিক্রেট ব্লিনকিং (পয়েন্ট ৪) */
         .blink-secret { animation: blinker 1s linear infinite; color: #ff4d4d !important; font-weight: 900; }
         @keyframes blinker { 50% { opacity: 0.2; } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+   
+        .tx-deleted { 
+        opacity: 0.3 !important; /* হালকা ধূসর দেখাবে */
+        filter: grayscale(1); /* রঙ চলে যাবে */
+        text-decoration: line-through; /* মাঝখানে কাটা দাগ পড়বে */
+        pointer-events: none; /* আর কোনো ক্লিক কাজ করবে না */
+}
+        /* বাটন হাইড করার এনিমেশন */
+#ledgerFooter {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-        /* ৫. বাটন হাইড এনিমেশন */
-        #ledgerFooter { transition: transform 0.4s ease-in-out; }
-        .footer-hidden { transform: translateY(120%); }
-
-        /* ৬. পিন বক্স স্টাইল */
-        .pin-box { height: 50px !important; font-size: 1.5rem !important; letter-spacing: 0.8rem !important; }
+.footer-hidden {
+    transform: translateY(120%); /* এটি বাটনকে স্ক্রিনের নিচে ঠেলে দিবে */
+}
     </style>
 </head>
 <body>
 
-    <!-- ১. অথেনটিকেশন স্ক্রিন (লগইন/রেজিস্টার) -->
+    <!-- ১. অথেনটিকেশন স্ক্রিন (Point 1a, 8, 12, 14) -->
     <div id="authScreen" class="fixed inset-0 z-[5000] bg-white flex flex-col items-center justify-center p-8 overflow-y-auto">
         <div class="w-full max-w-md text-center bg-white p-8 rounded-[3rem] shadow-xl border">
             <div class="w-20 h-20 axis-gradient rounded-3xl mx-auto mb-4 flex items-center justify-center text-white text-3xl font-black shadow-xl">PB</div>
@@ -60,545 +68,1269 @@
                 <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
             </div>
 
-            <!-- লগইন সেকশন -->
-            <div id="loginBox" class="space-y-4 animate-fade">
-                <input type="number" id="loginPhone" placeholder="10-Digit Mobile Number" class="axis-input">
-                <input type="password" id="loginPin" placeholder="4-Digit PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
-                <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Secure Access</button>
+            <div id="loginBox" class="space-y-4">
+                <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
+                <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
+                <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Unlock Account</button>
             </div>
 
-            <!-- রেজিস্ট্রেশন সেকশন -->
-            <div id="regBox" class="hidden space-y-4 text-left animate-fade">
-                <input type="text" id="regName" placeholder="Owner / Business Name" class="axis-input">
-                <input type="number" id="regPhone" placeholder="Your Mobile Number" class="axis-input">
-                <input type="password" id="regPin" placeholder="Set 4-Digit Access PIN" maxlength="4" class="axis-input text-center pin-box">
-                <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-lg uppercase">Register Now</button>
-            </div>
-
-            <div class="mt-8 text-center">
-                <p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-                    <i class="fas fa-shield-halved text-emerald-500"></i> Global Firestore Encrypted
-                </p>
+            <div id="regBox" class="hidden space-y-4 text-left">
+                <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
+                <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
+                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center pin-box">
+                <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-lg uppercase">Register Profile</button>
             </div>
         </div>
     </div>
 
-    <!-- ২. মেইন অ্যাপ ইউজার ইন্টারফেস -->
-    <div id="appBody" class="hidden min-h-screen">
-        <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
-            <!-- মেইন ড্যাশবোর্ড হেডার -->
-            <div id="headerMain" class="flex justify-between items-center w-full">
-                <div class="flex items-center gap-3">
-                    <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">PB</div>
-                    <h1 class="text-xl font-black italic tracking-tighter">PayBook</h1>
-                </div>
-                <div class="flex gap-5 items-center">
-                    <i class="fas fa-search opacity-80 text-lg" onclick="toggleSearchBar()"></i>
-                    <i class="fas fa-share-nodes opacity-80" onclick="shareApp()"></i>
-                    <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <i class="fas fa-cog opacity-80" onclick="showSettings()"></i>
+<!-- ২. মেইন অ্যাপ ইউআই -->
+<div id="appBody" class="hidden min-h-screen">
+    <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
+        <div id="headerMain" class="flex justify-between items-center w-full">
+            <div class="flex items-center gap-3">
+                <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">PB</div>
+                <h1 class="text-xl font-black italic">PayBook</h1>
+            </div>
+            <div class="flex gap-5 items-center">
+                <!-- নতুন সার্চ আইকন -->
+                <i class="fas fa-search opacity-80 text-lg" onclick="toggleSearchBar()"></i>
+                <i class="fas fa-share-nodes opacity-80" onclick="shareApp()"></i>
+                <i class="fas fa-file-pdf opacity-80" onclick="askPin(handleSmartPdfDownload)"></i>
+                <i class="fas fa-cog opacity-80" onclick="showSettings()"></i>
+            </div>
+        </div>
+        
+        <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
+        <!-- লেজার হেডার আপডেট: নামের অংশটি ক্লিকযোগ্য করা হলো -->
+<div id="headerLedger" class="hidden flex justify-between items-center w-full">
+    <div class="flex items-center gap-4">
+        <i class="fas fa-arrow-left" onclick="goHome()"></i>
+        <!-- এখানে onclick যোগ করা হয়েছে -->
+        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
+            <h2 id="lName" class="text-sm font-bold leading-none">Client</h2>
+            <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
+        </div>
+    </div>
+    <div class="flex items-center gap-3">
+        <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
+        <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
+        <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
+    </div>
+</div>
+
+        <!-- ড্রপডাউন সার্চ বার -->
+        <div id="searchBarContainer" class="hidden absolute top-[65px] left-0 right-0 bg-white p-3 shadow-md z-[110] border-b">
+            <div class="relative">
+                <input type="text" id="searchInput" oninput="renderHome()" placeholder="Search Name or Phone..." 
+                       class="w-full p-3 pl-10 rounded-xl bg-slate-100 outline-none border focus:border-[#861F41] text-sm text-slate-700">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <i class="fas fa-times absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" onclick="toggleSearchBar()"></i>
+            </div>
+        </div>
+    </header>
+
+    <div id="mainViewport" class="bg-slate-50">
+        <!-- হোম স্ক্রিন -->
+        <div id="pageHome" class="flex flex-col">
+            <!-- স্টিকি ট্যাব সেকশন (এটি স্ক্রোল হবে না) -->
+            <div class="sticky top-0 z-40 bg-slate-50 p-5 pb-2">
+                <div class="flex bg-white p-1 rounded-xl border shadow-sm">
+                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white transition-all">CUSTOMERS</button>
+                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
                 </div>
             </div>
-            
-            <!-- কাস্টমার লেজার হেডার (পয়েন্ট ১১: ব্যাক বাটন এবং ক্লিকযোগ্য নাম) -->
-            <div id="headerLedger" class="hidden flex justify-between items-center w-full">
-                <div class="flex items-center gap-4">
-                    <div onclick="goHome()" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full active:bg-white/20 transition-all">
-                        <i class="fas fa-arrow-left text-white"></i>
-                    </div>
-                    <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
-                        <h2 id="lName" class="text-sm font-bold leading-none">Account</h2>
-                        <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
-                    <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
-                    <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
-                </div>
+                <div id="contactList" class="space-y-3"></div>
+                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
             </div>
 
-            <!-- ড্রপডাউন সার্চ বার -->
-            <div id="searchBarContainer" class="hidden absolute top-[65px] left-0 right-0 bg-white p-3 shadow-2xl z-[110] border-b">
-                <div class="relative">
-                    <input type="text" id="searchInput" oninput="renderHome()" placeholder="Search Name or Phone..." 
-                           class="axis-input !bg-slate-50 pl-10 h-12 text-sm border-none outline-none">
-                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                    <i class="fas fa-times absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" onclick="toggleSearchBar()"></i>
-                </div>
-            </div>
-        </header>
-
-        <div id="mainViewport" class="bg-slate-50">
-            <!-- ৩. হোম স্ক্রিন: কাস্টমার/সাপ্লায়ার লিস্ট -->
-            <div id="pageHome" class="flex flex-col pt-0 animate-fade">
-                <!-- স্টিকি ট্যাব সেকশন (গ্যাপ মুক্ত) -->
-                <div id="tab-sticky-box" class="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-3 shadow-sm">
-                    <div class="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
-                        <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all uppercase tracking-widest">Customers</button>
-                        <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all uppercase tracking-widest">Suppliers</button>
-                    </div>
-                </div>
-                <!-- লিস্ট এরিয়া -->
-                <div id="contactList" class="p-5 pt-4 space-y-3"></div>
-                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90 z-50"><i class="fas fa-plus"></i></button>
-            </div>
-
-            <!-- ৪. লেজার স্ক্রিন (লেনদেনের ইতিহাস) -->
-            <div id="pageLedger" class="hidden flex flex-col p-4 pb-40">
+            <!-- লেজার: লেনদেন পেজ -->
+            <div id="pageLedger" class="hidden flex flex-col p-4">
                 <div id="ledgerList" class="flex flex-col"></div>
+                <div class="fixed bottom-8 left-5 right-5 flex gap-3 z-[150]">
+                    <button onclick="triggerDrawer('GIVEN')" class="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-2xl">↑ GIVEN</button>
+                    <button onclick="triggerDrawer('RECEIVED')" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-2xl">↓ RECEIVED</button>
+                </div>
             </div>
-        </div>
-
-        <!-- স্টিকি বটম বাটন (Scroll to Hide লজিক সহ) -->
-        <div id="ledgerFooter" class="hidden bottom-bar">
-            <button onclick="triggerDrawer('GIVEN')" class="flex-1 bg-rose-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs tracking-widest">↑ Given (মাল দিয়েছি)</button>
-            <button onclick="triggerDrawer('RECEIVED')" class="flex-1 bg-emerald-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs tracking-widest">↓ Received (টাকা পেয়েছি)</button>
         </div>
     </div>
 
-    <!-- ৫. স্মার্ট ডাটা এন্ট্রি ড্রয়ার (Multi-Image & Collection Date) -->
+    <!-- ৩. স্মার্ট ডাটা এন্ট্রি ড্রয়ার (Point 3a, 3b, 3e, 3f) -->
     <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
-            <div class="w-16 h-1.5 bg-slate-100 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
-            <div class="text-center mb-10">
-                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Amount to Add</p>
-                <div class="flex items-center justify-center gap-3 mt-4">
-                    <span class="text-4xl font-black text-slate-200">₹</span>
-                    <input type="number" id="txAmt" placeholder="0.00" class="text-6xl font-black text-[#861F41] bg-transparent outline-none w-3/4 text-center border-b-4 border-slate-50 focus:border-[#861F41] pb-4 transition-all">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-8 shadow-2xl">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
+            <div class="text-center mb-8">
+                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase">Input Amount</p>
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <span class="text-4xl font-black text-slate-300">₹</span>
+                    <input type="number" id="txAmt" placeholder="0.00" class="text-6xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2">
                 </div>
             </div>
             <div class="space-y-4 mb-10">
-                <input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="axis-input bg-slate-50 border-none">
-                <!-- Point 3f: Next Collection Date -->
-                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4 border border-slate-100" onclick="document.getElementById('nextCollDate').showPicker()">
-                    <i class="fas fa-hand-holding-dollar text-slate-300 text-lg"></i>
-                    <div class="flex-1">
-                        <p class="text-[8px] font-black text-slate-400 uppercase">Next Collection Date</p>
-                        <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-sm font-bold text-[#861F41]">
-                    </div>
-                </div>
-                <input type="date" id="txDate" class="axis-input bg-slate-50 border-none">
-                <!-- Point 3a: Multi Image Area -->
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
+                <!-- Next Collection Date Input -->
+<div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4 mt-3 border border-slate-100" 
+     onclick="document.getElementById('nextCollDate').showPicker()">
+    <i class="fas fa-hand-holding-dollar text-slate-300 text-lg"></i>
+    <div class="flex-1">
+        <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Next Collection Date</p>
+        <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-sm font-bold text-[#861F41]">
+    </div>
+    <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
+</div>
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
                 <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
-                    <p class="text-sm font-bold text-slate-500 uppercase tracking-tighter text-[10px]">Add Bill Image(s)</p>
+                    <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
                     <div class="flex gap-2">
                         <div id="multiImgPreview" class="hidden flex gap-1"></div>
-                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300 active:bg-[#861F41] active:text-white transition-all"><i class="fas fa-camera"></i></button>
+                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300 transition-all active:bg-[#861F41] active:text-white"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
             </div>
-            <button id="mainConfirmBtn" class="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black shadow-xl uppercase tracking-widest">Confirm Transaction</button>
+            <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black shadow-xl uppercase tracking-widest">Confirm Transaction</button>
         </div>
     </div>
 
-    <!-- ৬. মোডাল সিস্টেম (Settings, Add, PIN, Zoom) -->
+    <!-- ৪. মিডিয়া, পিন এবং সেটিংস মোডাল (Point 1b, 1c, 1d, 7, 11) -->
+    <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[3000]">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[2.5rem] p-10 flex justify-around shadow-2xl">
+            <button onclick="triggerCamera()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-camera"></i></div><span class="text-xs font-bold uppercase tracking-tighter">Camera</span></button>
+            <button onclick="triggerGallery()" class="flex flex-col items-center gap-3"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-[#861F41] text-2xl shadow-inner"><i class="fas fa-image"></i></div><span class="text-xs font-bold uppercase tracking-tighter">Gallery</span></button>
+        </div>
+        <input type="file" id="camInp" accept="image/*" capture="camera" class="hidden">
+        <input type="file" id="galInp" accept="image/*" class="hidden">
+    </div>
+
     <div id="pinModal" class="hidden fixed inset-0 bg-black/80 z-[4000] flex items-center justify-center p-8">
-        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-12 text-center shadow-2xl">
-            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest leading-none">Secure PIN</h3>
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-12 text-center shadow-2xl">
+            <i class="fas fa-shield-halved text-5xl text-[#861F41] mb-8"></i>
+            <h3 class="text-xl font-black mb-10 text-[#861F41] uppercase tracking-widest leading-none">Verification</h3>
             <input type="password" id="confirmPinInput" maxlength="4" class="axis-input text-center pin-box h-14 mb-10 shadow-inner">
             <div class="flex gap-4">
-                <button onclick="closePinModal()" class="flex-1 font-bold text-slate-400 uppercase text-[10px]">Back</button>
-                <button id="pinSubmitBtn" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold uppercase text-[10px]">Verify</button>
+                <button onclick="closePinModal()" class="flex-1 font-bold text-slate-400 uppercase text-[10px]">Go Back</button>
+                <button id="pinSubmitBtn" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold uppercase text-[10px]">Confirm PIN</button>
             </div>
         </div>
     </div>
 
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="flex justify-between items-center mb-6">
+    <i class="fas fa-chevron-left text-slate-300" onclick="handleGlobalBack()"></i>
+    <h3 class="text-xl font-bold uppercase">Title Here</h3>
+    <span></span>
+</div>
         <div class="bg-white w-full rounded-t-[3rem] p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase tracking-widest">Security Center</h3>
-            <div id="adminControls" class="space-y-3">
-                <button onclick="hireManager()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3 italic tracking-tight">Hire New Manager <i class="fas fa-user-plus"></i></button>
+            <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase tracking-widest">Management Center</h3>
+            
+            <div id="adminControls" class="space-y-3 text-center">
+                <!-- ম্যানেজার নিয়োগ (পয়েন্ট ১বি, ৯) -->
+                <button onclick="hireManager()" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold italic">Hire New Manager <i class="fas fa-user-plus"></i></button>
                 <div id="mgrList" class="space-y-2 mb-6"></div>
                 <button onclick="askPin(changePin)" class="w-full p-6 bg-slate-50 rounded-3xl flex justify-between font-bold mb-3">Change PIN <i class="fas fa-key"></i></button>
-                <button onclick="transferAcc()" class="w-full p-6 bg-slate-50 rounded-2xl flex justify-between font-bold mb-8">Transfer Phone <i class="fas fa-exchange"></i></button>
+                <button onclick="transferAcc()" class="w-full p-6 bg-slate-50 rounded-2xl flex justify-between font-bold mb-8">Transfer Account <i class="fas fa-exchange"></i></button>
             </div>
-            <button onclick="logout()" class="w-full py-5 bg-rose-50 text-rose-500 font-bold uppercase rounded-3xl border border-rose-100 mb-6 tracking-widest text-[10px]"><i class="fas fa-power-off"></i> Secure Logout</button>
-            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-[2.5rem] font-black shadow-xl">BACK</button>
+
+            <!-- লগআউট (পয়েন্ট ১ডি) -->
+            <button onclick="logout()" class="w-full py-5 bg-rose-50 text-rose-500 font-bold uppercase rounded-3xl border border-rose-100 mb-6"><i class="fas fa-power-off"></i> Secure Logout</button>
+            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="axis-gradient text-white w-full py-4 rounded-[2rem] font-black shadow-xl">BACK TO LEDGER</button>
         </div>
     </div>
 
     <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="flex justify-between items-center mb-6">
+    <i class="fas fa-chevron-left text-slate-300" onclick="handleGlobalBack()"></i>
+    <h3 class="text-xl font-bold uppercase">Title Here</h3>
+    <span></span>
+</div>
         <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
-            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Create Profile</h3>
-            <input id="newPName" type="text" placeholder="Full Name" class="axis-input mb-4">
+            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">New Account</h3>
+            <input id="newPName" type="text" placeholder="Contact Full Name" class="axis-input mb-4">
             <input id="newPPhone" type="number" placeholder="Mobile (Unique)" class="axis-input mb-10">
             <div class="flex gap-4">
                 <button onclick="document.getElementById('addModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Exit</button>
-                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg">CREATE</button>
+                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">SAVE</button>
             </div>
         </div>
     </div>
-
-    <div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
-            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Update Account</h3>
-            <input id="editPName" type="text" placeholder="Edit Full Name" class="axis-input mb-4">
-            <input id="editPPhone" type="number" placeholder="Edit Mobile Number" class="axis-input mb-10">
-            <div class="flex gap-4">
-                <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
-                <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg">Save Changes</button>
-            </div>
+    <!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল -->
+<div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+    <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
+        <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Update Account</h3>
+        <input id="editPName" type="text" placeholder="Edit Full Name" class="axis-input mb-4">
+        <input id="editPPhone" type="number" placeholder="Edit Mobile Number" class="axis-input mb-10">
+        <div class="flex gap-4">
+            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
+            <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">Save Changes</button>
         </div>
     </div>
-
-    <div id="imageZoomModal" class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" onclick="closeZoom()">
-        <button class="absolute top-10 right-8 text-white text-3xl opacity-70"><i class="fas fa-times-circle"></i></button>
-        <img id="zoomedImg" src="" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl transition-transform transform scale-95" onclick="event.stopPropagation()">
-    </div>
+</div>
+    <!-- Image Full-Screen Zoom Modal -->
+<div id="imageZoomModal" class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" onclick="closeZoom()">
+    <!-- ক্লোজ বাটন -->
+    <button class="absolute top-10 right-8 text-white text-3xl opacity-70 hover:opacity-100 transition-all">
+        <i class="fas fa-times-circle"></i>
+    </button>
+    <!-- জুম হওয়া ইমেজ -->
+    <img id="zoomedImg" src="" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl transition-transform duration-300 transform scale-95" onclick="event.stopPropagation()">
+</div>
 
     <script>
-        // --- ১. ফায়ারবেস এবং গ্লোবাল কনফিগারেশন (Point 13) ---
-        const firebaseConfig = { 
-            apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", 
-            authDomain: "paybook-cc6be.firebaseapp.com", 
-            projectId: "paybook-cc6be", 
-            storageBucket: "paybook-cc6be.firebasestorage.app", 
-            messagingSenderId: "1000801647538", 
-            appId: "1:1000801647538:web:648ac804d8d75a0811c2ab", 
-            measurementId: "G-TFX1Y6FH29" 
-        };
+        // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (Point 13) ---
+        // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (V18: পিন-বেসড রাউটিং ফিক্স) ---
+const firebaseConfig = { 
+    apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ", 
+    authDomain: "paybook-cc6be.firebaseapp.com", 
+    projectId: "paybook-cc6be", 
+    storageBucket: "paybook-cc6be.firebasestorage.app", 
+    messagingSenderId: "1000801647538", 
+    appId: "1:1000801647538:web:648ac804d8d75a0811c2ab", 
+    measurementId: "G-TFX1Y6FH29" 
+};
 
-        firebase.initializeApp(firebaseConfig);
-        const db_fs = firebase.firestore();
+// ফায়ারবেস ইনিশিয়ালাইজেশন
+firebase.initializeApp(firebaseConfig);
+const db_fs = firebase.firestore();
 
-        // কী-সমূহ (Constants)
-        const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
-        const MASTER_PIN = "5000"; 
-        const COLLECTION = "global_paybook_ledgers"; 
-        const ACCESS_KEYS = "access_keys"; // পিন-বেসড রাউটিং (V18 ফিক্স)
-        const DB_KEY = 'PayBook_V18_Final_Master';
+// কনস্ট্যান্টস (Constants)
+const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
+const MASTER_PIN = "5000"; 
+const COLLECTION = "global_paybook_ledgers"; // যেখানে মূল হিসাব থাকবে
+const ACCESS_KEYS = "access_keys"; // রাউটিং এর জন্য নতুন কালেকশন (পয়েন্ট ৯ ফিক্স)
+const DB_KEY = 'PayBook_V18_Master_Verified'; // নতুন ভার্সন কী
 
-        // গ্লোবাল স্টেট (App State)
-        let db = { admin: null, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: '', ownerPhone: '' };
-        let holdTimer, autoExitTimer, capturedFiles = [];
+// গ্লোবাল স্টেট (App State)
+let db = { 
+    admin: null, 
+    people: [], 
+    managers: [], 
+    secret: false, 
+    tab: 'CUSTOMER', 
+    activeId: null, 
+    role: 'ADMIN', // ADMIN অথবা MANAGER
+    opName: '', 
+    ownerPhone: '' // এই কি-টি দিয়ে ডাটা লোড হবে
+};
 
-        // --- ২. অ্যাপ স্টার্টআপ লজিক (Point 12, 14) ---
+let holdTimer, autoExitTimer, capturedImgFiles = [];
+let capturedFiles = [];
+        // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = () => {
-            const data = localStorage.getItem(DB_KEY);
-            if(data) {
-                db = JSON.parse(data);
-                
-                // অ্যাপ রিফ্রেশ করলে সর্বদা সিক্রেট মোড অফ হয়ে যাবে
-                db.secret = false; 
-                localStorage.setItem(DB_KEY, JSON.stringify(db));
-                
-                if(db.admin && db.admin.phone) { 
-                    toggleAuth('LOGIN'); 
-                    syncCloud(); 
-                    document.getElementById('userInitials').innerText = db.admin.name.substring(0,2).toUpperCase();
-                } else {
-                    toggleAuth('REG');
+    const data = localStorage.getItem(DB_KEY);
+    if(data) {
+        db = JSON.parse(data);
+        
+        // অ্যাপ রিফ্রেশ করলে সর্বদা সিক্রেট মোড অফ হয়ে যাবে
+        db.secret = false; 
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); // পাক্কা স্টেট সেভ করা হলো
+        
+        if(db.admin && db.admin.phone) { 
+            toggleAuth('LOGIN'); 
+            syncCloud(); 
+        } else {
+            toggleAuth('REG');
+        }
+    } else {
+        toggleAuth('REG');
+    }
+
+     let lastScrollTop = 0;
+const viewport = document.getElementById('mainViewport');
+const footer = document.getElementById('ledgerFooter');
+
+// স্ক্রোল ডিটেকশন লজিক
+viewport.addEventListener('scroll', function() {
+    let scrollTop = viewport.scrollTop;
+
+    if (scrollTop > lastScrollTop && scrollTop > 100) {
+        // নিচে স্ক্রোল করলে বাটন হাইড হবে
+        footer.classList.add('footer-hidden');
+    } else {
+        // উপরে স্ক্রোল করলে বাটন আবার আসবে
+        footer.classList.remove('footer-hidden');
+    }
+    
+    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
+}, { passive: true });
+            
+    // UI থেকে সিক্রেট ব্লিনকিং ইফেক্ট সরিয়ে ফেলা
+    const trigger = document.getElementById('secretTrigger');
+    if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+
+    initSecretGesture();
+    setupHistoryBack();
+    
+    document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
+    document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
+};
+
+        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
+        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
+function syncCloud() {
+    if(db.admin && db.admin.phone) {
+        // Firestore Real-time Listener (onSnapshot)
+        db_fs.collection(COLLECTION).doc(db.admin.phone)
+            .onSnapshot((doc) => {
+                if (doc.exists) {
+                    const cloudData = doc.data();
+                    
+                    // বর্তমান লোকাল ডাটা এবং ক্লাউড ডাটা মার্জ করা
+                    // এটি নিশ্চিত করে যে আপনার করা এন্ট্রি এবং অন্যের পাঠানো এন্ট্রি দুটোই ঠিক থাকে
+                    db.people = cloudData.people || [];
+                    db.managers = cloudData.managers || [];
+                    db.admin = cloudData.admin;
+
+                    localStorage.setItem(DB_KEY, JSON.stringify(db)); // লোকাল আপডেট
+                    renderHome(); // হোম স্ক্রিন রিফ্রেশ
+                    console.log("Live Sync: Data Received from Cloud");
                 }
-            } else {
-                toggleAuth('REG');
-            }
-            
-            initSecretGesture();
-            setupScrollToHide();
-            setupHistoryBack();
-            
-            // মিডিয়া ইনপুট হ্যান্ডলার
-            document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
-            document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
-        };
-
-        // --- ৩. ডাটা সেভ এবং ক্লাউড সিঙ্ক (Point 9: মিরর সিঙ্কিং) ---
-        async function saveDB() {
-            localStorage.setItem(DB_KEY, JSON.stringify(db));
-            const targetDocId = db.ownerPhone || (db.admin ? db.admin.phone : null);
-            if(targetDocId) {
-                try {
-                    await db_fs.collection(COLLECTION).doc(targetDocId).set(db);
-                    console.log("Global Sync: Verified Success ✅");
-                } catch (e) { console.error("Sync Failed:", e); }
-            }
-        }
-
-        async function syncCloud() {
-            const ph = db.ownerPhone || db.admin.phone;
-            if(ph) {
-                const doc = await db_fs.collection(COLLECTION).doc(ph).get();
-                if(doc.exists) { db = doc.data(); renderHome(); }
-            }
-        }
-
-        // --- ৪. অথেনটিকেশন ফাংশন সমূহ (Point 1a, 9: পিন রাউটিং) ---
-        function toggleAuth(mode) {
+            }, (error) => {
+                console.error("Sync error:", error);
+            });
+    }
+} function toggleAuth(mode) {
             document.getElementById('loginBox').classList.toggle('hidden', mode==='REG');
             document.getElementById('regBox').classList.toggle('hidden', mode==='LOGIN');
-            document.getElementById('tabLogin').className = mode==='LOGIN' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
-            document.getElementById('tabReg').className = mode==='REG' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
+            document.getElementById('tabLogin').className = mode==='LOGIN' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
+            document.getElementById('tabReg').className = mode==='REG' ? "flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400";
         }
 
-        async function handleRegistration() {
-            const n = document.getElementById('regName').value.trim(), ph = document.getElementById('regPhone').value.trim(), p = document.getElementById('regPin').value.trim();
-            if(!n || ph.length !== 10 || p.length < 4) return alert("Error: Provide Name, 10-digit Phone and PIN!");
-            
-            const accessKey = ph + p;
-            try {
-                // ১. চেক করা হচ্ছে কি-টি ফ্রি আছে কি না
-                const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
-                const keyDoc = await keyRef.get();
-                if(keyDoc.exists) return alert("Error: This Mobile/PIN combination is already registered!");
+        // ২. রেজিস্ট্রেশন ফাংশন সংশোধন (Point 2: পিন-বেসড রাউটিং লজিক সহ)
+async function handleRegistration() {
+    const n = document.getElementById('regName').value.trim();
+    const ph = document.getElementById('regPhone').value.trim();
+    const p = document.getElementById('regPin').value.trim();
+    const accessKey = ph + p;
 
-                // ২. ডাটা অবজেক্ট তৈরি
-                db = { admin: { name: n, phone: ph, pin: p }, people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: n, ownerPhone: ph };
+    if(!n || ph.length !== 10 || p.length < 4) {
+        return alert("Error: Provide Owner Name, 10-digit Mobile, and 4-digit PIN!");
+    }
 
-                // ৩. ডাবল ডক সেভ (রাউটিং + মেইন ডাটা)
-                await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
-                await saveDB();
+    try {
+        // ১. চেক করা হচ্ছে এই পিন কম্বিনেশন কি অলরেডি বুকড?
+        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
+        const keyDoc = await keyRef.get();
+        if(keyDoc.exists) return alert("This PIN is already used for this number. Use another.");
 
-                alert("Successfully Account Registered! Logging you in...");
+        // ২. মেইন ডাটাবেস চেক করা (অন্য কেউ আমাকে অ্যাড করে রেখেছে কি না)
+        const docRef = db_fs.collection(COLLECTION).doc(ph);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            // যদি সুলতান আপনাকে আগেই অ্যাড করে থাকে, তবে ওই ডাটা আপনার প্রোফাইল হবে
+            db = doc.data();
+            db.admin = { name: n, phone: ph, pin: p }; // এখন আপনিই মালিক
+        } else {
+            // একদম নতুন একাউন্ট
+            db = {
+                admin: { name: n, phone: ph, pin: p },
+                people: [],
+                managers: [],
+                secret: false,
+                tab: 'CUSTOMER',
+                activeId: null,
+                role: 'ADMIN',
+                opName: n,
+                ownerPhone: ph
+            };
+        }
+
+        // ৩. এক্সেস কি এবং মেইন ডাটা সেভ
+        await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
+        await docRef.set(db);
+
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+        alert("Success! Your global account is ready.");
+        location.reload();
+
+    } catch(error) {
+        alert("Registration Failed! Check internet.");
+    }
+}
+// ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
+async function handleLogin() {
+    const ph = document.getElementById('loginPhone').value.trim();
+    const pin = document.getElementById('loginPin').value.trim();
+    const accessKey = ph + pin;
+
+    if(ph.length !== 10 || pin.length < 4) return alert("Enter correct Details!");
+
+    try {
+        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(accessKey).get();
+
+        if (keyDoc.exists) {
+            const routing = keyDoc.data();
+            const docRef = db_fs.collection(COLLECTION).doc(routing.targetOwnerPhone);
+            const doc = await docRef.get();
+
+            if (doc.exists) {
+                db = JSON.parse(JSON.stringify(doc.data())); 
+                db.role = routing.role;
+                db.opName = routing.name;
+                db.ownerPhone = routing.targetOwnerPhone;
+                db.secret = false;
+
+                // --- পয়েন্ট ৯: মিরর কন্টাক্ট ডিসকভারি (নতুন কেউ আমাকে অ্যাড করেছে কি না) ---
+                await discoverMirrorUpdates(ph);
+
+                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
                 enterApp();
-            } catch(e) { alert("Registration Failed! Check internet."); }
-        }
-
-        async function handleLogin() {
-            const ph = document.getElementById('loginPhone').value.trim(), pin = document.getElementById('loginPin').value.trim();
-            if(ph.length !== 10 || pin.length < 4) return alert("Enter correct Mobile & PIN!");
-
-            try {
-                const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(ph + pin).get();
-                if (keyDoc.exists) {
-                    const routing = keyDoc.data();
-                    const docRef = db_fs.collection(COLLECTION).doc(routing.targetOwnerPhone);
-                    const doc = await docRef.get();
-
-                    if (doc.exists) {
-                        db = JSON.parse(JSON.stringify(doc.data())); 
-                        db.role = routing.role; db.opName = routing.name; db.ownerPhone = routing.targetOwnerPhone; db.secret = false;
-                        
-                        // পয়েন্ট ৯: মিরর কন্টাক্ট ডিসকভারি
-                        await discoverMirrorUpdates(ph);
-
-                        localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-                        enterApp();
-                    }
-                } else { alert("No matching account found! Please check or Register."); }
-            } catch (e) { alert("Login failed! Check connection."); }
-        }
-
-        function enterApp() { 
-            document.getElementById('authScreen').classList.add('hidden'); 
-            document.getElementById('appBody').classList.remove('hidden'); 
-            if(db.admin) {
-                document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
-                document.getElementById('balTypeLabel').innerText = (db.role === 'ADMIN') ? "Owner Dashboard" : "Management View: " + db.opName;
+                alert(`Welcome ${routing.name}! Sync Complete.`);
             }
-            renderHome(); 
+        } else {
+            alert("No access found! Please check Phone/PIN or Register.");
+        }
+    } catch (e) { alert("Login failed! Check internet."); }
+}
+
+// এই ফাংশনটি আপনার জন্য অন্য ফোনের ডাটা খুঁজে আনবে
+async function discoverMirrorUpdates(myPhone) {
+    const allDocs = await db_fs.collection(COLLECTION).get();
+    allDocs.forEach(doc => {
+        const otherData = doc.data();
+        if(otherData.admin.phone === myPhone) return;
+
+        // চেক করা: সে কি আমাকে তার লিস্টে রেখেছে?
+        const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
+        if(foundMe) {
+            const alreadyInMyList = db.people.find(p => p.phone === otherData.admin.phone);
+            if(!alreadyInMyList) {
+                db.people.unshift({
+                    id: Date.now() + Math.random(),
+                    name: otherData.admin.name,
+                    phone: otherData.admin.phone,
+                    type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                    transactions: foundMe.transactions.map(t => ({ ...t, type: (t.type==='GIVEN'?'RECEIVED':'GIVEN') }))
+                });
+            }
+        }
+    });
+}
+        
+// --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
+function enterApp() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+
+    // রোল অনুযায়ী সেটিংস এবং ইউজার নেম সেট করা
+    if(db.admin) {
+        document.getElementById('userInitials').innerText = db.opName.substring(0,2).toUpperCase();
+        document.getElementById('balTypeLabel').innerText = (db.role === 'ADMIN') ? "Owner's Dashboard" : "Managed for: " + db.admin.name;
+    }
+
+    // ডিফল্ট ট্যাব সেট করে ডাটা লোড
+    db.tab = 'CUSTOMER';
+    switchTab(db.tab); 
+}
+
+// --- মিরর সিঙ্ক লজিক (Point 9: অটোমেটিক পার্টনার আপডেট) ---
+async function syncToPartner(partnerPhone, txData) {
+    try {
+        const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
+        const doc = await partnerRef.get();
+
+        let partnerDB;
+        if (doc.exists) {
+            partnerDB = doc.data();
+        } else {
+            // যদি পার্টনার এখনো রেজিস্টার না করে, তার জন্য একটি প্লেসহোল্ডার তৈরি হবে
+            partnerDB = { admin: { phone: partnerPhone }, people: [], managers: [] };
         }
 
-        function logout() { if(confirm("Terminate Secure Session?")) { db.secret = false; saveDB(); location.reload(); } }
+        // পার্টনারের লিস্টে আমাকে খুঁজে বের করা
+        let meInHisList = partnerDB.people.find(p => p.phone === db.admin.phone);
 
-        // মিরর কন্টাক্ট অটো-ফ্যাচ (Point 9)
-        async function discoverMirrorUpdates(myPhone) {
-            const allDocs = await db_fs.collection(COLLECTION).get();
-            allDocs.forEach(doc => {
-                const other = doc.data();
-                if(other.admin.phone === myPhone) return;
-                const foundMe = (other.people || []).find(p => p.phone === myPhone);
-                if(foundMe && !db.people.find(p => p.phone === other.admin.phone)) {
-                    db.people.unshift({ id: Date.now() + Math.random(), name: other.admin.name, phone: other.admin.phone, type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), transactions: foundMe.transactions.map(t => ({ ...t, type: (t.type==='GIVEN'?'RECEIVED':'GIVEN') })) });
-                }
-            });
+        if (!meInHisList) {
+            meInHisList = {
+                id: Date.now(),
+                name: db.admin.name,
+                phone: db.admin.phone,
+                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), // আমার কাস্টমার মানে ওর সাপ্লায়ার
+                transactions: []
+            };
+            partnerDB.people.unshift(meInHisList);
         }
 
-        // --- ৫. কোর ক্যালকুলেশন লজিক (Point 2, 3, 6: Strict Isolation) ---
-        function calcBal(txs, isSecMode, pType) {
+        // লেনদেন মিরর করা (টাইপ উল্টে যাবে)
+        const mirrorTx = {
+            ...txData,
+            type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
+            by: db.admin.name + " (Auto-Synced)"
+        };
+
+        meInHisList.transactions.push(mirrorTx);
+        await partnerRef.set(partnerDB);
+        console.log("Global Mirror Sync Done!");
+
+    } catch (e) { console.error("Mirror Sync Error:", e); }
+}
+         function enterApp() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    
+    // ১. পিন দিয়ে ঢোকার পর ডিফল্টভাবে কাস্টমার ট্যাব সেট করা (যাতে কালার এবং ডাটা মেলে)
+    // যদি আপনি চান প্রথমে সাপ্লায়ার দেখাবে, তবে এখানে 'SUPPLIER' লিখে দিন
+    db.tab = 'CUSTOMER'; 
+
+    // ২. switchTab কল করা যাতে বাটন হাইলাইট এবং ডাটা লোড—দুটোই একসাথে হয়
+    switchTab(db.tab); 
+
+    // ৩. ইউজার ইনিশিয়াল আপডেট করা
+    if(db.admin && document.getElementById('userInitials')) {
+        document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
+    }
+}
+          function logout() {
+    if(confirm("Are you sure you want to terminate this secure session?")) {
+        // লগআউট করার সময় সিক্রেট মোড পার্মানেন্টলি অফ করে রিফ্রেশ করা
+        if(db) db.secret = false;
+        saveDB(); 
+        
+        // পিন এবং ফোন ইনপুট ক্লিয়ার করা
+        document.getElementById('loginPhone').value = "";
+        document.getElementById('loginPin').value = "";
+        
+        location.reload(); // এটি পুরো অ্যাপকে ক্লিন স্টেটে নিয়ে যাবে
+    }
+}
+        // --- ৩. ক্যালকুলেশন এবং সিক্রেট লজিক (Point 2, 4, 6, 7, 8) ---
+        function calcBal(txs, isSec, pType) {
             let b = 0;
-            txs.filter(t => t.status === 'active' && !!t.secret === !!isSecMode).forEach(t => {
-                // কাস্টমার: দিয়েছি (+) মানে পাওনা, নিয়েছি (-) মানে জমা
-                // সাপ্লায়ার: নিয়েছি (+) মানে দেনা, দিয়েছি (-) মানে শোধ
-                if (pType === 'CUSTOMER') b += (t.type === 'GIVEN' ? t.amount : -t.amount);
-                else b += (t.type === 'RECEIVED' ? t.amount : -t.amount);
+            txs.filter(t => t.status==='active' && !!t.secret === !!isSec).forEach(t => {
+                if(pType==='CUSTOMER') b += (t.type==='GIVEN' ? t.amount : -t.amount);
+                else b += (t.type==='RECEIVED' ? t.amount : -t.amount);
             });
             return b;
         }
 
-        // --- ৬. ড্যাশবোর্ড এবং লেজার রেন্ডারিং (Point 1b, 2, 3, 4, 5, 10) ---
-        function renderHome() {
-            const list = document.getElementById('contactList');
-            const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
-            list.innerHTML = "";
-            
-            document.getElementById('headerMain').classList.remove('hidden'); 
-            document.getElementById('headerLedger').classList.add('hidden');
-            
-            const filtered = db.people.filter(p => {
-                return p.type === db.tab && (p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal));
-            });
+        function initSecretGesture() {
+            const el = document.getElementById('secretTrigger');
+            el.onclick = () => { if(db.secret) exitSecret(); };
+            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); };
+            el.onpointerup = () => clearTimeout(holdTimer);
+        }
+        function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); } 
+        function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
-            filtered.forEach(p => {
-                const bal = calcBal(p.transactions, db.secret, p.type);
-                // পয়েন্ট ৬: কাঁচা হিসাব ১০০ দিয়ে ভাগ (পাকা অরিজিনাল)
-                const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
-                
-                // ডিফোল্টার এবং ওভারডিউ লজিক
-                let missedCount = 0; const today = new Date().setHours(0,0,0,0);
-                (p.transactions || []).forEach(tx => { if (tx.status === 'active' && tx.nextCollDate && today > new Date(tx.nextCollDate).setHours(0,0,0,0)) missedCount++; });
-                
-                const odBadge = missedCount > 0 ? `<span class="ml-2 px-1 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
-                const defBadge = missedCount >= 3 ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded">DEFAULTER</span>` : "";
+        // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
+        // ১. সার্চ বার অন/অফ করার ফাংশন
+function renderHome() {
+    const list = document.getElementById('contactList'); 
+    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    list.innerHTML = "";
+    
+    document.getElementById('headerMain').classList.remove('hidden'); 
+    document.getElementById('headerLedger').classList.add('hidden');
+    
+    const filteredPeople = db.people.filter(p => {
+        const matchesTab = p.type === db.tab;
+        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
+        return matchesTab && matchesSearch;
+    });
 
-                list.innerHTML += `
-                    <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border relative shadow-sm">
-                        <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                            <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
-                            <div>
-                                <h4 class="font-bold text-sm text-slate-800 flex items-center">${p.name} ${odBadge}</h4>
-                                <div class="flex items-center mt-1"><p class="text-[9px] text-slate-400 font-bold tracking-widest">${p.phone}</p>${defBadge}</div>
-                            </div>
+    filteredPeople.forEach(p => {
+        const bal = calcBal(p.transactions, db.secret, p.type);
+        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+        
+        // --- ওভারডিউ এবং ডিফোল্টার ক্যালকুলেশন ---
+        let missedCount = 0;
+        const today = new Date().setHours(0,0,0,0);
+        (p.transactions || []).forEach(tx => {
+            if (tx.status === 'active' && tx.nextCollDate) {
+                const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
+                if (today > promised) missedCount++;
+            }
+        });
+
+        // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার ও টেক্সট)
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
+
+        // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার ও টেক্সট + ব্লিঙ্কিং)
+        const isDefaulter = missedCount >= 3;
+        const defBadge = isDefaulter ? 
+            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+
+        list.innerHTML += `
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
+                <!-- তথ্য সেকশন -->
+                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
+                    <div class="flex flex-col">
+                        <div class="flex items-center">
+                            <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
+                            ${odBadge}
                         </div>
-                        <div class="text-right flex items-center gap-5">
-                            <div onclick="openLedger(${p.id})" class="cursor-pointer">
-                                <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
-                                <p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
-                            </div>
-                            <i class="fas fa-trash-alt text-slate-200 text-xs active:text-rose-500" onclick="event.stopPropagation(); deletePerson(${p.id})"></i>
+                        <div class="flex items-center mt-1">
+                            <p class="text-[10px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
+                            ${defBadge}
                         </div>
-                    </div>`;
-            });
+                    </div>
+                </div>
+                
+                <!-- ব্যালেন্স সেকশন -->
+                <div class="text-right flex items-center gap-5">
+                    <div onclick="openLedger(${p.id})" class="cursor-pointer">
+                        <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
+                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                    </div>
+                    
+                    <!-- ডিলিট বাটন -->
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </div>
+            </div>`;
+    });
+
+    if(filteredPeople.length === 0) {
+        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Account Found</div>`;
+    }
+}
+
+        function openLedger(id) {
+            history.pushState(null, null, window.location.pathname);
+            db.activeId = id; const p = db.people.find(x => x.id === id);
+            document.getElementById('lName').innerText = p.name;
+            document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden');
+            document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden');
+            renderLedger();
         }
 
         function renderLedger() {
-            const p = db.people.find(x => x.id === db.activeId);
-            const list = document.getElementById('ledgerList'); list.innerHTML = "";
-            const net = calcBal(p.transactions, db.secret, p.type);
-            
-            const displayNet = db.secret ? (Math.abs(net)/100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-            document.getElementById('mainTotal').innerText = displayNet;
-            document.getElementById('mainTotal').style.color = net > 0 ? '#f43f5e' : '#10b981';
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); 
+    list.innerHTML = "";
+    
+    const net = calcBal(p.transactions, db.secret, p.type);
+    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    const balEl = document.getElementById('mainTotal');
+    balEl.innerText = "₹ " + displayHeaderTotal;
+    balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
 
-            p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-                const isR = t.type === 'RECEIVED', isDel = t.status === 'deleted';
-                const dAmt = t.secret ? (t.amount/100).toFixed(2) : t.amount.toLocaleString('en-IN');
-                
-                // পয়েন্ট ৫: কালার লজিক (Customer Given=Red, Supplier Received=Red)
-                let isRedCol = (p.type === 'CUSTOMER' ? t.type==='GIVEN' : t.type==='RECEIVED');
-                let imgs = (t.images||[]).map(i => `<img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border" onclick="openZoom(this.src)">`).join("");
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isR = t.type === 'RECEIVED';
+        const isDel = t.status === 'deleted'; 
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+        
+        let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
+        let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
 
-                list.innerHTML += `<div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                    <div class="text-[8px] font-bold text-slate-500 uppercase mb-2 px-2">${t.date}</div>
-                    <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                        <div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>
-                        <div class="flex justify-between items-center gap-6"><h3 class="text-xl font-black ${isRedCol?'text-rose-600':'text-emerald-600'}">₹${dAmt} ${t.type==='GIVEN'?'↑':'↓'}</h3><p class="text-[8px] font-bold text-slate-400">${t.type}</p></div>
-                        <p class="text-[11px] text-slate-700 font-medium mt-2 leading-tight">${t.note || ''}</p>
-                        <p class="text-[7px] text-slate-400 mt-2 uppercase font-black border-t pt-1">By: ${t.by || 'Owner'}</p>
-                        <div class="flex gap-6 mt-4 pt-2 border-t border-slate-50">
-                            <i class="fas fa-edit text-indigo-300 text-xs" onclick="editTx(${p.id}, ${t.id})"></i>
-                            <i class="fas fa-trash text-rose-200 text-xs" onclick="deleteTx(${t.id})"></i>
-                            <i class="fab fa-whatsapp text-emerald-300 text-xs ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                            ${t.history ? `<i class="fas fa-history text-slate-300 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>`:''}
-                        </div>
-                    </div></div>`;
-            });
-            document.getElementById('mainViewport').scrollTop = list.scrollHeight;
-        }
-
-        // --- ৭. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ প্রোসেসিং (Point 3a, 3e, 3f) ---
-        async function preSave(t) {
-            const amtInput = document.getElementById('txAmt');
-            const amt = parseFloat(amtInput.value); if(!amt) return alert("Enter Amount!");
-            
-            const act = async () => {
-                document.getElementById('mainConfirmBtn').innerText = "SYNCHING CLOUD...";
-                document.getElementById('mainConfirmBtn').disabled = true;
-                let imgs = [];
-                for(let f of capturedFiles) {
-                    const fd = new FormData(); fd.append('image', f);
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json(); if(dat.success) imgs.push(dat.data.url);
-                }
-                const p = db.people.find(x => x.id === db.activeId);
-                p.transactions.push({ id:Date.now(), amount:amt, type:t, secret:!!db.secret, date:new Date().toLocaleDateString('en-GB'), note:document.getElementById('txNote').value, nextCollDate:document.getElementById('txDate').value, images:imgs, by: db.opName, status:'active' });
-                await saveDB(); 
-                await syncToPartner(p.phone, p.transactions[p.transactions.length-1]);
-                renderLedger(); closeDrawer();
-                document.getElementById('mainConfirmBtn').innerText = "Confirm Transaction";
-                document.getElementById('mainConfirmBtn').disabled = false;
-            };
-            if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
-        }
-
-        // --- ৮. স্মার্ট পিডিএফ সিস্টেম (Point 3b, 5, 6: Side-by-Side original Amt) ---
-        function handleSmartPdfDownload() {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', 'a4'); const isSec = !!db.secret;
-            const RED = [225, 29, 72]; const GREEN = [5, 150, 105];
-
-            if(!document.getElementById('pageLedger').classList.contains('hidden')) {
-                const p = db.people.find(x => x.id === db.activeId); doc.text(`PayBook Pro Statement: ${p.name}`, 14, 20);
-                const head = isSec ? [['Date', 'Phone', 'Type', 'P-Given', 'P-Rec.', 'K-Given', 'K-Rec.']] : [['Date', 'Phone', 'Type', 'Given', 'Received']];
-                const rows = []; let tPG=0, tPR=0, tKG=0, tKR=0;
-
-                p.transactions.filter(t => t.status==='active').forEach(t => {
-                    if(!isSec && t.secret) return;
-                    const aS = t.amount.toLocaleString('en-IN');
-                    if(isSec) {
-                        let pg="-", pr="-", kg="-", kr="-";
-                        if(!t.secret) { if(t.type==='GIVEN'){pg=aS; tPG+=t.amount;} else{pr=aS; tPR+=t.amount;} }
-                        else { if(t.type==='GIVEN'){kg=aS; tKG+=t.amount;} else{kr=aS; tKR+=t.amount;} }
-                        rows.push([t.date, p.phone, p.type, pg, pr, kg, kr]);
-                    } else {
-                        if(t.type==='GIVEN') tPG+=t.amount; else tPR+=t.amount;
-                        rows.push([t.date, p.phone, p.type, t.type==='GIVEN'?aS:'-', t.type==='RECEIVED'?aS:'-']);
-                    }
-                });
-                
-                const footer = isSec ? [['TOTAL', '', '', tPG.toLocaleString(), tPR.toLocaleString(), tKG.toLocaleString(), tKR.toLocaleString()]] : [['TOTAL', '', '', tPG.toLocaleString(), tPR.toLocaleString()]];
-                doc.autoTable({ startY:35, head:head, body:rows, foot:footer, theme:'grid', headStyles:{fillColor:[134,31,65]} });
-                const net = isSec ? (tPG-tPR + tKG-tKR) : (tPG-tPR);
-                doc.setTextColor(net>0?225:5); doc.text(`FINAL NET BALANCE: Rs. ${net.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 15);
-                doc.save(`${p.name}_Ledger.pdf`);
-            } else {
-                doc.text(`Portfolio Summary Report`, 14, 20);
-                const head = isSec ? [['Name', 'Mobile', 'Type', 'Pakka Rs.', 'Kaccha Rs.', 'Total']] : [['Name', 'Mobile', 'Type', 'Official Balance']];
-                let gP=0, gK=0;
-                const rows = db.people.map(p => {
-                    let pb=0, kb=0; p.transactions.filter(t=>t.status==='active').forEach(t=>{ let v=(t.type==='RECEIVED'?-t.amount:t.amount); if(t.secret) kb+=v; else pb+=v; });
-                    gP+=pb; gK+=kb;
-                    return isSec ? [p.name, p.phone, p.type, pb.toLocaleString(), kb.toLocaleString(), (pb+kb).toLocaleString()] : [p.name, p.phone, p.type, pb.toLocaleString()];
-                });
-                const gFoot = isSec ? [['TOTAL', '', '', gP.toLocaleString(), gK.toLocaleString(), (gP+gK).toLocaleString()]] : [['TOTAL', '', '', gP.toLocaleString()]];
-                doc.autoTable({ startY:35, head:head, body:rows, foot:gFoot, headStyles:{fillColor:[134,31,65]} }); doc.save("Full_Summary.pdf");
+        // --- নতুন লজিক: Overdue দিন গণনা (Point Update) ---
+        let overdueHTML = "";
+        if (t.nextCollDate && t.status === 'active') {
+            const today = new Date().setHours(0,0,0,0);
+            const promised = new Date(t.nextCollDate).setHours(0,0,0,0);
+            if (today > promised) {
+                const diffTime = Math.abs(today - promised);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                overdueHTML = `<span class="bg-rose-50 text-rose-600 text-[8px] font-bold px-2 py-0.5 rounded ml-2 border border-rose-100">Overdue: ${diffDays} Days</span>`;
             }
         }
 
-        // --- ৯. সেটিংস এবং ইউটিলিটিস (PIN, Managers, App Share) ---
-        function hireManager() { const n=prompt("Name:"), ph=prompt("10-Digit Mobile:"), p=prompt("Set 4-Digit PIN:"); if(n && ph.length===10 && p.length===4) { db.managers.push({name:n,phone:ph,pin:p}); saveDB(); renderManagers(); } }
-        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-100 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
-        function delMgr(ph) { if(confirm("Remove access?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
+        let imgs = (t.images || []).map(i => `
+            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
+                 onclick="openZoom(this.src)">
+        `).join("");
 
-        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value=""; document.getElementById('pinSubmitBtn').onclick = () => { const v=document.getElementById('confirmPinInput').value; if(v===db.admin.pin || v===MASTER_PIN || (db.role==='MANAGER' && v===(db.managers.find(m=>m.name===db.opName)||{}).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Incorrect!"); }; }
+        list.innerHTML += `
+            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="text-[9px] font-bold text-slate-600 uppercase mb-2 px-2 tracking-wider">
+                    ${t.date} ${overdueHTML}
+                </div>
+                
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                    ${imgs ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>` : ''}
+                    
+                    <div class="flex justify-between items-center gap-6">
+                        <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
+                            ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
+                        </h3>
+                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">${t.type}</p>
+                    </div>
+
+                    <p class="text-[11px] text-slate-800 font-medium mt-2 leading-tight">${t.note || ''}</p>
+                    
+                    <div class="mt-2 border-t border-slate-100 pt-1 flex justify-between items-center">
+                        <p class="text-[8px] text-slate-600 uppercase font-black">
+                            <i class="fas fa-user text-[7px] mr-1 opacity-70"></i> By: ${t.by || 'Owner'}
+                        </p>
+                        ${isDel ? '<span class="text-[8px] text-rose-500 font-bold uppercase italic">Canceled</span>' : ''}
+                    </div>
+
+                    ${!isDel ? `
+                    <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
+                        <i class="fas fa-edit text-indigo-400 text-sm active:text-indigo-700" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash-alt text-rose-300 text-sm active:text-rose-600" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto active:text-emerald-700" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-400 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>`;
+    });
+
+    const viewport = document.getElementById('mainViewport');
+    setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
+}
+
+        // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
+      // ১. ছবি ধরার ফাংশন (V18.2)
+function handleImageFiles(f) {
+    if(!f) return;
+    
+    // নিশ্চিত করা হচ্ছে capturedFiles এ ডাটা ঢুকছে
+    capturedFiles.push(f); 
+    
+    const previewContainer = document.getElementById('multiImgPreview');
+    if(previewContainer) {
+        // ছোট থাম্বনেইল হিসেবে প্রিভিউ দেখানো
+        previewContainer.innerHTML += `
+            <div class="relative w-12 h-12">
+                <img src="${URL.createObjectURL(f)}" class="w-full h-full object-cover rounded-lg border shadow-sm">
+            </div>`;
+        previewContainer.classList.remove('hidden');
+    }
+}
+
+// ২. ডাটা সেভ করার ফাংশন (V18.2)
+// --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
+async function preSave(t) {
+    const amtInput = document.getElementById('txAmt');
+    const amt = parseFloat(amtInput.value); 
+    if(!amt || amt <= 0) return alert("Please enter amount!");
+
+    // কালেকশন ডেট ভ্যালু নেওয়া
+    const nextDateVal = document.getElementById('nextCollDate')?.value || null;
+
+    const act = async () => {
+        const confirmBtn = document.getElementById('mainConfirmBtn');
+        confirmBtn.innerText = "SYNCHING CLOUD...";
+        confirmBtn.disabled = true;
+
+        try {
+            let uploadedImgs = [];
+            
+            // লুপ চালিয়ে ইমেজগুলো ImgBB-তে আপলোড করা
+            const filesToUpload = (typeof capturedFiles !== 'undefined') ? capturedFiles : [];
+            for(let file of filesToUpload) {
+                const fd = new FormData();
+                fd.append('image', file);
+                try {
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                    const dat = await res.json();
+                    if(dat.success) uploadedImgs.push(dat.data.url);
+                } catch(imgErr) { console.error("Img Upload Fail"); }
+            }
+
+            const person = db.people.find(x => x.id === db.activeId);
+            
+            // ১. নতুন ট্রানজ্যাকশন অবজেক্ট তৈরি (Next Collection Date সহ)
+            const newTx = { 
+                id: Date.now(), 
+                amount: amt, 
+                type: t, 
+                secret: !!db.secret, 
+                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
+                note: document.getElementById('txNote').value.trim(), 
+                nextCollDate: nextDateVal, // এখানে নেক্সট কালেকশন ডেট সেভ হচ্ছে
+                images: uploadedImgs, 
+                by: db.opName || 'Owner', 
+                status: 'active' 
+            };
+
+            // ২. নিজের লিস্টে সেভ করা
+            person.transactions.push(newTx);
+            await saveDB(); // ক্লাউড সিঙ্ক
+            
+            // ৩. মিরর সিঙ্ক (পয়েন্ট ৯ অনুযায়ী পার্টনারের ফোনে পাঠানো)
+            if (typeof syncToPartner === 'function') {
+                await syncToPartner(person.phone, newTx);
+            }
+
+            renderLedger(); 
+            
+            // ৪. কাজ শেষ হলে সব ইনপুট ক্লিয়ার করা (Form Cleaning)
+            if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
+            if(document.getElementById('txNote')) document.getElementById('txNote').value = "";
+            if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
+            amtInput.value = "";
+            capturedFiles = []; 
+            
+            closeDrawer(); // ড্রয়ার বন্ধ হবে
+            alert("Transaction saved successfully!");
+
+        } catch(error) {
+            console.error("Critical Sync Error:", error);
+            alert("Failed to sync. Please check internet connection.");
+        } finally {
+            confirmBtn.innerText = "Confirm Transaction";
+            confirmBtn.disabled = false;
+        }
+    };
+
+    // সিক্রেট মোড পিন ভেরিফিকেশন (কাস্টমারের থেকে টাকা পেলে)
+    if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') {
+        askPin(act); 
+    } else {
+        act();
+    }
+}
+
+       // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
+function handleSmartPdfDownload() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape মোড
+    const isSec = !!db.secret;
+    const isLedger = !document.getElementById('pageLedger').classList.contains('hidden');
+
+    const RED = [225, 29, 72];
+    const GREEN = [5, 150, 105];
+    const BURGUNDY = [134, 31, 65];
+
+    if (isLedger) {
+        // --- ১. ইন্ডিভিজুয়াল লেজার রিপোর্ট ---
+        const p = db.people.find(x => x.id === db.activeId);
+        
+        doc.setFontSize(22);
+        doc.setTextColor(BURGUNDY[0], BURGUNDY[1], BURGUNDY[2]);
+        doc.text(`PayBook Pro | Account Statement`, 14, 20);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Client: ${p.name} | Mobile: +91 ${p.phone} | Category: ${p.type}`, 14, 30);
+        doc.text(`Report Mode: ${isSec ? 'Full Audit (Pakka + Kaccha)' : 'Official (Pakka Only)'}`, 14, 35);
+        doc.text(`Generated By: ${db.opName || 'Owner'} | Date: ${new Date().toLocaleString()}`, 14, 40);
+
+        const head = isSec 
+            ? [['Date', 'Phone', 'Type', 'P-Given (OUT)', 'P-Rec. (IN)', 'K-Given (OUT)', 'K-Rec. (IN)']] 
+            : [['Date', 'Phone', 'Type', 'Given (OUT)', 'Received (IN)']];
+
+        const rows = [];
+        let tP_G = 0, tP_R = 0, tK_G = 0, tK_R = 0;
+
+        p.transactions.filter(t => t.status === 'active').forEach(t => {
+            if (!isSec && t.secret) return; 
+
+            const amt = t.amount;
+            if (isSec) {
+                let pG="-", pR="-", kG="-", kR="-";
+                if(!t.secret) {
+                    if(t.type==='GIVEN') { pG = amt.toLocaleString('en-IN'); tP_G+=amt; } else { pR = amt.toLocaleString('en-IN'); tP_R+=amt; }
+                } else {
+                    if(t.type==='GIVEN') { kG = amt.toLocaleString('en-IN'); tK_G+=amt; } else { kR = amt.toLocaleString('en-IN'); tK_R+=amt; }
+                }
+                rows.push([
+                    t.date, p.phone, p.type, 
+                    {content: pG, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN' && pG!=='-'?RED:GREEN}},
+                    {content: pR, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED' && pR!=='-'?GREEN:RED}},
+                    {content: kG, styles: {textColor: RED}},
+                    {content: kR, styles: {textColor: GREEN}}
+                ]);
+            } else {
+                if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
+                rows.push([
+                    t.date, p.phone, p.type,
+                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN'?RED:GREEN}},
+                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED'?GREEN:RED}}
+                ]);
+            }
+        });
+
+        // কলাম অনুযায়ী ফুটার তৈরি (পয়েন্ট অনুযায়ী টোটাল রো)
+        let footer = isSec 
+            ? [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN'), tK_G.toLocaleString('en-IN'), tK_R.toLocaleString('en-IN')]]
+            : [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN')]];
+
+        doc.autoTable({
+            startY: 45, head: head, body: rows, foot: footer, theme: 'grid',
+            headStyles: { fillColor: BURGUNDY },
+            footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+            styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' }
+        });
+
+        let finalY = doc.lastAutoTable.finalY + 15;
+        let netBalance = isSec ? ((tP_G - tP_R) + (tK_G - tK_R)) : (tP_G - tP_R);
+
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text("FINAL SUMMARY:", 14, finalY);
+        doc.setFontSize(14);
+        if (netBalance > 0) {
+            doc.setTextColor(RED[0], RED[1], RED[2]);
+            doc.text(`NET BALANCE DUE (OUTSTANDING): Rs. ${netBalance.toLocaleString('en-IN')}`, 14, finalY + 12);
+        } else {
+            doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
+            doc.text(`NET BALANCE CLEAR (ADVANCE/SETTLED): Rs. ${Math.abs(netBalance).toLocaleString('en-IN')}`, 14, finalY + 12);
+        }
+
+        doc.save(`${p.name}_Statement.pdf`);
+
+    } else {
+        // --- ২. গ্লোবাল বিজনেস সামারি রিপোর্ট ---
+        doc.setFontSize(20);
+        doc.setTextColor(BURGUNDY[0], BURGUNDY[1], BURGUNDY[2]);
+        doc.text(`Business Portfolio Summary`, 14, 20);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+
+        const head = isSec 
+            ? [['Name', 'Mobile', 'Type', 'Pakka Balance', 'Kaccha Balance', 'Net Total']] 
+            : [['Name', 'Mobile', 'Type', 'Current Balance']];
+
+        let gP = 0, gK = 0;
+        const rows = db.people.map(p => {
+            let pB=0, kB=0;
+            p.transactions.filter(t => t.status==='active').forEach(t => {
+                let v = (t.type==='RECEIVED' ? -t.amount : t.amount);
+                if(t.secret) kB += v; else pB += v;
+            });
+            gP += pB; gK += kB;
+
+            if(isSec) {
+                let net = pB + kB;
+                return [p.name, p.phone, p.type, pB.toLocaleString('en-IN'), kB.toLocaleString('en-IN'), {content: "Rs. "+net.toLocaleString('en-IN'), styles: {textColor: net > 0 ? RED : GREEN}}];
+            } else {
+                return [p.name, p.phone, p.type, {content: "Rs. "+pB.toLocaleString('en-IN'), styles: {textColor: pB > 0 ? RED : GREEN}}];
+            }
+        });
+
+        let gFooter = isSec 
+            ? [['GRAND TOTAL', '', '', gP.toLocaleString('en-IN'), gK.toLocaleString('en-IN'), (gP+gK).toLocaleString('en-IN')]]
+            : [['GRAND TOTAL', '', '', gP.toLocaleString('en-IN')]];
+
+        doc.autoTable({ 
+            startY: 35, head: head, body: rows, foot: gFooter,
+            headStyles: {fillColor: BURGUNDY}, 
+            footStyles: {fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold'},
+            theme: 'striped', styles: { font: 'helvetica' } 
+        });
+        doc.save("Full_Business_Summary.pdf");
+    }
+}
+        function showSettings() {
+    history.pushState(null, null, window.location.pathname);        
+    const modal = document.getElementById('settingsModal');
+    const adminControls = document.getElementById('adminControls');
+
+    if (db.role === 'MANAGER') {
+        // ম্যানেজার শুধু লগআউট বাটন দেখবে, এডমিন অপশনগুলো হাইড থাকবে
+        if(adminControls) adminControls.classList.add('hidden');
+        if(document.getElementById('mgrList')) document.getElementById('mgrList').classList.add('hidden');
+    } else {
+        // এডমিন সবকিছু দেখবে
+        if(adminControls) adminControls.classList.remove('hidden');
+        if(document.getElementById('mgrList')) document.getElementById('mgrList').classList.remove('hidden');
+        renderManagers(); 
+    }
+
+    modal.classList.remove('hidden');
+}
+        function deletePerson(id) {
+    const person = db.people.find(p => p.id === id);
+    
+    // পাকা এবং কাঁচা ব্যালেন্স চেক (পেছনের লজিকে থাকবে, কিন্তু ইউজার জানবে না)
+    const pBal = calcBal(person.transactions, false, person.type);
+    const kBal = calcBal(person.transactions, true, person.type);
+
+    // শর্ত: উভয় ব্যালেন্স ০ হলেই ডিলিট হবে
+    if (pBal === 0 && kBal === 0) {
+        askPin(() => {
+            if (confirm(`Are you sure you want to permanently delete ${person.name}?`)) {
+                db.people = db.people.filter(p => p.id !== id);
+                saveDB();
+                renderHome();
+                alert("Profile removed successfully.");
+            }
+        });
+    } else {
+        // --- আপনার পছন্দ অনুযায়ী গোপনীয় এরর মেসেজ ---
+        // এখানে পাকা বা কাঁচা কিছুই লেখা নেই, শুধু বলা হচ্ছে হিসাব বাকি আছে।
+        alert("Action Denied! This account cannot be deleted because it still has an active balance. Please settle the account first.");
+    }
+}
+
+        function switchTab(t) {
+    // ১. ডাটাবেসের ট্যাব ভ্যালু আপডেট
+    db.tab = t;
+
+    // ২. বাটন দুটির আইডি খুঁজে বের করা
+    const btnCust = document.getElementById('tabCust');
+    const btnSupp = document.getElementById('tabSupp');
+
+    // ৩. কন্ডিশন অনুযায়ী কালার পরিবর্তন (Axis Style)
+    if (t === 'CUSTOMER') {
+        // কাস্টমার বাটন একটিভ (Burgundy Color)
+        btnCust.className = "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
+        // সাপ্লায়ার বাটন ইন-একটিভ (Grey Color)
+        btnSupp.className = "flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all";
+    } else {
+        // সাপ্লায়ার বাটন একটিভ (Burgundy Color)
+        btnSupp.className = "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
+        // কাস্টমার বাটন ইন-একটিভ (Grey Color)
+        btnCust.className = "flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all";
+    }
+
+    // ৪. লিস্ট রিফ্রেশ করা
+    renderHome();
+}
+        // ১. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
+function openEditPersonModal() {
+    const person = db.people.find(p => p.id === db.activeId);
+    if(person) {
+        document.getElementById('editPName').value = person.name;
+        document.getElementById('editPPhone').value = person.phone;
+        document.getElementById('editPersonModal').classList.remove('hidden');
+    }
+}
+
+// ২. ডাটা সেভ করার ফাংশন
+function confirmEditPerson() {
+    const newName = document.getElementById('editPName').value.trim();
+    const newPhone = document.getElementById('editPPhone').value.trim();
+
+    if(!newName || newPhone.length !== 10) {
+        return alert("Please enter a valid Name and 10-digit Phone Number!");
+    }
+
+    // ডাটাবেসে আপডেট করা
+    const personIndex = db.people.findIndex(p => p.id === db.activeId);
+    if(personIndex !== -1) {
+        db.people[personIndex].name = newName;
+        db.people[personIndex].phone = newPhone;
+
+        // সাথে সাথে স্ক্রিনের হেডার আপডেট করা
+        document.getElementById('lName').innerText = newName;
+        document.getElementById('lPhone').innerText = "+91 " + newPhone;
+
+        saveDB(); // ক্লাউড এবং লোকাল মেমোরিতে সেভ
+        document.getElementById('editPersonModal').classList.add('hidden');
+        alert("Account Information Updated Successfully!");
+        renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
+    }
+}
+        // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
+async function hireManager() {
+    const n = prompt("Enter Manager Name:");
+    if (!n) return;
+    const ph = prompt("Enter Manager 10-Digit Mobile Number:");
+    if (!ph || ph.length !== 10) return alert("Error: Provide a valid 10-digit mobile number!");
+    const p = prompt("Set a 4-Digit Secure PIN for this Manager:");
+    if (!p || p.length !== 4) return alert("Error: PIN must be exactly 4 digits!");
+
+    const accessKey = ph + p; // ম্যানেজারের নম্বর + পিন = ইউনিক আইডি
+
+    try {
+        // ১. চেক করা হচ্ছে এই ফোন এবং পিন কম্বিনেশন কি অন্য কোনো এডমিন অলরেডি ব্যবহার করছে?
+        const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
+        const keyDoc = await keyRef.get();
+
+        if (keyDoc.exists) {
+            return alert("Error: This Phone and PIN combination is already registered. Please choose a different PIN for this manager.");
+        }
+
+        // ২. এডমিনের ম্যানেজার লিস্টে (Local DB) তথ্য যোগ করা
+        if (!db.managers) db.managers = [];
+        db.managers.push({
+            id: Date.now(),
+            name: n,
+            phone: ph,
+            pin: p
+        });
+
+        // ৩. এক্সেস কি (Access Key) কালেকশনে ম্যানেজারের রাউটিং ইনফো সেভ করা
+        // এটিই সবচেয়ে গুরুত্বপূর্ণ ধাপ: পিনটিকে এডমিনের ফোন নম্বরের সাথে লিঙ্ক করা হচ্ছে
+        await keyRef.set({
+            targetOwnerPhone: db.admin.phone, // এই পিন দিলে এডমিনের ডাটাবেস খুলবে
+            role: 'MANAGER',
+            name: n
+        });
+
+        // ৪. এডমিনের মেইন ডাটাবেস ক্লাউডে আপডেট করা
+        await saveDB();
+
+        // ৫. লিস্ট রিফ্রেশ করা
+        renderManagers(); 
+        alert(`Success! ${n} is now hired as a Manager. They can login using PIN: ${p}`);
+
+    } catch (error) {
+        console.error("Hiring System Error:", error);
+        alert("Failed to hire manager. Please check your internet connection.");
+    }
+}
+        // ১. গ্লোবাল ব্যাক ফাংশন
+function handleGlobalBack() {
+    const isLedgerVisible = !document.getElementById('pageLedger').classList.contains('hidden');
+    const isDrawerOpen = !document.getElementById('entryDrawer').classList.contains('hidden');
+    const isSettingsOpen = !document.getElementById('settingsModal').classList.contains('hidden');
+    const isAddModalOpen = !document.getElementById('addModal').classList.contains('hidden');
+    const isMediaSheetOpen = !document.getElementById('mediaSheet').classList.contains('hidden');
+
+    // প্রায়োরিটি অনুযায়ী ব্যাক করা
+    if (isMediaSheetOpen) {
+        document.getElementById('mediaSheet').classList.add('hidden'); // মিডিয়া বন্ধ
+    } else if (isDrawerOpen) {
+        closeDrawer(); // ডাটা এন্ট্রি বন্ধ
+    } else if (isSettingsOpen) {
+        document.getElementById('settingsModal').classList.add('hidden'); // সেটিংস বন্ধ
+    } else if (isAddModalOpen) {
+        document.getElementById('addModal').classList.add('hidden'); // কাস্টমার এন্ট্রি বন্ধ
+    } else if (isLedgerVisible) {
+        goHome(); // কাস্টমার লেজার থেকে হোমে ফেরা
+    } else {
+        // যদি অলরেডি হোম স্ক্রিনে থাকে, তবে ইউজারকে জানানো যেতে পারে
+        console.log("Already on Home Screen");
+    }
+}
+
+// ২. ফোনের হার্ডওয়্যার ব্যাক বাটন হ্যান্ডেল করা
+window.addEventListener('popstate', function (event) {
+    handleGlobalBack();
+    // পুনরায় স্টেট পুশ করা যাতে অ্যাপ থেকে বের না হয়ে যায়
+    history.pushState(null, null, window.location.pathname);
+});
+
+// ৩. অ্যাপ লোড হওয়ার সময় একটি স্টেট পুশ করা
+function initNavigation() {
+    history.pushState(null, null, window.location.pathname);
+}
+        function openAddModal() { 
+    // ইনপুট ফিল্ডগুলো খালি করা হচ্ছে
+    document.getElementById('newPName').value = ""; 
+    document.getElementById('newPPhone').value = ""; 
+    // মোডাল শো করা হচ্ছে
+    document.getElementById('addModal').classList.remove('hidden'); 
+}
+        function closeDrawer() { 
+    document.getElementById('entryDrawer').classList.remove('open'); 
+    setTimeout(() => {
+        document.getElementById('entryDrawer').classList.add('hidden'); 
+        // ইনপুট এবং ছবি ক্লিয়ার করা হচ্ছে
+        document.getElementById('txAmt').value = ""; 
+        document.getElementById('txNote').value = ""; 
+        capturedFiles = []; 
+        document.getElementById('multiImgPreview').innerHTML = "";
+    }, 400); 
+}
+        function confirmAdd() { 
+    const n = document.getElementById('newPName').value; 
+    const ph = document.getElementById('newPPhone').value; 
+    
+    if(n && ph.length === 10) { 
+        db.people.unshift({id: Date.now(), name: n, phone: ph, type: db.tab, transactions: []}); 
+        saveDB(); 
+        
+        // সেভ হওয়ার পর ইনপুট খালি করা হচ্ছে
+        document.getElementById('newPName').value = ""; 
+        document.getElementById('newPPhone').value = ""; 
+        
+        document.getElementById('addModal').classList.add('hidden'); 
+        renderHome(); 
+    } else {
+        alert("Invalid Name or 10-digit Phone Number!"); 
+    }
+}
+        // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
+function removeImage(index) {
+    // ১. গ্লোবাল অ্যারে থেকে ছবিটি বাদ দেওয়া
+    capturedFiles.splice(index, 1);
+    
+    // ২. প্রিভিউ লিস্ট পুনরায় রেন্ডার করা
+    renderThumbnails();
+}
+        function renderThumbnails() {
+    const container = document.getElementById('multiImgPreview');
+    if(!container) return;
+    
+    container.innerHTML = ""; // আগের প্রিভিউ ক্লিয়ার করা
+    
+    capturedFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        
+        // প্রতিটি ইমেজের জন্য একটি কন্টেইনার এবং ক্রস বাটন তৈরি
+        container.innerHTML += `
+            <div class="relative w-14 h-14 mr-1 mb-1">
+                <img src="${url}" class="w-full h-full object-cover rounded-lg border shadow-sm">
+                <!-- লাল ক্রস বাটন -->
+                <div onclick="removeImage(${index})" 
+                     class="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full w-5 h-5 flex items-center justify-center shadow-md border border-slate-100 cursor-pointer active:scale-90 transition-transform">
+                    <i class="fas fa-times-circle text-[12px]"></i>
+                </div>
+            </div>
+        `;
+    });
+    
+    // যদি কোনো ছবি না থাকে তবে কন্টেইনার হাইড রাখা
+    if(capturedFiles.length > 0) {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+}
+        function handleImageFiles(f) { 
+    if(!f) return; 
+    capturedFiles.push(f); 
+    renderThumbnails(); // এটি কল করতে হবে
+}
+        // ১. ছবি বড় করে দেখানোর ফাংশন
+function openZoom(src) {
+    const modal = document.getElementById('imageZoomModal');
+    const img = document.getElementById('zoomedImg');
+    
+    img.src = src;
+    modal.classList.remove('hidden');
+    
+    // হালকা এনিমেশন ফিল দেওয়ার জন্য
+    setTimeout(() => {
+        img.classList.remove('scale-95');
+        img.classList.add('scale-100');
+    }, 10);
+}
+
+// ২. জুম বন্ধ করার ফাংশন
+function closeZoom() {
+    const modal = document.getElementById('imageZoomModal');
+    const img = document.getElementById('zoomedImg');
+    
+    img.classList.remove('scale-100');
+    img.classList.add('scale-95');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        img.src = ""; // মেমোরি ক্লিয়ার করা
+    }, 200);
+}
+        function triggerDrawer(t) {
+    // নতুন যোগ করা লাইন: ড্রয়ার খোলার সময় ফুটার বাটন শো নিশ্চিত করা
+    if(document.getElementById('ledgerFooter')) {
+        document.getElementById('ledgerFooter').classList.remove('footer-hidden');
+    }
+
+    history.pushState(null, null, window.location.pathname);
+    document.getElementById('entryDrawer').classList.remove('hidden');
+    
+    setTimeout(() => document.getElementById('entryDrawer').classList.add('open'), 10);
+    
+    document.getElementById('drawerActionType').innerText = t;
+    document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('mainConfirmBtn').onclick = () => preSave(t);
+}
+        function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
-        function showSettings() { if(db.role==='MANAGER') { document.getElementById('adminControls').classList.add('hidden'); } else { document.getElementById('adminControls').classList.remove('hidden'); renderManagers(); } document.getElementById('settingsModal').classList.remove('hidden'); }
-        
-        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); document.getElementById('ledgerFooter').classList.add('hidden'); renderHome(); }
-        function switchTab(t) { db.tab = t; document.getElementById('tabCust').className = t==='CUSTOMER' ? "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; document.getElementById('tabSupp').className = t==='SUPPLIER' ? "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md" : "flex-1 py-3 rounded-xl text-xs font-black text-slate-400"; renderHome(); }
-        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('newPName').value=""; document.getElementById('newPPhone').value=""; }
-        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
-        
-        function openEditPersonModal() { const p=db.people.find(x=>x.id===db.activeId); document.getElementById('editPName').value=p.name; document.getElementById('editPPhone').value=p.phone; document.getElementById('editPersonModal').classList.remove('hidden'); }
-        function confirmEditPerson() { const n=document.getElementById('editPName').value, ph=document.getElementById('editPPhone').value; if(n && ph.length===10) { const i=db.people.findIndex(x=>x.id===db.activeId); db.people[i].name=n; db.people[i].phone=ph; saveDB(); document.getElementById('editPersonModal').classList.add('hidden'); document.getElementById('lName').innerText=n; renderHome(); } }
-        
-        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+        function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
+        function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
+        function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
+        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
+        function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
+         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+        function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
+        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
+        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
+        function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
+        function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
+         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
-        function handleImg(f) { if(!f) return; capturedFiles.push(f); document.getElementById('multiImgPreview').innerHTML += `<img src="${URL.createObjectURL(f)}" class="w-10 h-10 rounded border">`; document.getElementById('multiImgPreview').classList.remove('hidden'); }
-        function closeDrawer() { document.getElementById('entryDrawer').classList.remove('open'); setTimeout(()=>{document.getElementById('entryDrawer').classList.add('hidden'); capturedFiles=[]; document.getElementById('multiImgPreview').innerHTML="";}, 400); }
-        function openZoom(s) { document.getElementById('zoomedImg').src=s; document.getElementById('imageZoomModal').classList.remove('hidden'); }
-        function closeZoom() { document.getElementById('imageZoomModal').classList.add('hidden'); }
-        
-        function setupScrollToHide() { const v=document.getElementById('mainViewport'), f=document.getElementById('ledgerFooter'); let last=0; v.addEventListener('scroll',()=>{ let t=v.scrollTop; if(t>last && t>100) f.classList.add('footer-hidden'); else f.classList.remove('footer-hidden'); last=t<=0?0:t; }, {passive:true}); }
         function setupHistoryBack() { window.addEventListener('popstate', () => { if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome(); }); }
-        function deletePerson(id) { const p=db.people.find(x=>x.id===id); if(calcBal(p.transactions,false,p.type)===0 && calcBal(p.transactions,true,p.type)===0) { askPin(()=>{ db.people=db.people.filter(x=>x.id!==id); saveDB(); renderHome(); }); } else alert("Clear balance first!"); }
-        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(()=>{ const n=parseFloat(prompt("New Amt:", t.amount)); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; saveDB(); renderLedger(); }); }
-        function deleteTx(tid) { askPin(()=>{ const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
-        function showHistory(pid, tid) { const t=db.people.find(x=>x.id===pid).transactions.find(x=>x.id===tid); alert("History:\n"+t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
-        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('Manage business globally with PayBook Pro: ' + window.location.href)}`); }
     </script>
 </body>
 </html>
-
-    
