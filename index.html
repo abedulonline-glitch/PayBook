@@ -289,8 +289,7 @@ const firebaseConfig = {
 // ফায়ারবেস ইনিশিয়ালাইজেশন
 firebase.initializeApp(firebaseConfig);
 const db_fs = firebase.firestore();
-const COLLECTION = "global_paybook_ledgers"; // মেইন ডাটা
-const GLOBAL_DEFAULTERS = "global_defaulters"; // নতুন সলিড কালেকশন (ট্যাগের জন্য)
+
 // কনস্ট্যান্টস (Constants)
 const IMGBB_KEY = '493904e927fb86161e0a4944d5b28de6';
 const MASTER_PIN = "5000"; 
@@ -563,22 +562,7 @@ async function syncToPartner(partnerPhone, txData) {
 
     } catch (e) { console.error("Mirror Sync Error:", e); }
 }
-         function enterApp() {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appBody').classList.remove('hidden');
-    
-    // ১. পিন দিয়ে ঢোকার পর ডিফল্টভাবে কাস্টমার ট্যাব সেট করা (যাতে কালার এবং ডাটা মেলে)
-    // যদি আপনি চান প্রথমে সাপ্লায়ার দেখাবে, তবে এখানে 'SUPPLIER' লিখে দিন
-    db.tab = 'CUSTOMER'; 
-
-    // ২. switchTab কল করা যাতে বাটন হাইলাইট এবং ডাটা লোড—দুটোই একসাথে হয়
-    switchTab(db.tab); 
-
-    // ৩. ইউজার ইনিশিয়াল আপডেট করা
-    if(db.admin && document.getElementById('userInitials')) {
-        document.getElementById('userInitials').innerText = (db.opName || db.admin.name).substring(0,2).toUpperCase();
-    }
-}
+         
           function logout() {
     if(confirm("Are you sure you want to terminate this secure session?")) {
         // লগআউট করার সময় সিক্রেট মোড পার্মানেন্টলি অফ করে রিফ্রেশ করা
@@ -1314,72 +1298,6 @@ function closeZoom() {
     document.getElementById('drawerActionType').innerText = t;
     document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('mainConfirmBtn').onclick = () => preSave(t);
-}
-        async function reportDefaulterToGlobal(phone, name, isBad) {
-    try {
-        if (isBad) {
-            // যদি ডিফোল্টার হয়, তবে গ্লোবাল ডিরেক্টরিতে নাম তুলে দাও
-            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).set({
-                phone: phone,
-                reportedBy: db.admin.name,
-                adminPhone: db.admin.phone,
-                status: "DEFAULTER",
-                updatedAt: new Date().toISOString()
-            });
-            console.log("Global Tag Fixed: " + phone);
-        } else {
-            // যদি হিসাব মিটিয়ে দেয়, তবে ডিলিট করে দাও
-            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).delete();
-        }
-    } catch (e) { console.error("Reputation Push Failed", e); }
-}
-        async function confirmAdd() { 
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const n = nInput.value.trim(); const ph = phInput.value.trim(); 
-    
-    if(n && ph.length === 10) { 
-        const saveBtn = document.querySelector('#addModal button:last-child');
-        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
-        saveBtn.disabled = true;
-
-        // --- ১০০% গ্যারান্টিযুক্ত চেক ---
-        const globalDoc = await db_fs.collection(GLOBAL_DEFAULTERS).doc(ph).get();
-        let isGlobalBad = false;
-
-        if (globalDoc.exists) {
-            const info = globalDoc.data();
-            isGlobalBad = true;
-            const warning = `🚨 SECURITY ALERT!\n\nThis number is a REPORTED DEFAULTER.\nReported by: ${info.reportedBy}\n\nDo you still want to add this person?`;
-            if (!confirm(warning)) {
-                saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
-                return;
-            }
-        }
-
-        // কন্টাক্ট অ্যাড করা
-        db.people.unshift({
-            id: Date.now(), name: n, phone: ph, type: db.tab,
-            isDefaulter: isGlobalBad, // গ্লোবাল স্ট্যাটাস অটো চলে আসবে
-            missedDates: isGlobalBad ? 3 : 0,
-            transactions: []
-        }); 
-
-        await saveDB(); 
-        document.getElementById('addModal').classList.add('hidden'); 
-        renderHome(); 
-        saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
-        alert("Account Created with Global Reputation Check.");
-    }
-}
-        async function syncGlobalTags() {
-    for (let p of db.people) {
-        const doc = await db_fs.collection(GLOBAL_DEFAULTERS).doc(p.phone).get();
-        if (doc.exists) {
-            p.isDefaulter = true; // অন্য ফোনে রিপোর্ট হলে আপনার এখানেও ট্যাগ আসবে
-        }
-    }
-    renderHome(); // ট্যাগ সহ রি-রেন্ডার
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
