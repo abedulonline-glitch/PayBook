@@ -45,19 +45,6 @@
         text-decoration: line-through; /* মাঝখানে কাটা দাগ পড়বে */
         pointer-events: none; /* আর কোনো ক্লিক কাজ করবে না */
 }
-   /* হেডার এবং ট্যাবের জন্য স্থায়ী উচ্চতা নিশ্চিত করা */
-header.axis-gradient {
-    height: 65px !important;
-    min-height: 65px !important;
-}
-
-#tab-sticky-box {
-    position: sticky;
-    top: 65px; /* হেডারের ঠিক নিচে */
-    z-index: 40;
-    background-color: white;
-    width: 100%;
-}
     </style>
 </head>
 <body>
@@ -136,32 +123,28 @@ header.axis-gradient {
 
     <div id="mainViewport" class="bg-slate-50">
         <!-- হোম স্ক্রিন -->
-        <!-- হোম স্ক্রিন: pt-0 ব্যবহার করা হয়েছে গ্যাপ মুছতে -->
-<div id="pageHome" class="flex flex-col pt-0 animate-fade"> 
-    
-    <!-- স্টিকি ট্যাব সেকশন: সরাসরি হেডারের সাথে লেগে থাকবে -->
-    <div id="tab-sticky-box" class="sticky top-[65px] z-40 bg-white border-b border-slate-100 px-4 py-3 shadow-sm">
-        <div class="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
-            <button onclick="switchTab('CUSTOMER')" id="tabCust" 
-                    class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all uppercase tracking-widest">
-                Customers
-            </button>
-            <button onclick="switchTab('SUPPLIER')" id="tabSupp" 
-                    class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all uppercase tracking-widest">
-                Suppliers
-            </button>
+        <div id="pageHome" class="flex flex-col">
+            <!-- স্টিকি ট্যাব সেকশন (এটি স্ক্রোল হবে না) -->
+            <div class="sticky top-0 z-40 bg-slate-50 p-5 pb-2">
+                <div class="flex bg-white p-1 rounded-xl border shadow-sm">
+                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white transition-all">CUSTOMERS</button>
+                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
+                </div>
+            </div>
+                <div id="contactList" class="space-y-3"></div>
+                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
+            </div>
+
+            <!-- লেজার: লেনদেন পেজ -->
+            <div id="pageLedger" class="hidden flex flex-col p-4">
+                <div id="ledgerList" class="flex flex-col"></div>
+                <div class="fixed bottom-8 left-5 right-5 flex gap-3 z-[150]">
+                    <button onclick="triggerDrawer('GIVEN')" class="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-black shadow-2xl">↑ GIVEN</button>
+                    <button onclick="triggerDrawer('RECEIVED')" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-2xl">↓ RECEIVED</button>
+                </div>
+            </div>
         </div>
     </div>
-
-    <!-- কন্টাক্ট লিস্ট: এখান থেকে প্যাডিং শুরু হবে যাতে লিস্টের ভেতর গ্যাপ থাকে -->
-    <div id="contactList" class="px-5 py-4 space-y-3"></div>
-
-    <!-- প্লাস বাটন -->
-    <button onclick="openAddModal()" 
-            class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90 z-50">
-        <i class="fas fa-plus"></i>
-    </button>
-</div>
 
     <!-- ৩. স্মার্ট ডাটা এন্ট্রি ড্রয়ার (Point 3a, 3b, 3e, 3f) -->
     <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
@@ -1252,14 +1235,6 @@ function closeZoom() {
         modal.classList.add('hidden');
         img.src = ""; // মেমোরি ক্লিয়ার করা
     }, 200);
-}
-        function exitSecretMode() {
-    db.secret = false;
-    // ... আপনার বাকি কোড ...
-    
-    // লেআউট ফিক্স করার জন্য এটি যোগ করুন
-    window.scrollTo(0, 0); // স্ক্রিনকে একদম উপরে নিয়ে আসবে যাতে স্টিকি পজিশন ঠিক হয়
-    renderHome(); 
 }
         
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
