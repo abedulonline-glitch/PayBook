@@ -598,72 +598,51 @@ async function syncToPartner(partnerPhone, txData) {
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
         // ১. সার্চ বার অন/অফ করার ফাংশন
-async function confirmAdd() { 
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const n = nInput.value.trim(); 
-    const ph = phInput.value.trim(); 
+async function confirmAdd() {
+    const n = document.getElementById('newPName').value.trim();
+    const ph = document.getElementById('newPPhone').value.trim();
     
-    if(n && ph.length === 10) { 
-        // ১. সেভ বাটন লোডিং স্টেট
-        const saveBtn = document.querySelector('#addModal button:last-child');
-        const originalText = saveBtn.innerText;
-        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
-        saveBtn.disabled = true;
+    if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
 
-        try {
-            // ২. গ্লোবাল ডাটাবেস থেকে মিরর রেকর্ড ফ্যাচ করা (পয়েন্ট ৯ ফিক্স)
-            // এটি চেক করবে এই নম্বরটি অন্য কেউ রিপোর্ট করেছে কি না
-            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-            let isGlobalBad = false;
-            let reporterName = "";
+    const saveBtn = document.querySelector('#addModal button:last-child');
+    saveBtn.innerText = "VERIFYING CREDIT...";
+    saveBtn.disabled = true;
 
-            if (globalDoc.exists) {
-                const info = globalDoc.data();
-                isGlobalBad = true;
-                reporterName = info.reportedBy || "Another Merchant";
-                
-                const warning = `🚨 SECURITY ALERT: GLOBAL DEFAULTER!\n\nThis customer has been reported as a DEFAULTER by ${reporterName}.\n\nDo you still want to risk adding this person?`;
-                
-                if (!confirm(warning)) {
-                    saveBtn.innerText = originalText;
-                    saveBtn.disabled = false;
-                    return; // ইউজার 'না' বললে অ্যাড হবে না
-                }
+    try {
+        // --- পয়েন্ট ৯ ফিক্স: গ্লোবাল ব্ল্যাকলিস্ট চেক ---
+        const blackListDoc = await db_fs.collection(BLACKLIST).doc(ph).get();
+        
+        let initialDefaulterStatus = false;
+        if(blackListDoc.exists) {
+            const reporter = blackListDoc.data();
+            const proceed = confirm(`⚠️ SECURITY ALERT!\n\nThis number is a REPORTED DEFAULTER.\nReported by: ${reporter.reportedBy}\n\nDo you still want to risk adding this person?`);
+            if(!proceed) {
+                saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
+                return; // ইউজার 'না' বললে কন্টাক্ট অ্যাড হবে না
             }
-
-            // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
-            db.people.unshift({
-                id: Date.now(), 
-                name: n, 
-                phone: ph, 
-                type: db.tab, 
-                isDefaulter: isGlobalBad, // যদি গ্লোবালি থাকে তবে অটো মার্ক হবে
-                missedDates: isGlobalBad ? 3 : 0,
-                transactions: []
-            }); 
-
-            await saveDB(); // ক্লাউড ও লোকাল সেভ
-            
-            // ৪. ফর্ম ক্লিয়ার ও মোডাল বন্ধ
-            nInput.value = ""; 
-            phInput.value = ""; 
-            saveBtn.innerText = originalText;
-            saveBtn.disabled = false;
-            document.getElementById('addModal').classList.add('hidden'); 
-            renderHome(); 
-
-            if(isGlobalBad) alert("Profile created with DEFAULTER status.");
-            else alert("Account Created successfully.");
-
-        } catch (err) {
-            console.error(err);
-            alert("Verification Error! Please check internet.");
-            saveBtn.innerText = originalText;
-            saveBtn.disabled = false;
+            initialDefaulterStatus = true; // ইউজার রাজি হলে ডিফোল্টার ট্যাগ নিয়ে অ্যাড হবে
         }
-    } else {
-        alert("Invalid Name or 10-digit Phone Number!"); 
+
+        // ২. কন্টাক্ট লিস্টে অ্যাড করা
+        db.people.unshift({
+            id: Date.now(),
+            name: n,
+            phone: ph,
+            type: db.tab,
+            isDefaulter: initialDefaulterStatus,
+            transactions: []
+        });
+
+        await saveDB(); 
+        document.getElementById('addModal').classList.add('hidden');
+        renderHome();
+        alert("Profile created with Global Security Sync.");
+
+    } catch(e) {
+        alert("Network Error! Try again.");
+    } finally {
+        saveBtn.innerText = "SAVE";
+        saveBtn.disabled = false;
     }
 }
 
@@ -1262,7 +1241,11 @@ function initNavigation() {
         // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার)
         const odBadge = (missedCount > 0) ? 
             `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
+         // renderHome এর লুপের ভেতর নামের পাশে এটি বসান:
+         const globalBadge = p.isDefaulter ? 
+        `<span class="ml-2 px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[7px] font-black rounded uppercase blink-secret">GLOBAL DEFAULTER</span>` : "";
 
+         // হ্যডার টেক্সট: ${p.name} ${globalBadge}
         // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার + ব্লিঙ্কিং)
         // যদি ডাটাবেসে isDefaulter থাকে অথবা missedCount ৩ এর বেশি হয়
         const isDef = p.isDefaulter === true || missedCount >= 3;
@@ -1387,7 +1370,7 @@ function closeZoom() {
     document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('mainConfirmBtn').onclick = () => preSave(t);
 }
-        async function reportDefaulterGlobally(person) {
+       async function reportDefaulterGlobally(person) {
     // শুধুমাত্র যদি ডিফোল্টার হয় তবেই গ্লোবাল ডিরেক্টরিতে নাম উঠবে
     if(person.isDefaulter) {
         await db_fs.collection(BLACKLIST).doc(person.phone).set({
