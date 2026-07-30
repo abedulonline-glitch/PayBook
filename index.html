@@ -125,11 +125,10 @@ header {
     <div class="flex items-center gap-4">
         <i class="fas fa-arrow-left" onclick="goHome()"></i>
         <!-- এখানে onclick যোগ করা হয়েছে -->
-        <!-- নামের ওপর ক্লিক করলে এডিট মোডাল খুলবে -->
-<div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
-    <h2 id="lName" class="text-sm font-bold leading-none text-white">Client</h2>
-    <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
-</div>
+        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
+            <h2 id="lName" class="text-sm font-bold leading-none">Client</h2>
+            <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
+        </div>
     </div>
     <div class="flex items-center gap-3">
         <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
@@ -1421,7 +1420,8 @@ function renderHome() {
                     
                     <div class="flex flex-col gap-2 border-l border-slate-100 pl-3">
                         <i onclick="event.stopPropagation(); openEditPersonModalManually(${p.id})" 
-                               class="fas fa-user-edit text-[16px] text-indigo-300 hover:text-[#861F41] p-1 cursor-pointer transition-colors"></i> 
+                           class="fas fa-user-edit text-[16px] text-indigo-300 hover:text-[#861F41] p-1 cursor-pointer"></i>
+                        
                         <i onclick="event.stopPropagation(); deletePerson(${p.id})" 
                            class="fas fa-trash-alt text-[16px] text-slate-200 hover:text-rose-500 p-1 cursor-pointer"></i>
                     </div>
@@ -1437,10 +1437,6 @@ function renderHome() {
 function openEditPersonModalManually(id) {
     // ১. আইডি সেভ করা
     db.activeId = id; 
-    
-    // ২. মেইন ফাংশনটি কল করা যা তথ্য লোড করে মোডাল দেখাবে
-    openEditPersonModal();
-}
     
     // ২. ওই ব্যক্তির ডাটা খুঁজে বের করা
     const person = db.people.find(p => p.id === id);
