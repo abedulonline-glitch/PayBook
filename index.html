@@ -55,21 +55,25 @@
 }
        /* হেডার হাইড করার এনিমেশন */
 header {
+   /* হেডার এনিমেশন */
+header {
     transition: transform 0.3s ease-in-out;
 }
 .header-hidden {
-    transform: translateY(-100%); /* হেডার উপরে লুকিয়ে যাবে */
+    transform: translateY(-100%);
 }
 
-/* ট্যাব সেকশনের পজিশন স্মার্টলি মুভ করার জন্য */
+/* ট্যাব বার ফিক্স: এটিও হেডারের সাথে মুভ করবে */
 #tab-sticky-box {
-    transition: top 0.3s ease-in-out;
+    transition: top 0.3s ease-in-out, box-shadow 0.3s;
+    background-color: white; /* ব্যাকগ্রাউন্ড সাদা থাকা জরুরি */
 }
 
-/* লিস্টের একদম নিচে গ্যাপ রাখা যাতে শেষ কাস্টমার প্লাস বাটনে ঢাকা না পড়ে */
-#contactList {
-    padding-bottom: 120px !important; 
-} 
+/* যখন হেডার লুকিয়ে যাবে, তখন ট্যাবটি একদম উপরে (top-0) চলে আসবে */
+.tabs-at-top {
+    top: 0px !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* উপরে গেলে হালকা শ্যাডো আসবে */
+}
     </style>
 </head>
 <body>
@@ -148,16 +152,15 @@ header {
 
     <div id="mainViewport" class="bg-slate-50">
         <!-- হোম স্ক্রিন -->
-        <div id="pageHome" class="flex flex-col pt-0 animate-fade">
-    <!-- ট্যাব সেকশন (হেডারের সাথে লেগে থাকবে) -->
-    <div class="sticky top-[65px] z-40 bg-white border-b border-slate-100 px-4 py-3 shadow-sm transition-all duration-300">
-        <div class="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
+        <div id="pageHome" class="flex flex-col pt-0">
+    <!-- এই ডিভটিই স্টিকি হবে -->
+    <div id="tab-sticky-box" class="sticky top-[65px] z-40 bg-white border-b px-4 py-2">
+        <div class="flex bg-slate-50 p-1 rounded-xl border">
             <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 ...">CUSTOMERS</button>
             <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 ...">SUPPLIERS</button>
         </div>
     </div>
-
-    <!-- কন্টাক্ট লিস্ট: নিচে ১২০ পিক্সেল প্যাডিং দেওয়া হয়েছে -->
+    
     <div id="contactList" class="px-5 py-4 space-y-3" style="padding-bottom: 120px;"></div>
 </div>
 
@@ -354,22 +357,22 @@ let capturedFiles = [];
         toggleAuth('REG');
     }
 
-    let lastScrollTop = 0;
+   let lastScrollTop = 0;
 const mainViewport = document.getElementById('mainViewport');
 const mainHeader = document.querySelector('header');
-const stickyTabs = document.querySelector('.sticky'); // আপনার ট্যাবের ক্লাস বা আইডি
+const tabBox = document.getElementById('tab-sticky-box');
 
 mainViewport.addEventListener('scroll', function() {
     let scrollTop = mainViewport.scrollTop;
 
     if (scrollTop > lastScrollTop && scrollTop > 100) {
-        // নিচে স্ক্রোল করলে: হেডার লুকাবে, ট্যাব একদম উপরে উঠে যাবে
+        // নিচে স্ক্রোল করলে: হেডার লুকাবে, ট্যাব একদম টপে চলে যাবে
         mainHeader.classList.add('header-hidden');
-        if(stickyTabs) stickyTabs.style.top = "0px";
+        tabBox.classList.add('tabs-at-top');
     } else {
-        // উপরে স্ক্রোল করলে: হেডার আসবে, ট্যাব আবার ৬৫ পিক্সেল নিচে নামবে
+        // উপরে স্ক্রোল করলে: হেডার আসবে, ট্যাব আবার নিচে নামবে
         mainHeader.classList.remove('header-hidden');
-        if(stickyTabs) stickyTabs.style.top = "65px";
+        tabBox.classList.remove('tabs-at-top');
     }
     
     lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
