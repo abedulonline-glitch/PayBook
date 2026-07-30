@@ -288,57 +288,56 @@ header {
         </div>
     </div>
 
-    <!-- ৩.৫. নতুন একাউন্ট খোলার মোডাল (Burgundy & Profile Image Update) -->
-<div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+<!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল (Burgundy Theme & Profile Edit) -->
+<div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
     <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
         <!-- টপ হ্যান্ডেল -->
         <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8"></div>
         
-        <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">New Account</h3>
+        <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">Update Account</h3>
 
-        <!-- প্রোফাইল ইমেজ সিলেক্টর -->
+        <!-- প্রোফাইল ইমেজ এডিট সেকশন -->
         <div class="flex flex-col items-center mb-8">
             <div class="relative group">
-                <label for="pImgInput" class="w-24 h-24 bg-slate-50 rounded-full border-2 border-dashed border-[#861F41]/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner transition-all hover:border-[#861F41]">
-                    <i id="pImgPlaceholder" class="fas fa-camera text-[#861F41]/40 text-2xl"></i>
-                    <img id="pImgPreview" class="hidden w-full h-full object-cover">
+                <label for="editPImgInput" class="w-24 h-24 bg-slate-50 rounded-full border-2 border-dashed border-[#861F41]/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner transition-all hover:border-[#861F41]">
+                    <i id="editPImgPlaceholder" class="fas fa-camera text-[#861F41]/40 text-2xl"></i>
+                    <img id="editPImgPreview" class="hidden w-full h-full object-cover">
                 </label>
-                <input type="file" id="pImgInput" accept="image/*" class="hidden">
+                <input type="file" id="editPImgInput" accept="image/*" class="hidden">
                 <div class="absolute -bottom-1 -right-1 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                    <i class="fas fa-plus text-[10px]"></i>
+                    <i class="fas fa-edit text-[10px]"></i>
                 </div>
             </div>
-            <p class="text-[9px] font-black text-[#861F41]/50 uppercase mt-3 tracking-widest">Add Profile Picture</p>
+            <p class="text-[9px] font-black text-[#861F41]/50 uppercase mt-3 tracking-widest">Change Profile Picture</p>
         </div>
 
         <!-- ইনপুট ফিল্ডস: Burgundy থিম -->
         <div class="space-y-4">
             <div class="relative">
                 <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-[#861F41]/30 text-sm"></i>
-                <input id="newPName" type="text" placeholder="Contact Full Name" 
+                <input id="editPName" type="text" placeholder="Update Name" 
                        class="axis-input !pl-12 !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold placeholder:text-[#861F41]/30">
             </div>
             <div class="relative">
                 <i class="fas fa-phone-alt absolute left-4 top-1/2 -translate-y-1/2 text-[#861F41]/30 text-sm"></i>
-                <input id="newPPhone" type="number" placeholder="Mobile Number (Unique)" 
+                <input id="editPPhone" type="number" placeholder="Update Mobile Number" 
                        class="axis-input !pl-12 !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold placeholder:text-[#861F41]/30">
             </div>
         </div>
 
         <!-- একশন বাটন -->
         <div class="flex gap-4 mt-10">
-            <button onclick="document.getElementById('addModal').classList.add('hidden')" 
-                    class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest active:scale-95 transition-all">
-                Exit
+            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" 
+                    class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest">
+                Cancel
             </button>
-            <button onclick="confirmAdd()" 
+            <button onclick="confirmEditPerson()" 
                     class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl shadow-[#861F41]/20 uppercase tracking-widest active:scale-95 transition-all">
-                Save Account
+                Save Changes
             </button>
         </div>
     </div>
 </div>
-    
 <!-- স্মার্ট ইমেজ জুম মোডাল -->
 <div id="imageZoomModal" 
      class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" 
@@ -456,7 +455,21 @@ document.getElementById('pImgInput').onchange = e => {
         reader.readAsDataURL(file);
     }
 };
-
+// এডিট মোডালের ছবি প্রিভিউ হ্যান্ডলার
+document.getElementById('editPImgInput').onchange = e => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const preview = document.getElementById('editPImgPreview');
+            const placeholder = document.getElementById('editPImgPlaceholder');
+            preview.src = ev.target.result;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+};
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
         // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
