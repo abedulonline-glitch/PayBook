@@ -469,7 +469,67 @@ document.getElementById('editPImgInput').onchange = e => {
         };
         reader.readAsDataURL(file);
     }
-};
+};let newSelectedEditFile = null; // নতুন সিলেক্ট করা ছবি রাখার জন্য
+
+// এই লাইনটি window.onload এর ভেতরে বা বাইরে নিশ্চিত করুন (এরর ফিক্স)
+document.addEventListener('change', function(e) {
+    if(e.target && e.target.id === 'editPImgInput') {
+        const file = e.target.files[0];
+        if (file) {
+            newSelectedEditFile = file;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                document.getElementById('editPImgPreview').src = ev.target.result;
+                document.getElementById('editPImgPreview').classList.remove('hidden');
+                document.getElementById('editPImgPlaceholder').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+});
+
+async function confirmEditPerson() {
+    const personIndex = db.people.findIndex(p => p.id === db.activeId);
+    if(personIndex === -1) return;
+
+    const btn = event.target; // সেভ বাটন
+    btn.innerText = "UPDATING...";
+    btn.disabled = true;
+
+    try {
+        let finalPicUrl = db.people[personIndex].profilePic || "";
+
+        // যদি নতুন কোনো ছবি সিলেক্ট করা হয়, তবেই আপলোড হবে
+        if (newSelectedEditFile) {
+            const fd = new FormData();
+            fd.append('image', newSelectedEditFile);
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+            const dat = await res.json();
+            if(dat.success) finalPicUrl = dat.data.url;
+        }
+
+        // ডাটা আপডেট
+        db.people[personIndex].name = document.getElementById('editPName').value.trim();
+        db.people[personIndex].phone = document.getElementById('editPPhone').value.trim();
+        db.people[personIndex].profilePic = finalPicUrl;
+
+        await saveDB(); // ক্লাউড এবং লোকাল সেভ
+        
+        document.getElementById('editPersonModal').classList.add('hidden');
+        newSelectedEditFile = null; // রিসেট
+        renderHome();
+        if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger();
+        
+        alert("Account Updated Successfully!");
+
+    } catch(e) {
+        alert("Error updating account!");
+    } finally {
+        btn.innerText = "SAVE CHANGES";
+        btn.disabled = false;
+    }
+}
+        
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
         // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
@@ -1238,31 +1298,7 @@ function openEditPersonModal() {
     }
 }
 
-// ২. ডাটা সেভ করার ফাংশন
-function confirmEditPerson() {
-    const newName = document.getElementById('editPName').value.trim();
-    const newPhone = document.getElementById('editPPhone').value.trim();
 
-    if(!newName || newPhone.length !== 10) {
-        return alert("Please enter a valid Name and 10-digit Phone Number!");
-    }
-
-    // ডাটাবেসে আপডেট করা
-    const personIndex = db.people.findIndex(p => p.id === db.activeId);
-    if(personIndex !== -1) {
-        db.people[personIndex].name = newName;
-        db.people[personIndex].phone = newPhone;
-
-        // সাথে সাথে স্ক্রিনের হেডার আপডেট করা
-        document.getElementById('lName').innerText = newName;
-        document.getElementById('lPhone').innerText = "+91 " + newPhone;
-
-        saveDB(); // ক্লাউড এবং লোকাল মেমোরিতে সেভ
-        document.getElementById('editPersonModal').classList.add('hidden');
-        alert("Account Information Updated Successfully!");
-        renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
-    }
-}
         // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
 async function hireManager() {
     const n = prompt("Enter Manager Name:");
