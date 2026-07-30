@@ -53,6 +53,23 @@
 .footer-hidden {
     transform: translateY(120%); /* এটি বাটনকে স্ক্রিনের নিচে ঠেলে দিবে */
 }
+       /* হেডার হাইড করার এনিমেশন */
+header {
+    transition: transform 0.3s ease-in-out;
+}
+.header-hidden {
+    transform: translateY(-100%); /* হেডার উপরে লুকিয়ে যাবে */
+}
+
+/* ট্যাব সেকশনের পজিশন স্মার্টলি মুভ করার জন্য */
+#tab-sticky-box {
+    transition: top 0.3s ease-in-out;
+}
+
+/* লিস্টের একদম নিচে গ্যাপ রাখা যাতে শেষ কাস্টমার প্লাস বাটনে ঢাকা না পড়ে */
+#contactList {
+    padding-bottom: 120px !important; 
+} 
     </style>
 </head>
 <body>
@@ -131,17 +148,18 @@
 
     <div id="mainViewport" class="bg-slate-50">
         <!-- হোম স্ক্রিন -->
-        <div id="pageHome" class="flex flex-col">
-            <!-- স্টিকি ট্যাব সেকশন (এটি স্ক্রোল হবে না) -->
-            <div class="sticky top-0 z-40 bg-slate-50 p-5 pb-2">
-                <div class="flex bg-white p-1 rounded-xl border shadow-sm">
-                    <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white transition-all">CUSTOMERS</button>
-                    <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all">SUPPLIERS</button>
-                </div>
-            </div>
-                <div id="contactList" class="space-y-3"></div>
-                <button onclick="openAddModal()" class="fixed bottom-10 right-6 w-16 h-16 axis-gradient text-white rounded-2xl shadow-2xl flex items-center justify-center text-2xl border-4 border-white transition-transform active:scale-90"><i class="fas fa-plus"></i></button>
-            </div>
+        <div id="pageHome" class="flex flex-col pt-0 animate-fade">
+    <!-- ট্যাব সেকশন (হেডারের সাথে লেগে থাকবে) -->
+    <div class="sticky top-[65px] z-40 bg-white border-b border-slate-100 px-4 py-3 shadow-sm transition-all duration-300">
+        <div class="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
+            <button onclick="switchTab('CUSTOMER')" id="tabCust" class="flex-1 py-3 ...">CUSTOMERS</button>
+            <button onclick="switchTab('SUPPLIER')" id="tabSupp" class="flex-1 py-3 ...">SUPPLIERS</button>
+        </div>
+    </div>
+
+    <!-- কন্টাক্ট লিস্ট: নিচে ১২০ পিক্সেল প্যাডিং দেওয়া হয়েছে -->
+    <div id="contactList" class="px-5 py-4 space-y-3" style="padding-bottom: 120px;"></div>
+</div>
 
             <!-- লেজার: লেনদেন পেজ -->
             <div id="pageLedger" class="hidden flex flex-col p-4">
@@ -336,25 +354,26 @@ let capturedFiles = [];
         toggleAuth('REG');
     }
 
-     let lastScrollTop = 0;
-const viewport = document.getElementById('mainViewport');
-const footer = document.getElementById('ledgerFooter');
+    let lastScrollTop = 0;
+const mainViewport = document.getElementById('mainViewport');
+const mainHeader = document.querySelector('header');
+const stickyTabs = document.querySelector('.sticky'); // আপনার ট্যাবের ক্লাস বা আইডি
 
-// স্ক্রোল ডিটেকশন লজিক
-viewport.addEventListener('scroll', function() {
-    let scrollTop = viewport.scrollTop;
+mainViewport.addEventListener('scroll', function() {
+    let scrollTop = mainViewport.scrollTop;
 
     if (scrollTop > lastScrollTop && scrollTop > 100) {
-        // নিচে স্ক্রোল করলে বাটন হাইড হবে
-        footer.classList.add('footer-hidden');
+        // নিচে স্ক্রোল করলে: হেডার লুকাবে, ট্যাব একদম উপরে উঠে যাবে
+        mainHeader.classList.add('header-hidden');
+        if(stickyTabs) stickyTabs.style.top = "0px";
     } else {
-        // উপরে স্ক্রোল করলে বাটন আবার আসবে
-        footer.classList.remove('footer-hidden');
+        // উপরে স্ক্রোল করলে: হেডার আসবে, ট্যাব আবার ৬৫ পিক্সেল নিচে নামবে
+        mainHeader.classList.remove('header-hidden');
+        if(stickyTabs) stickyTabs.style.top = "65px";
     }
     
     lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
 }, { passive: true });
-            
     // UI থেকে সিক্রেট ব্লিনকিং ইফেক্ট সরিয়ে ফেলা
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
