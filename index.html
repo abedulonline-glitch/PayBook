@@ -779,7 +779,6 @@ async function preSave(t) {
     const amt = parseFloat(amtInput.value); 
     if(!amt || amt <= 0) return alert("Please enter amount!");
 
-    // কালেকশন ডেট ভ্যালু নেওয়া
     const nextDateVal = document.getElementById('nextCollDate')?.value || null;
 
     const act = async () => {
@@ -788,9 +787,8 @@ async function preSave(t) {
         confirmBtn.disabled = true;
 
         try {
+            // ১. ছবি আপলোড লজিক
             let uploadedImgs = [];
-            
-            // লুপ চালিয়ে ইমেজগুলো ImgBB-তে আপলোড করা
             const filesToUpload = (typeof capturedFiles !== 'undefined') ? capturedFiles : [];
             for(let file of filesToUpload) {
                 const fd = new FormData();
@@ -799,12 +797,12 @@ async function preSave(t) {
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                     const dat = await res.json();
                     if(dat.success) uploadedImgs.push(dat.data.url);
-                } catch(imgErr) { console.error("Img Upload Fail"); }
+                } catch(e) { console.error("Img Upload Fail"); }
             }
 
             const person = db.people.find(x => x.id === db.activeId);
             
-            // ১. নতুন ট্রানজ্যাকশন অবজেক্ট তৈরি (Next Collection Date সহ)
+            // ২. নতুন ট্রানজ্যাকশন অবজেক্ট
             const newTx = { 
                 id: Date.now(), 
                 amount: amt, 
@@ -812,32 +810,48 @@ async function preSave(t) {
                 secret: !!db.secret, 
                 date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
                 note: document.getElementById('txNote').value.trim(), 
-                nextCollDate: nextDateVal, // এখানে নেক্সট কালেকশন ডেট সেভ হচ্ছে
+                nextCollDate: nextDateVal, 
                 images: uploadedImgs, 
                 by: db.opName || 'Owner', 
                 status: 'active' 
             };
 
-            // ২. নিজের লিস্টে সেভ করা
+            // ৩. নিজের লিস্টে এন্ট্রি পুশ করা
             person.transactions.push(newTx);
-            await saveDB(); // ক্লাউড সিঙ্ক
-            
-            // ৩. মিরর সিঙ্ক (পয়েন্ট ৯ অনুযায়ী পার্টনারের ফোনে পাঠানো)
+
+            // ৪. ডিফোল্টার লজিক ক্যালকুলেশন (পয়েন্ট অনুযায়ী)
+            let missedCount = 0;
+            const today = new Date().setHours(0,0,0,0);
+            (person.transactions || []).forEach(tx => {
+                if (tx.status === 'active' && tx.nextCollDate) {
+                    const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
+                    if (today > promised) missedCount++;
+                }
+            });
+
+            // ডাটাবেস অবজেক্টে ডিফোল্টার স্ট্যাটাস আপডেট (আপনার ফায়ারবেস স্ক্রিনশটে এখন এটি দেখা যাবে)
+            person.missedDates = missedCount;
+            person.isDefaulter = (missedCount >= 3);
+
+            // ৫. গ্লোবাল ডাটাবেসে (Point 9) ডিফোল্টার রিপোর্ট করা
+            await reportDefaulterToGlobal(person.phone, person.name, person.isDefaulter);
+
+            // ৬. নিজের ডাটাবেস এবং মিরর সিঙ্ক
+            await saveDB(); 
             if (typeof syncToPartner === 'function') {
                 await syncToPartner(person.phone, newTx);
             }
 
+            // ৭. ইউআই ক্লিন এবং রিফ্রেশ
             renderLedger(); 
-            
-            // ৪. কাজ শেষ হলে সব ইনপুট ক্লিয়ার করা (Form Cleaning)
             if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
             if(document.getElementById('txNote')) document.getElementById('txNote').value = "";
             if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
             amtInput.value = "";
             capturedFiles = []; 
             
-            closeDrawer(); // ড্রয়ার বন্ধ হবে
-            alert("Transaction saved successfully!");
+            closeDrawer(); 
+            alert(person.isDefaulter ? "⚠️ WARNING: Customer marked as DEFAULTER!" : "Transaction successful!");
 
         } catch(error) {
             console.error("Critical Sync Error:", error);
@@ -848,12 +862,27 @@ async function preSave(t) {
         }
     };
 
-    // সিক্রেট মোড পিন ভেরিফিকেশন (কাস্টমারের থেকে টাকা পেলে)
-    if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') {
-        askPin(act); 
-    } else {
-        act();
-    }
+    if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
+}
+        async function reportDefaulterToGlobal(phone, name, isBad) {
+    const GLOBAL_DEFAULTERS = "global_defaulters"; 
+    try {
+        const ref = db_fs.collection(GLOBAL_DEFAULTERS).doc(phone);
+        if (isBad) {
+            // গ্লোবাল ব্ল্যাকলিস্টে নাম তোলা
+            await ref.set({
+                phone: phone,
+                name: name,
+                reportedBy: db.admin.name,
+                adminPhone: db.admin.phone,
+                status: "DEFAULTER",
+                updatedAt: new Date().toISOString()
+            });
+        } else {
+            // যদি ডিফোল্টার না হয় তবে লিস্ট থেকে রিমুভ (যদি আগে থেকে থাকে)
+            await ref.delete();
+        }
+    } catch (e) { console.error("Global Reporting Failed", e); }
 }
 
         // ১. সার্চ বার অন/অফ করার ফাংশন (যা আপনার কোডে নেই)
@@ -1400,7 +1429,27 @@ function closeZoom() {
         console.log("Global Blacklist Updated: " + person.phone);
     }
 }
-        
+
+        // এই ফাংশনটি আপনার স্ক্রিপ্টের শেষে যোগ করুন
+async function reportDefaulterToGlobal(phone, name, isBad) {
+    const GLOBAL_DEFAULTERS = "global_defaulters"; // নতুন কমন ঘর
+    try {
+        if (isBad) {
+            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).set({
+                phone: phone,
+                name: name,
+                reportedBy: db.admin.name,
+                adminPhone: db.admin.phone,
+                status: "DEFAULTER",
+                updatedAt: new Date().toISOString()
+            });
+            console.log("Global Defaulter Tag Synced: " + phone);
+        } else {
+            // যদি ভুলবশত হয় বা টাকা শোধ করে দেয় তবে রিমুভ হবে
+            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).delete();
+        }
+    } catch (e) { console.error("Global Reporting Failed", e); }
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
