@@ -297,6 +297,7 @@ const COLLECTION = "global_paybook_ledgers"; // যেখানে মূল হ
 const ACCESS_KEYS = "access_keys"; // রাউটিং এর জন্য নতুন কালেকশন (পয়েন্ট ৯ ফিক্স)
 const DB_KEY = 'PayBook_V18_Master_Verified'; // নতুন ভার্সন কী
 const BLACKLIST = "global_blacklist"; // ডিফল্টারদের গ্লোবাল ডিরেক্টরি
+const GLOBAL_DEFAULTERS = "global_defaulters"; // এই লাইনটি অবশ্যই থাকতে হবে
         
 // গ্লোবাল স্টেট (App State)
 let db = { 
@@ -654,15 +655,84 @@ if (globalDoc.exists) {
             phInput.value = ""; 
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
+async function confirmAdd() { 
+    const nInput = document.getElementById('newPName');
+    const phInput = document.getElementById('newPPhone');
+    const n = nInput.value.trim(); 
+    const ph = phInput.value.trim(); 
+    
+    if(n && ph.length === 10) { 
+        // ১. সেভ বাটন লোডিং স্টেট (পেশাদার লুক)
+        const saveBtn = document.querySelector('#addModal button:last-child');
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
+        saveBtn.disabled = true;
+
+        let isGlobalBad = false;
+        let proof = null;
+
+        try {
+            // ২. গ্লোবাল চেক (এই অংশটুকু একটি আলাদা ব্লকের ভেতর রাখা হয়েছে যাতে এরর হলে কোড না থামে)
+            try {
+                const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
+                if (globalDoc.exists) {
+                    proof = globalDoc.data();
+                    isGlobalBad = true;
+                    
+                    // প্রমাণ বা রিপোর্ট মেসেজ তৈরি
+                    const proofReport = `🚨 REPUTATION ALERT: PROOF DETECTED!\n\n` +
+                        `This customer is a reported DEFAULTER in the network.\n\n` +
+                        `• Reported by: ${proof.reportedBy || 'Axis Merchant'}\n` +
+                        `• Total Outstanding: Rs. ${(proof.totalAmountDue || 0).toLocaleString()}\n` +
+                        `• Failed Promises: ${proof.missedDates || 3} times\n` +
+                        `• Reported On: ${proof.updatedAt ? new Date(proof.updatedAt).toLocaleDateString() : 'N/A'}\n\n` +
+                        `You can contact the reporter at +91 ${proof.adminPhone || ''} for verification.\n\n` +
+                        `Do you still want to risk adding this customer?`;
+
+                    // এডমিনকে সিদ্ধান্ত নেওয়ার সুযোগ দেওয়া
+                    if (!confirm(proofReport)) {
+                        saveBtn.innerText = originalText;
+                        saveBtn.disabled = false;
+                        return; // ইউজার 'না' বললে এখান থেকেই ফাংশন থেমে যাবে
+                    }
+                }
+            } catch (innerErr) {
+                console.warn("Global Reputation Check skipped due to network/rules issue:", innerErr);
+                // গ্লোবাল চেক ফেল করলেও আমরা কোনো এলার্ট দিব না, সরাসরি কাস্টমার অ্যাড করতে চলে যাব
+            }
+
+            // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা (নিজস্ব লিস্টে)
+            db.people.unshift({
+                id: Date.now(), 
+                name: n, 
+                phone: ph, 
+                type: db.tab, 
+                isDefaulter: isGlobalBad, 
+                missedDates: isGlobalBad ? 3 : 0,
+                transactions: []
+            }); 
+
+            // ৪. ডাটা ক্লাউড এবং লোকাল মেমোরিতে সেভ করা
+            await saveDB(); 
+            
+            // ৫. ইউআই ক্লিন এবং মোডাল বন্ধ
+            nInput.value = ""; 
+            phInput.value = ""; 
+            saveBtn.innerText = originalText;
+            saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
+            
             renderHome(); 
 
-            if(isGlobalBad) alert("Profile created with DEFAULTER status.");
-            else alert("Account Created successfully.");
+            if(isGlobalBad) {
+                alert("Security Note: Profile created with a GLOBAL DEFAULTER tag.");
+            } else {
+                alert("Account created and synced successfully.");
+            }
 
-        } catch (err) {
-            console.error(err);
-            alert("Verification Error! Please check internet.");
+        } catch (error) {
+            console.error("Critical Save Error:", error);
+            alert("System Error: Could not save the profile. Please try again.");
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
         }
