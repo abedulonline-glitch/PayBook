@@ -1276,25 +1276,25 @@ function handleSmartPdfDownload() {
 }
         // ১. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
 function openEditPersonModal() {
-    // চেক করা হচ্ছে কোনো কাস্টমার বর্তমানে একটিভ আছে কি না
-    if (!db.activeId) {
-        console.warn("No active ID found to edit!");
-        return;
-    }
-
     const person = db.people.find(p => p.id === db.activeId);
-    const modal = document.getElementById('editPersonModal');
-    const nameInp = document.getElementById('editPName');
-    const phInp = document.getElementById('editPPhone');
+    if(person) {
+        document.getElementById('editPName').value = person.name;
+        document.getElementById('editPPhone').value = person.phone;
 
-    // সব এলিমেন্ট এবং ডাটা ঠিক থাকলে তবেই কাজ করবে
-    if (person && modal && nameInp && phInp) {
-        nameInp.value = person.name;
-        phInp.value = person.phone;
-        modal.classList.remove('hidden');
-        console.log("Edit Modal opened for: " + person.name);
-    } else {
-        console.error("Required Edit elements or Person data missing!");
+        // আগের ছবি লোড করার লজিক
+        const preview = document.getElementById('editPImgPreview');
+        const placeholder = document.getElementById('editPImgPlaceholder');
+        
+        if (person.profilePic) {
+            preview.src = person.profilePic;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        } else {
+            preview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+        }
+
+        document.getElementById('editPersonModal').classList.remove('hidden');
     }
 }
 
