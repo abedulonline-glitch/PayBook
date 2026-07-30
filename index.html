@@ -288,31 +288,53 @@ header {
         </div>
     </div>
 
-    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-        <div class="flex justify-between items-center mb-6">
-    <i class="fas fa-chevron-left text-slate-300" onclick="handleGlobalBack()"></i>
-    <h3 class="text-xl font-bold uppercase">Title Here</h3>
-    <span></span>
-</div>
-        <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
-            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">New Account</h3>
-            <input id="newPName" type="text" placeholder="Contact Full Name" class="axis-input mb-4">
-            <input id="newPPhone" type="number" placeholder="Mobile (Unique)" class="axis-input mb-10">
-            <div class="flex gap-4">
-                <button onclick="document.getElementById('addModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Exit</button>
-                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">SAVE</button>
+    <!-- ৩.৫. নতুন একাউন্ট খোলার মোডাল (Burgundy & Profile Image Update) -->
+<div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+    <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
+        <!-- টপ হ্যান্ডেল -->
+        <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8"></div>
+        
+        <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">New Account</h3>
+
+        <!-- প্রোফাইল ইমেজ সিলেক্টর -->
+        <div class="flex flex-col items-center mb-8">
+            <div class="relative group">
+                <label for="pImgInput" class="w-24 h-24 bg-slate-50 rounded-full border-2 border-dashed border-[#861F41]/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner transition-all hover:border-[#861F41]">
+                    <i id="pImgPlaceholder" class="fas fa-camera text-[#861F41]/40 text-2xl"></i>
+                    <img id="pImgPreview" class="hidden w-full h-full object-cover">
+                </label>
+                <input type="file" id="pImgInput" accept="image/*" class="hidden">
+                <div class="absolute -bottom-1 -right-1 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                    <i class="fas fa-plus text-[10px]"></i>
+                </div>
+            </div>
+            <p class="text-[9px] font-black text-[#861F41]/50 uppercase mt-3 tracking-widest">Add Profile Picture</p>
+        </div>
+
+        <!-- ইনপুট ফিল্ডস: Burgundy থিম -->
+        <div class="space-y-4">
+            <div class="relative">
+                <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-[#861F41]/30 text-sm"></i>
+                <input id="newPName" type="text" placeholder="Contact Full Name" 
+                       class="axis-input !pl-12 !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold placeholder:text-[#861F41]/30">
+            </div>
+            <div class="relative">
+                <i class="fas fa-phone-alt absolute left-4 top-1/2 -translate-y-1/2 text-[#861F41]/30 text-sm"></i>
+                <input id="newPPhone" type="number" placeholder="Mobile Number (Unique)" 
+                       class="axis-input !pl-12 !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold placeholder:text-[#861F41]/30">
             </div>
         </div>
-    </div>
-    <!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল -->
-<div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-    <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
-        <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Update Account</h3>
-        <input id="editPName" type="text" placeholder="Edit Full Name" class="axis-input mb-4">
-        <input id="editPPhone" type="number" placeholder="Edit Mobile Number" class="axis-input mb-10">
-        <div class="flex gap-4">
-            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
-            <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">Save Changes</button>
+
+        <!-- একশন বাটন -->
+        <div class="flex gap-4 mt-10">
+            <button onclick="document.getElementById('addModal').classList.add('hidden')" 
+                    class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest active:scale-95 transition-all">
+                Exit
+            </button>
+            <button onclick="confirmAdd()" 
+                    class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl shadow-[#861F41]/20 uppercase tracking-widest active:scale-95 transition-all">
+                Save Account
+            </button>
         </div>
     </div>
 </div>
@@ -417,6 +439,22 @@ viewport.addEventListener('scroll', function() {
     
     document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
+};
+        let selectedProfileFile = null;
+
+// ১. প্রোফাইল ইমেজ প্রিভিউ হ্যান্ডলার
+document.getElementById('pImgInput').onchange = e => {
+    const file = e.target.files[0];
+    if (file) {
+        selectedProfileFile = file;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            document.getElementById('pImgPreview').src = ev.target.result;
+            document.getElementById('pImgPreview').classList.remove('hidden');
+            document.getElementById('pImgPlaceholder').classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
 };
 
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
@@ -652,66 +690,87 @@ async function syncToPartner(partnerPhone, txData) {
         function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); } 
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
-        // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
-        // ১. সার্চ বার অন/অফ করার ফাংশন
+// --- ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (Profile Image & Global Check সহ) ---
 async function confirmAdd() { 
     const nInput = document.getElementById('newPName');
     const phInput = document.getElementById('newPPhone');
+    const pImgInp = document.getElementById('pImgInput'); // প্রোফাইল ইমেজ ইনপুট
+    
     const n = nInput.value.trim(); 
     const ph = phInput.value.trim(); 
     
     if(n && ph.length === 10) { 
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        saveBtn.innerText = "SECURITY CHECKING...";
+        saveBtn.innerText = "PROCESSING..."; // লোডিং টেক্সট
         saveBtn.disabled = true;
 
         try {
-            // --- গ্লোবাল ডাটাবেস চেক (কালেকশন নাম: global_defaulters) ---
+            // ১. গ্লোবাল ডাটাবেস চেক (কালেকশন নাম: global_defaulters)
             const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             let isGlobalBad = false;
+            let reporter = "";
 
             if (globalDoc.exists) {
                 const info = globalDoc.data();
                 if(info.status === "DEFAULTER") {
                     isGlobalBad = true;
-                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
-                                    `This number (+91 ${ph}) was reported by: ${info.reportedBy}\n\n` +
-                                    `Do you still want to risk adding this person to your ledger?`;
-                    
+                    reporter = info.reportedBy;
+                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\nThis number was reported by: ${reporter}\n\nDo you still want to add this person?`;
                     if (!confirm(warning)) {
                         saveBtn.innerText = originalText;
                         saveBtn.disabled = false;
-                        return; // ইউজার 'না' বললে অ্যাড হবে না
+                        return;
                     }
                 }
             }
 
-            // নতুন কন্টাক্ট অ্যাড করা (গ্লোবাল ফ্ল্যাগ সহ)
+            // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB তে যাবে)
+            let profilePicUrl = "";
+            const file = pImgInp.files[0];
+            if (file) {
+                saveBtn.innerText = "UPLOADING IMAGE...";
+                const fd = new FormData();
+                fd.append('image', file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) profilePicUrl = dat.data.url;
+            }
+
+            // ৩. নতুন কন্টাক্ট অবজেক্ট তৈরি
             db.people.unshift({
                 id: Date.now(), 
                 name: n, 
                 phone: ph, 
                 type: db.tab, 
-                isDefaulter: isGlobalBad, // যদি গ্লোবালি থাকে তবে অটো ট্যাগ হবে
+                profilePic: profilePicUrl, // এখানে ইমেজের লিঙ্ক সেভ হলো
+                isDefaulter: isGlobalBad, 
                 missedDates: isGlobalBad ? 3 : 0,
                 transactions: []
             }); 
 
-            await saveDB(); // ক্লাউড ও লোকাল সেভ
+            // ৪. ক্লাউডে এবং লোকাল স্টোরেজে সেভ
+            await saveDB(); 
             
-            nInput.value = ""; phInput.value = ""; 
-            saveBtn.innerText = originalText; saveBtn.disabled = false;
+            // ৫. ফর্ম ক্লিন এবং মোডাল বন্ধ
+            nInput.value = ""; phInput.value = ""; pImgInp.value = "";
+            document.getElementById('pImgPreview').classList.add('hidden');
+            document.getElementById('pImgPlaceholder').classList.remove('hidden');
+            
+            saveBtn.innerText = originalText; 
+            saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
-            renderHome(); 
-            alert(isGlobalBad ? "Profile created with GLOBAL DEFAULTER tag." : "Account Created Successfully.");
+            
+            renderHome(); // হোম স্ক্রিন রিফ্রেশ
+            alert(isGlobalBad ? "Account created with DEFAULTER status." : "Account Created Successfully!");
 
         } catch (err) {
-            alert("Sync Error! Please check internet.");
+            console.error("Sync Error:", err);
+            alert("Connection Error! Please check internet.");
             saveBtn.innerText = originalText; saveBtn.disabled = false;
         }
     } else {
-        alert("Invalid Name or 10-digit Phone!"); 
+        alert("Invalid Name or 10-digit Phone Number!"); 
     }
 }
 
@@ -1310,6 +1369,12 @@ function initNavigation() {
 // missedCount লজিকের নিচে এটি বসান
 const isDefaulter = missedCount >= 3;
 
+   // renderHome লুপের ভেতর এটি পরিবর্তন করুন
+const userAvatar = p.profilePic ? 
+    `<img src="${p.profilePic}" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md">` : 
+    `<div class="w-12 h-12 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg border-2 border-white">${p.name[0]}</div>`;
+
+// কন্টাক্ট লিস্টের এইচটিএমএল-এ ${userAvatar} বসিয়ে দিন।     
 // যদি নতুন করে কেউ ডিফোল্টার হয়, তবে গ্লোবাল ডাটাবেসে পাঠিয়ে দাও
 if (isDefaulter && !p.isDefaulterReported) {
     p.isDefaulter = true;
