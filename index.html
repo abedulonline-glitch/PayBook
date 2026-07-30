@@ -53,6 +53,25 @@
 .footer-hidden {
     transform: translateY(120%); /* এটি বাটনকে স্ক্রিনের নিচে ঠেলে দিবে */
 }
+       /* হেডার এনিমেশন */
+header {
+    transition: transform 0.3s ease-in-out;
+}
+.header-hidden {
+    transform: translateY(-100%);
+}
+
+/* ট্যাব বার ফিক্স: এটিও হেডারের সাথে মুভ করবে */
+#tab-sticky-box {
+    transition: top 0.3s ease-in-out, box-shadow 0.3s;
+    background-color: white; /* ব্যাকগ্রাউন্ড সাদা থাকা জরুরি */
+}
+
+/* যখন হেডার লুকিয়ে যাবে, তখন ট্যাবটি একদম উপরে (top-0) চলে আসবে */
+.tabs-at-top {
+    top: 0px !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* উপরে গেলে হালকা শ্যাডো আসবে */
+} 
     </style>
 </head>
 <body>
