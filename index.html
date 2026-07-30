@@ -860,6 +860,45 @@ async function preSave(t) {
     }
 }
 
+        // ১. সার্চ বার অন/অফ করার ফাংশন (যা আপনার কোডে নেই)
+function toggleSearchBar() {
+    const container = document.getElementById('searchBarContainer');
+    const input = document.getElementById('searchInput');
+    if(!container) return;
+
+    container.classList.toggle('hidden');
+    if(!container.classList.contains('hidden')) {
+        input.focus(); // সার্চ বার খুললে অটোমেটিক কিবোর্ড আসবে
+    } else {
+        input.value = ""; // বন্ধ করলে সার্চ ডাটা ক্লিয়ার হবে
+        renderHome();
+    }
+}
+
+// ২. window.onload ফাংশনটি সংশোধন করুন (টাইপো ফিক্সড)
+window.onload = () => {
+    // এখানে loc9alStorage কেটে localStorage করুন
+    const data = localStorage.getItem(DB_KEY); 
+    if(data) {
+        db = JSON.parse(data);
+        db.secret = false; // সর্বদা পাকা মোডে শুরু হবে
+        if(db.admin && db.admin.phone) { 
+            toggleAuth('LOGIN'); 
+            syncCloud(); 
+        } else {
+            toggleAuth('REG');
+        }
+    } else {
+        toggleAuth('REG');
+    }
+    
+    // বাকি ইভেন্ট হ্যান্ডলার...
+    initSecretGesture();
+    setupHistoryBack();
+    
+    document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
+    document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
+};
        // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
 function handleSmartPdfDownload() {
     const { jsPDF } = window.jspdf;
