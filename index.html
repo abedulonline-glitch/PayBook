@@ -612,54 +612,56 @@ async function syncToPartner(partnerPhone, txData) {
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
         // ১. সার্চ বার অন/অফ করার ফাংশন
+// ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন
 async function confirmAdd() { 
     const nInput = document.getElementById('newPName');
     const phInput = document.getElementById('newPPhone');
-    const n = nInput.value.trim(); 
-    const ph = phInput.value.trim(); 
+    const n = nInput.value ? nInput.value.trim() : ""; 
+    const ph = phInput.value ? phInput.value.trim() : ""; 
     
     if(n && ph.length === 10) { 
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
+        saveBtn.innerText = "CHECKING...";
         saveBtn.disabled = true;
 
         try {
-            // ফায়ারস্টোর থেকে গ্লোবাল রেকর্ড চেক করা (সরাসরি আইডি দিয়ে)
+            // গ্লোবাল চেক
             const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             let isGlobalBad = false;
-
-            if (globalDoc.exists) {
-                const info = globalDoc.data();
-                if(info.status === "DEFAULTER") {
-                    isGlobalBad = true;
-                    if (!confirm(`🚨 SECURITY ALERT!\n\nThis number was reported as a DEFAULTER by ${info.reportedBy}.\n\nDo you still want to add this person?`)) {
-                        saveBtn.innerText = originalText; saveBtn.disabled = false;
-                        return;
-                    }
+            if (globalDoc.exists && globalDoc.data().status === "DEFAULTER") {
+                isGlobalBad = true;
+                if (!confirm(`⚠️ WARNING: Reported DEFAULTER found! Add anyway?`)) {
+                    saveBtn.innerText = originalText; saveBtn.disabled = false;
+                    return;
                 }
             }
 
-            db.people.unshift({
-                id: Date.now(), name: n, phone: ph, type: db.tab,
-                isDefaulter: isGlobalBad, // স্থানীয়ভাবে ডিফোল্টার সেট হবে
-                isGlobalDefaulter: isGlobalBad, // গ্লোবাল সিঙ্ক ট্র্যাক করার জন্য
+            // নতুন ডাটা অবজেক্ট (নিশ্চিত করা হচ্ছে কোনো ফিল্ড undefined নয়)
+            const newPerson = {
+                id: Date.now(), 
+                name: n, 
+                phone: ph, 
+                type: db.tab || 'CUSTOMER', 
+                isDefaulter: isGlobalBad, 
+                missedDates: isGlobalBad ? 3 : 0,
                 transactions: []
-            }); 
+            };
 
+            db.people.unshift(newPerson); 
             await saveDB(); 
+            
             nInput.value = ""; phInput.value = ""; 
             saveBtn.innerText = originalText; saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
             renderHome(); 
-            alert("Account Created Successfully.");
 
         } catch (err) {
-            console.error(err);
+            alert("Error adding account. Please check internet.");
             saveBtn.innerText = originalText; saveBtn.disabled = false;
         }
     } else {
-        alert("Invalid Name or 10-digit Phone Number!"); 
+        alert("Enter a Name and 10-digit Phone!"); 
     }
 }
         function openLedger(id) {
