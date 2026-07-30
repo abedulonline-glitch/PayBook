@@ -605,80 +605,49 @@ async function confirmAdd() {
     const ph = phInput.value.trim(); 
     
     if(n && ph.length === 10) { 
-        // ১. সেভ বাটন লোডিং স্টেট (প্রফেশনাল লুক)
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        saveBtn.innerText = "VERIFYING GLOBAL REPUTATION...";
+        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
         saveBtn.disabled = true;
 
         try {
-            // ২. গ্লোবাল ডাটাবেস 'global_defaulters' থেকে ডাটা চেক করা (পয়েন্ট ৯ ফিক্স)
-            // এটি লুপ চালাবে না, সরাসরি ফোন নম্বর দিয়ে ডাটা খুঁজবে (সুপার ফাস্ট)
+            // ফায়ারস্টোর থেকে গ্লোবাল রেকর্ড চেক করা (সরাসরি আইডি দিয়ে)
             const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             let isGlobalBad = false;
-            let reporterInfo = null;
 
             if (globalDoc.exists) {
                 const info = globalDoc.data();
                 if(info.status === "DEFAULTER") {
                     isGlobalBad = true;
-                    reporterInfo = info;
-                    
-                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
-                                    `This number (+91 ${ph}) was reported as a DEFAULTER.\n` +
-                                    `Reported by Admin: ${info.reportedBy}\n` +
-                                    `Admin Phone: ${info.adminPhone}\n\n` +
-                                    `Do you still want to risk adding this person to your ledger?`;
-                    
-                    if (!confirm(warning)) {
-                        saveBtn.innerText = originalText;
-                        saveBtn.disabled = false;
-                        return; // ইউজার 'না' বললে কন্টাক্ট অ্যাড হবে না
+                    if (!confirm(`🚨 SECURITY ALERT!\n\nThis number was reported as a DEFAULTER by ${info.reportedBy}.\n\nDo you still want to add this person?`)) {
+                        saveBtn.innerText = originalText; saveBtn.disabled = false;
+                        return;
                     }
                 }
             }
 
-            // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা (মিরর স্টাইলে ডাটা ফ্যাচ হবে)
             db.people.unshift({
-                id: Date.now(), 
-                name: n, 
-                phone: ph, 
-                type: db.tab, 
-                isDefaulter: isGlobalBad, // যদি গ্লোবালি লাল তালিকায় থাকে তবে অটো ট্যাগ হবে
-                isGlobalVerified: true, 
-                missedDates: isGlobalBad ? 3 : 0,
+                id: Date.now(), name: n, phone: ph, type: db.tab,
+                isDefaulter: isGlobalBad, // স্থানীয়ভাবে ডিফোল্টার সেট হবে
+                isGlobalDefaulter: isGlobalBad, // গ্লোবাল সিঙ্ক ট্র্যাক করার জন্য
                 transactions: []
             }); 
 
-            // ক্লাউডে এবং লোকাল স্টোরেজে সেভ
             await saveDB(); 
-            
-            // ৪. ফর্ম ক্লিয়ার ও মোডাল বন্ধ
-            nInput.value = ""; 
-            phInput.value = ""; 
-            saveBtn.innerText = originalText;
-            saveBtn.disabled = false;
+            nInput.value = ""; phInput.value = ""; 
+            saveBtn.innerText = originalText; saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
-            
-            renderHome(); // হোম স্ক্রিন রিফ্রেশ (এখানেই সেই রেড ব্যাজ দেখা যাবে)
-
-            if(isGlobalBad) {
-                alert(`Profile created with GLOBAL DEFAULTER status.`);
-            } else {
-                alert("Account Created with Security Verification.");
-            }
+            renderHome(); 
+            alert("Account Created Successfully.");
 
         } catch (err) {
-            console.error("Verification Error:", err);
-            alert("Sync Error: Unable to verify global database. Please check internet.");
-            saveBtn.innerText = originalText;
-            saveBtn.disabled = false;
+            console.error(err);
+            saveBtn.innerText = originalText; saveBtn.disabled = false;
         }
     } else {
         alert("Invalid Name or 10-digit Phone Number!"); 
     }
 }
-
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -1243,7 +1212,7 @@ function initNavigation() {
         document.getElementById('multiImgPreview').innerHTML = "";
     }, 400); 
 }
-        function renderHome() {
+       function renderHome() {
     const list = document.getElementById('contactList'); 
     const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
     list.innerHTML = "";
@@ -1271,27 +1240,24 @@ function initNavigation() {
             }
         });
 
-        // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার)
+        // ১. লোকাল ডিফোল্টার চেক
+        const isLocallyBad = missedCount >= 3;
+
+        // ২. অটো-রিপোর্ট লজিক (পয়েন্ট ৯ ফিক্স)
+        if (isLocallyBad && !p.isReportedGlobally) {
+            p.isDefaulter = true;
+            p.isReportedGlobally = true;
+            saveDB();
+            pushDefaulterToGlobal(p.phone, p.name, true);
+        }
+
+        // ৩. গ্লোবাল ইন্ডিকেটর (নিশ্চিত করা যে অন্য এডমিনের ট্যাগ দেখা যাচ্ছে)
+        const isDef = (p.isDefaulter === true || p.isGlobalDefaulter === true || isLocallyBad);
+
+        // ৪. স্মার্ট ব্যাজ ডিজাইন (সাদা ব্যাকগ্রাউন্ড + বর্ডার + লাল টেক্সট)
         const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
-         // renderHome এর লুপের ভেতর নামের পাশে এটি বসান:
-         const globalBadge = p.isDefaulter ? 
-        `<span class="ml-2 px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[7px] font-black rounded uppercase blink-secret">GLOBAL DEFAULTER</span>` : "";
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
 
-         // হ্যডার টেক্সট: ${p.name} ${globalBadge}
-        // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার + ব্লিঙ্কিং)
-        // missedCount লজিকের নিচে এটি বসান
-const isDefaulter = missedCount >= 3;
-
-// যদি নতুন করে কেউ ডিফোল্টার হয়, তবে গ্লোবাল ডাটাবেসে পাঠিয়ে দাও
-if (isDefaulter && !p.isDefaulterReported) {
-    p.isDefaulter = true;
-    p.isDefaulterReported = true; // এটি নিশ্চিত করবে যে বারবার ফায়ারবেসে রিকোয়েস্ট যাবে না
-    saveDB(); 
-    pushDefaulterToGlobal(p.phone, p.name, true);
-}
-        // যদি ডাটাবেসে isDefaulter থাকে অথবা missedCount ৩ এর বেশি হয়
-        const isDef = p.isDefaulter === true || missedCount >= 3;
         const defBadge = isDef ? 
             `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
 
@@ -1316,7 +1282,6 @@ if (isDefaulter && !p.isDefaulterReported) {
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -1429,15 +1394,21 @@ function closeZoom() {
         // এই ফাংশনটি ডিফোল্টার ডাটা গ্লোবাল কালেকশনে পাঠাবে
 async function pushDefaulterToGlobal(phone, name, status) {
     try {
-        await db_fs.collection("global_defaulters").doc(phone).set({
-            phone: phone,
-            name: name,
-            status: status ? "DEFAULTER" : "CLEAR",
-            reportedBy: db.admin.name,
-            reportedByPhone: db.admin.phone,
-            updatedAt: new Date().toISOString()
-        });
-        console.log("Global Status Updated for: " + phone);
+        const defaulterRef = db_fs.collection("global_defaulters").doc(phone);
+        if (status) {
+            await defaulterRef.set({
+                phone: phone,
+                name: name,
+                status: "DEFAULTER",
+                reportedBy: db.admin.name,
+                adminPhone: db.admin.phone,
+                updatedAt: new Date().toISOString()
+            });
+            console.log("Global Blacklist Updated: " + phone);
+        } else {
+            // যদি শোধ করে দেয় তবে গ্লোবাল লিস্ট থেকে রিমুভ হবে
+            await defaulterRef.delete();
+        }
     } catch (e) {
         console.error("Global Sync Error: ", e);
     }
