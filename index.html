@@ -613,24 +613,28 @@ async function confirmAdd() {
 
         try {
             // ২. গ্লোবাল ডাটাবেস থেকে মিরর রেকর্ড ফ্যাচ করা (পয়েন্ট ৯ ফিক্স)
-            // এটি চেক করবে এই নম্বরটি অন্য কেউ রিপোর্ট করেছে কি না
-            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-            let isGlobalBad = false;
-            let reporterName = "";
+            // confirmAdd এর ভেতরে গ্লোবাল চেক অংশটি
+const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
 
-            if (globalDoc.exists) {
-                const info = globalDoc.data();
-                isGlobalBad = true;
-                reporterName = info.reportedBy || "Another Merchant";
-                
-                const warning = `🚨 SECURITY ALERT: GLOBAL DEFAULTER!\n\nThis customer has been reported as a DEFAULTER by ${reporterName}.\n\nDo you still want to risk adding this person?`;
-                
-                if (!confirm(warning)) {
-                    saveBtn.innerText = originalText;
-                    saveBtn.disabled = false;
-                    return; // ইউজার 'না' বললে অ্যাড হবে না
-                }
-            }
+if (globalDoc.exists) {
+    const proof = globalDoc.data();
+    
+    // প্রমাণ বা রিপোর্ট মেসেজ তৈরি
+    const proofReport = `🚨 REPUTATION ALERT: PROOF DETECTED!\n\n` +
+        `This customer is a reported DEFAULTER in the network.\n\n` +
+        `• Reported by: ${proof.reportedBy}\n` +
+        `• Total Outstanding: Rs. ${proof.totalAmountDue.toLocaleString()}\n` +
+        `• Failed Promises: ${proof.missedDates} times\n` +
+        `• Reported On: ${new Date(proof.updatedAt).toLocaleDateString()}\n\n` +
+        `You can contact ${proof.reportedBy} at +91 ${proof.adminPhone} for more proof.\n\n` +
+        `Do you still want to risk adding this customer?`;
+
+    // এডমিন এটি দেখে সিদ্ধান্ত নিবেন (প্রমাণ সহ)
+    if (!confirm(proofReport)) {
+        saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
+        return; 
+    }
+}
 
             // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
             db.people.unshift({
@@ -1431,22 +1435,30 @@ function closeZoom() {
 }
 
         // এই ফাংশনটি আপনার স্ক্রিপ্টের শেষে যোগ করুন
-async function reportDefaulterToGlobal(phone, name, isBad) {
-    const GLOBAL_DEFAULTERS = "global_defaulters"; // নতুন কমন ঘর
+// সংশোধিত গ্লোবাল রিপোর্টিং ফাংশন (প্রমাণ সহ)
+async function reportDefaulterToGlobal(person, isBad) {
+    const GLOBAL_DEFAULTERS = "global_defaulters"; 
     try {
+        const ref = db_fs.collection(GLOBAL_DEFAULTERS).doc(person.phone);
         if (isBad) {
-            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).set({
-                phone: phone,
-                name: name,
-                reportedBy: db.admin.name,
-                adminPhone: db.admin.phone,
-                status: "DEFAULTER",
+            // ১. এই কাস্টমারের মোট বাকি থাকা টাকা ক্যালকুলেট করা (আসল এমাউন্টে)
+            const pBal = calcBal(person.transactions, false, person.type);
+            const kBal = calcBal(person.transactions, true, person.type);
+            const totalDue = pBal + kBal;
+
+            // ২. প্রমাণ সহ গ্লোবাল ডিরেক্টরিতে সেভ করা
+            await ref.set({
+                phone: person.phone,
+                customerName: person.name,
+                reportedBy: db.admin.name, // কোন এডমিন রিপোর্ট করেছে
+                adminPhone: db.admin.phone, // প্রমাণ যাচাইয়ের জন্য এডমিনের ফোন নম্বর
+                totalAmountDue: totalDue, // প্রমাণ ১: টাকার অংক
+                missedDates: person.missedDates || 3, // প্রমাণ ২: প্রতিশ্রুতি ভঙ্গের সংখ্যা
                 updatedAt: new Date().toISOString()
             });
-            console.log("Global Defaulter Tag Synced: " + phone);
+            console.log("Global Defaulter Proof Synced.");
         } else {
-            // যদি ভুলবশত হয় বা টাকা শোধ করে দেয় তবে রিমুভ হবে
-            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).delete();
+            await ref.delete();
         }
     } catch (e) { console.error("Global Reporting Failed", e); }
 }
