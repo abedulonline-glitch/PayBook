@@ -297,6 +297,7 @@ const COLLECTION = "global_paybook_ledgers"; // যেখানে মূল হ
 const ACCESS_KEYS = "access_keys"; // রাউটিং এর জন্য নতুন কালেকশন (পয়েন্ট ৯ ফিক্স)
 const DB_KEY = 'PayBook_V18_Master_Verified'; // নতুন ভার্সন কী
 const BLACKLIST = "global_blacklist"; // ডিফল্টারদের গ্লোবাল ডিরেক্টরি
+const GLOBAL_DEFAULTERS = "global_defaulters"; // এই লাইনটি অবশ্যই থাকতে হবে     
         
 // গ্লোবাল স্টেট (App State)
 let db = { 
@@ -598,6 +599,7 @@ async function syncToPartner(partnerPhone, txData) {
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
         // ১. সার্চ বার অন/অফ করার ফাংশন
+// --- ২. সংশোধিত কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (V18.6: Fail-Safe Global Check সহ) ---
 async function confirmAdd() { 
     const nInput = document.getElementById('newPName');
     const phInput = document.getElementById('newPPhone');
@@ -605,47 +607,58 @@ async function confirmAdd() {
     const ph = phInput.value.trim(); 
     
     if(n && ph.length === 10) { 
-        // ১. সেভ বাটন লোডিং স্টেট
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
+        
+        saveBtn.innerText = "SECURITY CHECKING...";
         saveBtn.disabled = true;
 
-        try {
-            // ২. গ্লোবাল ডাটাবেস থেকে মিরর রেকর্ড ফ্যাচ করা (পয়েন্ট ৯ ফিক্স)
-            // এটি চেক করবে এই নম্বরটি অন্য কেউ রিপোর্ট করেছে কি না
-            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-            let isGlobalBad = false;
-            let reporterName = "";
+        let isGlobalBad = false; // শুরুতে এটি ফলস থাকবে
+        let badRecord = null;
 
+        // ১. গ্লোবাল চেক লজিক (একটি প্রোটেক্টেড ট্রাই-ক্যাচ ব্লকের ভেতরে)
+        try {
+            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             if (globalDoc.exists) {
-                const info = globalDoc.data();
+                badRecord = globalDoc.data();
                 isGlobalBad = true;
-                reporterName = info.reportedBy || "Another Merchant";
-                
-                const warning = `🚨 SECURITY ALERT: GLOBAL DEFAULTER!\n\nThis customer has been reported as a DEFAULTER by ${reporterName}.\n\nDo you still want to risk adding this person?`;
-                
-                if (!confirm(warning)) {
+
+                // যদি ডিফোল্টার পাওয়া যায়, তবে ডিটেইলস রিপোর্ট দেখানো (Point 9 Proof)
+                const proofMsg = `🚨 REPUTATION ALERT: PROOF DETECTED!\n\n` +
+                    `This person is a reported DEFAULTER in PayBook network.\n\n` +
+                    `• Reported by: ${badRecord.reportedBy}\n` +
+                    `• Total Outstanding: Rs. ${badRecord.totalAmountDue.toLocaleString()}\n` +
+                    `• Missed Dates: ${badRecord.missedDates} times\n` +
+                    `• Reported On: ${new Date(badRecord.updatedAt).toLocaleDateString()}\n\n` +
+                    `Talk to Admin at +91 ${badRecord.adminPhone} for verification.\n\n` +
+                    `Do you still want to risk adding this customer?`;
+
+                if (!confirm(proofMsg)) {
                     saveBtn.innerText = originalText;
                     saveBtn.disabled = false;
-                    return; // ইউজার 'না' বললে অ্যাড হবে না
+                    return; // ইউজার 'না' বললে এখান থেকেই কোড থেমে যাবে
                 }
             }
+        } catch (repError) {
+            // যদি ইন্টারনেট বা পারমিশন এরর হয়, তবে চেক স্কিপ করে অ্যাড প্রসেসে চলে যাবে
+            console.warn("Global reputation check failed, but proceeding to save.");
+        }
 
-            // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
+        // ২. ডাটাবেসে অ্যাড করার মেইন লজিক (এটি গ্লোবাল চেক ফেইল করলেও কাজ করবে)
+        try {
             db.people.unshift({
                 id: Date.now(), 
                 name: n, 
                 phone: ph, 
                 type: db.tab, 
-                isDefaulter: isGlobalBad, // যদি গ্লোবালি থাকে তবে অটো মার্ক হবে
-                missedDates: isGlobalBad ? 3 : 0,
+                isDefaulter: isGlobalBad, // যদি চেক সাকসেসফুল হয় তবে ট্রু হবে
+                missedDates: isGlobalBad ? (badRecord.missedDates || 3) : 0,
                 transactions: []
             }); 
 
             await saveDB(); // ক্লাউড ও লোকাল সেভ
             
-            // ৪. ফর্ম ক্লিয়ার ও মোডাল বন্ধ
+            // ৩. ফর্ম ক্লিন ও মোডাল বন্ধ
             nInput.value = ""; 
             phInput.value = ""; 
             saveBtn.innerText = originalText;
@@ -653,12 +666,14 @@ async function confirmAdd() {
             document.getElementById('addModal').classList.add('hidden'); 
             renderHome(); 
 
-            if(isGlobalBad) alert("Profile created with DEFAULTER status.");
+            // স্পেসিফিক সাকসেস মেসেজ
+            if(isGlobalBad) alert("Profile created with DEFAULTER status tag.");
             else alert("Account Created successfully.");
 
         } catch (err) {
-            console.error(err);
-            alert("Verification Error! Please check internet.");
+            // যদি সেভ করাতেই সমস্যা হয়
+            console.error("Critical Save Error:", err);
+            alert("Error: Database sync failed. Check your internet.");
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
         }
@@ -666,7 +681,6 @@ async function confirmAdd() {
         alert("Invalid Name or 10-digit Phone Number!"); 
     }
 }
-
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -863,26 +877,6 @@ async function preSave(t) {
     };
 
     if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') askPin(act); else act();
-}
-        async function reportDefaulterToGlobal(phone, name, isBad) {
-    const GLOBAL_DEFAULTERS = "global_defaulters"; 
-    try {
-        const ref = db_fs.collection(GLOBAL_DEFAULTERS).doc(phone);
-        if (isBad) {
-            // গ্লোবাল ব্ল্যাকলিস্টে নাম তোলা
-            await ref.set({
-                phone: phone,
-                name: name,
-                reportedBy: db.admin.name,
-                adminPhone: db.admin.phone,
-                status: "DEFAULTER",
-                updatedAt: new Date().toISOString()
-            });
-        } else {
-            // যদি ডিফোল্টার না হয় তবে লিস্ট থেকে রিমুভ (যদি আগে থেকে থাকে)
-            await ref.delete();
-        }
-    } catch (e) { console.error("Global Reporting Failed", e); }
 }
 
         // ১. সার্চ বার অন/অফ করার ফাংশন (যা আপনার কোডে নেই)
