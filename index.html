@@ -331,9 +331,10 @@ header {
                     class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest">
                 Cancel
             </button>
-            <button onclick="confirmEditPerson()" class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl">
-    SAVE CHANGES
-</button>
+            <button onclick="confirmEditPerson()" 
+                    class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl shadow-[#861F41]/20 uppercase tracking-widest active:scale-95 transition-all">
+                Save Changes
+            </button>
         </div>
     </div>
 </div>
@@ -487,76 +488,45 @@ document.addEventListener('change', function(e) {
     }
 });
 
-// এই ভেরিয়েবলটি স্ক্রিপ্টের শুরুতে আছে কি না নিশ্চিত করুন
-let newSelectedEditFile = null; 
-
 async function confirmEditPerson() {
-    // ১. একটিভ আইডি এবং কাস্টমার ইনডেক্স চেক করা
-    if (!db.activeId) return alert("Error: No active account selected!");
-    
     const personIndex = db.people.findIndex(p => p.id === db.activeId);
-    if(personIndex === -1) return alert("Error: Contact not found in database!");
+    if(personIndex === -1) return;
 
-    // ২. বাটন লোডিং স্টেট (সেভ বাটনটি ডিজেবল করা)
-    const saveBtn = document.querySelector('#editPersonModal button:last-child');
-    const originalBtnText = saveBtn.innerText;
-    saveBtn.innerText = "UPDATING...";
-    saveBtn.disabled = true;
+    const btn = event.target; // সেভ বাটন
+    btn.innerText = "UPDATING...";
+    btn.disabled = true;
 
     try {
         let finalPicUrl = db.people[personIndex].profilePic || "";
 
-        // ৩. যদি নতুন কোনো ছবি সিলেক্ট করা হয়, তবেই ImgBB তে আপলোড হবে
+        // যদি নতুন কোনো ছবি সিলেক্ট করা হয়, তবেই আপলোড হবে
         if (newSelectedEditFile) {
-            saveBtn.innerText = "UPLOADING IMAGE...";
             const fd = new FormData();
             fd.append('image', newSelectedEditFile);
-            
             const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
             const dat = await res.json();
-            
-            if(dat.success) {
-                finalPicUrl = dat.data.url;
-            } else {
-                throw new Error("ImgBB Upload Failed");
-            }
+            if(dat.success) finalPicUrl = dat.data.url;
         }
 
-        // ৪. ডাটাবেসে তথ্য আপডেট করা
-        const nameVal = document.getElementById('editPName').value.trim();
-        const phoneVal = document.getElementById('editPPhone').value.trim();
-
-        if(!nameVal || phoneVal.length !== 10) {
-            throw new Error("Please enter Name and a valid 10-digit Phone!");
-        }
-
-        db.people[personIndex].name = nameVal;
-        db.people[personIndex].phone = phoneVal;
+        // ডাটা আপডেট
+        db.people[personIndex].name = document.getElementById('editPName').value.trim();
+        db.people[personIndex].phone = document.getElementById('editPPhone').value.trim();
         db.people[personIndex].profilePic = finalPicUrl;
 
-        // ৫. গ্লোবাল সিঙ্ক এবং লোকাল সেভ
-        await saveDB(); 
+        await saveDB(); // ক্লাউড এবং লোকাল সেভ
         
-        // ৬. ইউআই (UI) এবং হেডার আপডেট
-        document.getElementById('lName').innerText = nameVal;
-        document.getElementById('lPhone').innerText = "+91 " + phoneVal;
-        
-        // মোডাল বন্ধ এবং ডাটা ক্লিন করা
         document.getElementById('editPersonModal').classList.add('hidden');
-        newSelectedEditFile = null; 
-        
+        newSelectedEditFile = null; // রিসেট
         renderHome();
         if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger();
         
-        alert("Account Information Updated Successfully!");
+        alert("Account Updated Successfully!");
 
-    } catch(err) {
-        console.error("Update Error:", err);
-        alert("Action Failed: " + err.message); // এখানে আসল কারণটি দেখাবে
+    } catch(e) {
+        alert("Error updating account!");
     } finally {
-        // বাটন আগের অবস্থায় ফিরিয়ে আনা
-        saveBtn.innerText = originalBtnText;
-        saveBtn.disabled = false;
+        btn.innerText = "SAVE CHANGES";
+        btn.disabled = false;
     }
 }
         
