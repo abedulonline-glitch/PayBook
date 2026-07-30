@@ -364,8 +364,27 @@ viewport.addEventListener('scroll', function() {
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
 };
 
-        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
-        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
+      // ১. ডাটাবেস সেভ ফাংশন সংশোধন (Undefined Error Fix)
+async function saveDB() {
+    // ডাটা ক্লিন করার জন্য একটি ছোট লজিক
+    const cleanData = JSON.parse(JSON.stringify(db, (key, value) => 
+        value === undefined ? null : value
+    ));
+
+    localStorage.setItem(DB_KEY, JSON.stringify(cleanData));
+
+    const targetDocId = db.ownerPhone || (db.admin ? db.admin.phone : null);
+
+    if (targetDocId) {
+        try {
+            // এখন ক্লিন করা ডাটা ক্লাউডে যাবে
+            await db_fs.collection(COLLECTION).doc(targetDocId).set(cleanData);
+            console.log("Global Cloud Sync: Success ✅");
+        } catch (e) {
+            console.error("Cloud Sync Failed:", e);
+        }
+    }
+}  // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
     if(db.admin && db.admin.phone) {
         // Firestore Real-time Listener (onSnapshot)
@@ -609,71 +628,57 @@ async function confirmAdd() {
     if(n && ph.length === 10) { 
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        
         saveBtn.innerText = "SECURITY CHECKING...";
         saveBtn.disabled = true;
 
-        let isGlobalBad = false; // শুরুতে এটি ফলস থাকবে
+        let isGlobalBad = false; 
         let badRecord = null;
 
-        // ১. গ্লোবাল চেক লজিক (একটি প্রোটেক্টেড ট্রাই-ক্যাচ ব্লকের ভেতরে)
         try {
+            // ১. গ্লোবাল চেক
             const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             if (globalDoc.exists) {
                 badRecord = globalDoc.data();
                 isGlobalBad = true;
 
-                // যদি ডিফোল্টার পাওয়া যায়, তবে ডিটেইলস রিপোর্ট দেখানো (Point 9 Proof)
-                const proofMsg = `🚨 REPUTATION ALERT: PROOF DETECTED!\n\n` +
-                    `This person is a reported DEFAULTER in PayBook network.\n\n` +
-                    `• Reported by: ${badRecord.reportedBy}\n` +
-                    `• Total Outstanding: Rs. ${badRecord.totalAmountDue.toLocaleString()}\n` +
-                    `• Missed Dates: ${badRecord.missedDates} times\n` +
-                    `• Reported On: ${new Date(badRecord.updatedAt).toLocaleDateString()}\n\n` +
-                    `Talk to Admin at +91 ${badRecord.adminPhone} for verification.\n\n` +
-                    `Do you still want to risk adding this customer?`;
-
+                const proofMsg = `🚨 REPUTATION ALERT!\n\nThis person is a reported DEFAULTER.\nReported by: ${badRecord.reportedBy}\n\nDo you want to add them?`;
                 if (!confirm(proofMsg)) {
                     saveBtn.innerText = originalText;
                     saveBtn.disabled = false;
-                    return; // ইউজার 'না' বললে এখান থেকেই কোড থেমে যাবে
+                    return;
                 }
             }
         } catch (repError) {
-            // যদি ইন্টারনেট বা পারমিশন এরর হয়, তবে চেক স্কিপ করে অ্যাড প্রসেসে চলে যাবে
-            console.warn("Global reputation check failed, but proceeding to save.");
+            console.warn("Reputation check failed, skipping...");
         }
 
-        // ২. ডাটাবেসে অ্যাড করার মেইন লজিক (এটি গ্লোবাল চেক ফেইল করলেও কাজ করবে)
+        // ২. ডাটাবেসে অ্যাড করা
         try {
-            db.people.unshift({
+            const newPerson = {
                 id: Date.now(), 
                 name: n, 
                 phone: ph, 
-                type: db.tab, 
-                isDefaulter: isGlobalBad, // যদি চেক সাকসেসফুল হয় তবে ট্রু হবে
+                type: db.tab || "CUSTOMER", // নিশ্চিত করা যে undefined না হয়
+                isDefaulter: isGlobalBad, 
                 missedDates: isGlobalBad ? (badRecord.missedDates || 3) : 0,
                 transactions: []
-            }); 
+            };
 
-            await saveDB(); // ক্লাউড ও লোকাল সেভ
+            db.people.unshift(newPerson);
+
+            // ৩. সেভ করা
+            await saveDB(); 
             
-            // ৩. ফর্ম ক্লিন ও মোডাল বন্ধ
-            nInput.value = ""; 
-            phInput.value = ""; 
+            nInput.value = ""; phInput.value = ""; 
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
             renderHome(); 
-
-            // স্পেসিফিক সাকসেস মেসেজ
-            if(isGlobalBad) alert("Profile created with DEFAULTER status tag.");
-            else alert("Account Created successfully.");
+            alert("Account Created Successfully.");
 
         } catch (err) {
-            // যদি সেভ করাতেই সমস্যা হয়
-            console.error("Critical Save Error:", err);
-            alert("Error: Database sync failed. Check your internet.");
+            console.error("Save Error:", err);
+            alert("Error: Unable to save data.");
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
         }
