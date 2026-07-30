@@ -1273,7 +1273,17 @@ function initNavigation() {
                 if (today > promised) missedCount++;
             }
         });
+// missedCount লজিকের নিচে এটি বসান
+const isDefaulter = missedCount >= 3;
 
+// যদি নতুন করে কেউ ডিফোল্টার হয়, তবে গ্লোবাল ডাটাবেসে পাঠিয়ে দাও
+if (isDefaulter && !p.isDefaulterReported) {
+    p.isDefaulter = true;
+    p.isDefaulterReported = true; // এটি নিশ্চিত করবে যে বারবার ফায়ারবেসে রিকোয়েস্ট যাবে না
+    saveDB(); 
+    pushDefaulterToGlobal(p.phone, p.name, true);
+};
+        
         // কন্ডিশন: নিজের হিসাব অথবা গ্লোবাল ফ্ল্যাগ—যেকোনো একটি থাকলেই ব্যাজ দেখাবে
         const isDef = (missedCount >= 3) || (p.isDefaulter === true);
 
