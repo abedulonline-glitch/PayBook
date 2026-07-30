@@ -263,16 +263,19 @@
         </div>
     </div>
 </div>
-    <!-- Image Full-Screen Zoom Modal -->
-<div id="imageZoomModal" class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" onclick="closeZoom()">
-    <!-- ক্লোজ বাটন -->
-    <button class="absolute top-10 right-8 text-white text-3xl opacity-70 hover:opacity-100 transition-all">
-        <i class="fas fa-times-circle"></i>
-    </button>
+    
+<!-- স্মার্ট ইমেজ জুম মোডাল -->
+<div id="imageZoomModal" 
+     class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" 
+     onclick="closeZoom()">
     <!-- জুম হওয়া ইমেজ -->
-    <img id="zoomedImg" src="" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl transition-transform duration-300 transform scale-95" onclick="event.stopPropagation()">
+    <img id="zoomedImg" src="" 
+         class="max-w-full max-h-[90vh] rounded-xl shadow-2xl transition-transform duration-300 transform scale-95" 
+         onclick="event.stopPropagation(); closeZoom();">
+    
+    <!-- উপরে ছোট করে ক্লোজ বাটন (ঐচ্ছিক) -->
+    <div class="absolute top-10 right-8 text-white opacity-50 text-2xl"><i class="fas fa-times-circle"></i></div>
 </div>
-
     <script>
         // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (Point 13) ---
         // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (V18: পিন-বেসড রাউটিং ফিক্স) ---
@@ -363,22 +366,8 @@ viewport.addEventListener('scroll', function() {
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
 };
 
-       // ১. সলিড ডাটা সেভার
-async function saveDB() {
-    // ডাটা স্যানিটাইজেশন (undefined থাকলে সেটি নাল করে দেবে যাতে ফায়ারবেস এরর না দেয়)
-    const cleanData = JSON.parse(JSON.stringify(db, (key, value) => value === undefined ? null : value));
-    
-    localStorage.setItem(DB_KEY, JSON.stringify(cleanData));
-    
-    if(db.admin && db.admin.phone) {
-        try {
-            await db_fs.collection(COLLECTION).doc(db.admin.phone).set(cleanData);
-            console.log("Cloud Sync Success ✅");
-        } catch (e) {
-            console.error("Firebase Sync Error ❌", e);
-        }
-    }
-}// --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
+        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
+        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
     if(db.admin && db.admin.phone) {
         // Firestore Real-time Listener (onSnapshot)
@@ -612,58 +601,54 @@ async function syncToPartner(partnerPhone, txData) {
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
         // ১. সার্চ বার অন/অফ করার ফাংশন
-// ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন
-async function confirmAdd() { 
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const n = nInput.value ? nInput.value.trim() : ""; 
-    const ph = phInput.value ? phInput.value.trim() : ""; 
+async function confirmAdd() {
+    const n = document.getElementById('newPName').value.trim();
+    const ph = document.getElementById('newPPhone').value.trim();
     
-    if(n && ph.length === 10) { 
-        const saveBtn = document.querySelector('#addModal button:last-child');
-        const originalText = saveBtn.innerText;
-        saveBtn.innerText = "CHECKING...";
-        saveBtn.disabled = true;
+    if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
 
-        try {
-            // গ্লোবাল চেক
-            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-            let isGlobalBad = false;
-            if (globalDoc.exists && globalDoc.data().status === "DEFAULTER") {
-                isGlobalBad = true;
-                if (!confirm(`⚠️ WARNING: Reported DEFAULTER found! Add anyway?`)) {
-                    saveBtn.innerText = originalText; saveBtn.disabled = false;
-                    return;
-                }
+    const saveBtn = document.querySelector('#addModal button:last-child');
+    saveBtn.innerText = "VERIFYING CREDIT...";
+    saveBtn.disabled = true;
+
+    try {
+        // --- পয়েন্ট ৯ ফিক্স: গ্লোবাল ব্ল্যাকলিস্ট চেক ---
+        const blackListDoc = await db_fs.collection(BLACKLIST).doc(ph).get();
+        
+        let initialDefaulterStatus = false;
+        if(blackListDoc.exists) {
+            const reporter = blackListDoc.data();
+            const proceed = confirm(`⚠️ SECURITY ALERT!\n\nThis number is a REPORTED DEFAULTER.\nReported by: ${reporter.reportedBy}\n\nDo you still want to risk adding this person?`);
+            if(!proceed) {
+                saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
+                return; // ইউজার 'না' বললে কন্টাক্ট অ্যাড হবে না
             }
-
-            // নতুন ডাটা অবজেক্ট (নিশ্চিত করা হচ্ছে কোনো ফিল্ড undefined নয়)
-            const newPerson = {
-                id: Date.now(), 
-                name: n, 
-                phone: ph, 
-                type: db.tab || 'CUSTOMER', 
-                isDefaulter: isGlobalBad, 
-                missedDates: isGlobalBad ? 3 : 0,
-                transactions: []
-            };
-
-            db.people.unshift(newPerson); 
-            await saveDB(); 
-            
-            nInput.value = ""; phInput.value = ""; 
-            saveBtn.innerText = originalText; saveBtn.disabled = false;
-            document.getElementById('addModal').classList.add('hidden'); 
-            renderHome(); 
-
-        } catch (err) {
-            alert("Error adding account. Please check internet.");
-            saveBtn.innerText = originalText; saveBtn.disabled = false;
+            initialDefaulterStatus = true; // ইউজার রাজি হলে ডিফোল্টার ট্যাগ নিয়ে অ্যাড হবে
         }
-    } else {
-        alert("Enter a Name and 10-digit Phone!"); 
+
+        // ২. কন্টাক্ট লিস্টে অ্যাড করা
+        db.people.unshift({
+            id: Date.now(),
+            name: n,
+            phone: ph,
+            type: db.tab,
+            isDefaulter: initialDefaulterStatus,
+            transactions: []
+        });
+
+        await saveDB(); 
+        document.getElementById('addModal').classList.add('hidden');
+        renderHome();
+        alert("Profile created with Global Security Sync.");
+
+    } catch(e) {
+        alert("Network Error! Try again.");
+    } finally {
+        saveBtn.innerText = "SAVE";
+        saveBtn.disabled = false;
     }
 }
+
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -704,10 +689,11 @@ async function confirmAdd() {
             }
         }
 
-        let imgs = (t.images || []).map(i => `
-            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
-                 onclick="openZoom(this.src)">
-        `).join("");
+        // আপনার renderLedger লুপের ভেতরে ছবির লাইনটি এরকম হবে:
+          let imgs = (t.images || []).map(i => `
+          <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
+          onclick="openZoom(this.src)">
+          `).join("");
 
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
@@ -1228,28 +1214,25 @@ function initNavigation() {
         document.getElementById('multiImgPreview').innerHTML = "";
     }, 400); 
 }
-// ৩. হোম স্ক্রিন রেন্ডার ফাংশন
-function renderHome() {
+        function renderHome() {
     const list = document.getElementById('contactList'); 
-    const searchVal = (document.getElementById('searchInput')?.value || "").toLowerCase();
-    if(!list) return;
+    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
     list.innerHTML = "";
     
-    document.getElementById('headerMain')?.classList.remove('hidden'); 
-    document.getElementById('headerLedger')?.classList.add('hidden');
+    document.getElementById('headerMain').classList.remove('hidden'); 
+    document.getElementById('headerLedger').classList.add('hidden');
     
-    // ডাটা ফিল্টার করার সময় নাম বা ফোন চেক করা
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
-        const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
-        const phoneMatch = (p.phone || "").includes(searchVal);
-        return matchesTab && (nameMatch || phoneMatch);
+        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
+        return matchesTab && matchesSearch;
     });
 
     filteredPeople.forEach(p => {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
+        // --- ওভারডিউ এবং ডিফোল্টার লজিক ---
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1259,32 +1242,52 @@ function renderHome() {
             }
         });
 
-        const isDef = (missedCount >= 3) || (p.isDefaulter === true);
-        const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase">DEFAULTER</span>` : "";
+        // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার)
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
+         // renderHome এর লুপের ভেতর নামের পাশে এটি বসান:
+         const globalBadge = p.isDefaulter ? 
+        `<span class="ml-2 px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[7px] font-black rounded uppercase blink-secret">GLOBAL DEFAULTER</span>` : "";
+
+         // হ্যডার টেক্সট: ${p.name} ${globalBadge}
+        // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার + ব্লিঙ্কিং)
+        // যদি ডাটাবেসে isDefaulter থাকে অথবা missedCount ৩ এর বেশি হয়
+        const isDef = p.isDefaulter === true || missedCount >= 3;
+        const defBadge = isDef ? 
+            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
 
         list.innerHTML += `
-            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border relative">
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm overflow-hidden">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg">${(p.name || "U")[0]}</div>
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
                     <div class="flex flex-col">
-                        <h4 class="font-bold text-sm text-slate-800">${p.name}</h4>
+                        <div class="flex items-center">
+                            <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
+                            ${odBadge}
+                        </div>
                         <div class="flex items-center mt-1">
-                            <p class="text-[10px] text-slate-400 font-bold">${p.phone}</p>
+                            <p class="text-[10px] text-slate-400 font-bold tracking-widest">${p.phone}</p>
                             ${defBadge}
                         </div>
                     </div>
                 </div>
+                
                 <div class="text-right flex items-center gap-5">
-                    <div onclick="openLedger(${p.id})">
+                    <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
-                        <p class="text-[7px] font-bold text-slate-300 uppercase">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500">
+                    
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>`;
     });
+
+    if(filteredPeople.length === 0) {
+        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Matches</div>`;
+    }
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
 function removeImage(index) {
@@ -1329,6 +1332,7 @@ function removeImage(index) {
     renderThumbnails(); // এটি কল করতে হবে
 }
         // ১. ছবি বড় করে দেখানোর ফাংশন
+// ১. ছবি বড় করার ফাংশন
 function openZoom(src) {
     const modal = document.getElementById('imageZoomModal');
     const img = document.getElementById('zoomedImg');
@@ -1336,11 +1340,24 @@ function openZoom(src) {
     img.src = src;
     modal.classList.remove('hidden');
     
-    // হালকা এনিমেশন ফিল দেওয়ার জন্য
+    // এনিমেশন শুরু (Scale 100%)
     setTimeout(() => {
-        img.classList.remove('scale-95');
-        img.classList.add('scale-100');
+        img.style.transform = "scale(1)";
     }, 10);
+}
+
+// ২. ছবি ছোট করে বন্ধ করার ফাংশন
+function closeZoom() {
+    const modal = document.getElementById('imageZoomModal');
+    const img = document.getElementById('zoomedImg');
+    
+    // জুম আউট এনিমেশন
+    img.style.transform = "scale(0.9)";
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        img.src = ""; // মেমোরি ক্লিন করা
+    }, 200);
 }
 
 // ২. জুম বন্ধ করার ফাংশন
@@ -1384,28 +1401,7 @@ function closeZoom() {
         console.log("Global Blacklist Updated: " + person.phone);
     }
 }
-        // এই ফাংশনটি ডিফোল্টার ডাটা গ্লোবাল কালেকশনে পাঠাবে
-async function pushDefaulterToGlobal(phone, name, status) {
-    try {
-        const defaulterRef = db_fs.collection("global_defaulters").doc(phone);
-        if (status) {
-            await defaulterRef.set({
-                phone: phone,
-                name: name,
-                status: "DEFAULTER",
-                reportedBy: db.admin.name,
-                adminPhone: db.admin.phone,
-                updatedAt: new Date().toISOString()
-            });
-            console.log("Global Blacklist Updated: " + phone);
-        } else {
-            // যদি শোধ করে দেয় তবে গ্লোবাল লিস্ট থেকে রিমুভ হবে
-            await defaulterRef.delete();
-        }
-    } catch (e) {
-        console.error("Global Sync Error: ", e);
-    }
-}
+        
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
