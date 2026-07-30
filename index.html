@@ -620,51 +620,64 @@ async function syncToPartner(partnerPhone, txData) {
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
         // ১. সার্চ বার অন/অফ করার ফাংশন
-async function confirmAdd() {
-    const n = document.getElementById('newPName').value.trim();
-    const ph = document.getElementById('newPPhone').value.trim();
+async function confirmAdd() { 
+    const nInput = document.getElementById('newPName');
+    const phInput = document.getElementById('newPPhone');
+    const n = nInput.value.trim(); 
+    const ph = phInput.value.trim(); 
     
-    if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
+    if(n && ph.length === 10) { 
+        const saveBtn = document.querySelector('#addModal button:last-child');
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = "SECURITY CHECKING...";
+        saveBtn.disabled = true;
 
-    const saveBtn = document.querySelector('#addModal button:last-child');
-    saveBtn.innerText = "VERIFYING CREDIT...";
-    saveBtn.disabled = true;
+        try {
+            // --- গ্লোবাল ডাটাবেস চেক (কালেকশন নাম: global_defaulters) ---
+            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
+            let isGlobalBad = false;
 
-    try {
-        // --- পয়েন্ট ৯ ফিক্স: গ্লোবাল ব্ল্যাকলিস্ট চেক ---
-        const blackListDoc = await db_fs.collection(BLACKLIST).doc(ph).get();
-        
-        let initialDefaulterStatus = false;
-        if(blackListDoc.exists) {
-            const reporter = blackListDoc.data();
-            const proceed = confirm(`⚠️ SECURITY ALERT!\n\nThis number is a REPORTED DEFAULTER.\nReported by: ${reporter.reportedBy}\n\nDo you still want to risk adding this person?`);
-            if(!proceed) {
-                saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
-                return; // ইউজার 'না' বললে কন্টাক্ট অ্যাড হবে না
+            if (globalDoc.exists) {
+                const info = globalDoc.data();
+                if(info.status === "DEFAULTER") {
+                    isGlobalBad = true;
+                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
+                                    `This number (+91 ${ph}) was reported by: ${info.reportedBy}\n\n` +
+                                    `Do you still want to risk adding this person to your ledger?`;
+                    
+                    if (!confirm(warning)) {
+                        saveBtn.innerText = originalText;
+                        saveBtn.disabled = false;
+                        return; // ইউজার 'না' বললে অ্যাড হবে না
+                    }
+                }
             }
-            initialDefaulterStatus = true; // ইউজার রাজি হলে ডিফোল্টার ট্যাগ নিয়ে অ্যাড হবে
+
+            // নতুন কন্টাক্ট অ্যাড করা (গ্লোবাল ফ্ল্যাগ সহ)
+            db.people.unshift({
+                id: Date.now(), 
+                name: n, 
+                phone: ph, 
+                type: db.tab, 
+                isDefaulter: isGlobalBad, // যদি গ্লোবালি থাকে তবে অটো ট্যাগ হবে
+                missedDates: isGlobalBad ? 3 : 0,
+                transactions: []
+            }); 
+
+            await saveDB(); // ক্লাউড ও লোকাল সেভ
+            
+            nInput.value = ""; phInput.value = ""; 
+            saveBtn.innerText = originalText; saveBtn.disabled = false;
+            document.getElementById('addModal').classList.add('hidden'); 
+            renderHome(); 
+            alert(isGlobalBad ? "Profile created with GLOBAL DEFAULTER tag." : "Account Created Successfully.");
+
+        } catch (err) {
+            alert("Sync Error! Please check internet.");
+            saveBtn.innerText = originalText; saveBtn.disabled = false;
         }
-
-        // ২. কন্টাক্ট লিস্টে অ্যাড করা
-        db.people.unshift({
-            id: Date.now(),
-            name: n,
-            phone: ph,
-            type: db.tab,
-            isDefaulter: initialDefaulterStatus,
-            transactions: []
-        });
-
-        await saveDB(); 
-        document.getElementById('addModal').classList.add('hidden');
-        renderHome();
-        alert("Profile created with Global Security Sync.");
-
-    } catch(e) {
-        alert("Network Error! Try again.");
-    } finally {
-        saveBtn.innerText = "SAVE";
-        saveBtn.disabled = false;
+    } else {
+        alert("Invalid Name or 10-digit Phone!"); 
     }
 }
 
@@ -1233,7 +1246,7 @@ function initNavigation() {
         document.getElementById('multiImgPreview').innerHTML = "";
     }, 400); 
 }
-        function renderHome() {
+       function renderHome() {
     const list = document.getElementById('contactList'); 
     const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
     list.innerHTML = "";
@@ -1251,7 +1264,7 @@ function initNavigation() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ওভারডিউ এবং ডিফোল্টার লজিক ---
+        // ওডি এবং ডিফোল্টার লজিক
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1261,22 +1274,18 @@ function initNavigation() {
             }
         });
 
-        // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার)
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
-         // renderHome এর লুপের ভেতর নামের পাশে এটি বসান:
-         const globalBadge = p.isDefaulter ? 
-        `<span class="ml-2 px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[7px] font-black rounded uppercase blink-secret">GLOBAL DEFAULTER</span>` : "";
+        // কন্ডিশন: নিজের হিসাব অথবা গ্লোবাল ফ্ল্যাগ—যেকোনো একটি থাকলেই ব্যাজ দেখাবে
+        const isDef = (missedCount >= 3) || (p.isDefaulter === true);
 
-         // হ্যডার টেক্সট: ${p.name} ${globalBadge}
-        // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার + ব্লিঙ্কিং)
-        // যদি ডাটাবেসে isDefaulter থাকে অথবা missedCount ৩ এর বেশি হয়
-        const isDef = p.isDefaulter === true || missedCount >= 3;
+        // লাল বর্ডার ব্যাজ ডিজাইন
         const defBadge = isDef ? 
             `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
 
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
+
         list.innerHTML += `
-            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm overflow-hidden">
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
                     <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
                     <div class="flex flex-col">
@@ -1296,7 +1305,6 @@ function initNavigation() {
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -1305,7 +1313,7 @@ function initNavigation() {
     });
 
     if(filteredPeople.length === 0) {
-        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Matches</div>`;
+        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Found</div>`;
     }
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
@@ -1420,7 +1428,19 @@ function closeZoom() {
         console.log("Global Blacklist Updated: " + person.phone);
     }
 }
-        
+        // এই ফাংশনটি কাস্টমারের ফোন নম্বর গ্লোবাল ব্ল্যাকলিস্টে পাঠাবে
+async function pushDefaulterToGlobal(phone, adminName, adminPhone) {
+    try {
+        await db_fs.collection("global_defaulters").doc(phone).set({
+            phone: phone,
+            status: "DEFAULTER",
+            reportedBy: adminName,
+            adminPhone: adminPhone,
+            updatedAt: new Date().toISOString()
+        });
+        console.log("Global Defaulter Sync: Done for " + phone);
+    } catch (e) { console.error("Global Sync Error", e); }
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
