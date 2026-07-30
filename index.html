@@ -363,8 +363,22 @@ viewport.addEventListener('scroll', function() {
     document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
 };
 
-        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
-        // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
+       // ১. সলিড ডাটা সেভার
+async function saveDB() {
+    // ডাটা স্যানিটাইজেশন (undefined থাকলে সেটি নাল করে দেবে যাতে ফায়ারবেস এরর না দেয়)
+    const cleanData = JSON.parse(JSON.stringify(db, (key, value) => value === undefined ? null : value));
+    
+    localStorage.setItem(DB_KEY, JSON.stringify(cleanData));
+    
+    if(db.admin && db.admin.phone) {
+        try {
+            await db_fs.collection(COLLECTION).doc(db.admin.phone).set(cleanData);
+            console.log("Cloud Sync Success ✅");
+        } catch (e) {
+            console.error("Firebase Sync Error ❌", e);
+        }
+    }
+}// --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
     if(db.admin && db.admin.phone) {
         // Firestore Real-time Listener (onSnapshot)
