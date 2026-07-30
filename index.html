@@ -1347,17 +1347,19 @@ function initNavigation() {
     document.getElementById('headerMain').classList.remove('hidden'); 
     document.getElementById('headerLedger').classList.add('hidden');
     
+    // ডাটা ফিল্টার করা (ট্যাব এবং সার্চ অনুযায়ী)
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
-        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
-        return matchesTab && matchesSearch;
+        const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
+        const phoneMatch = (p.phone || "").includes(searchVal);
+        return matchesTab && (nameMatch || phoneMatch);
     });
 
     filteredPeople.forEach(p => {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // ওডি এবং ডিফোল্টার লজিক
+        // ১. ওডি (Overdue) এবং ডিফোল্টার লজিক ক্যালকুলেশন
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1366,37 +1368,23 @@ function initNavigation() {
                 if (today > promised) missedCount++;
             }
         });
-// missedCount লজিকের নিচে এটি বসান
-const isDefaulter = missedCount >= 3;
 
-   // renderHome লুপের ভেতর এটি পরিবর্তন করুন
-const userAvatar = p.profilePic ? 
-    `<img src="${p.profilePic}" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md">` : 
-    `<div class="w-12 h-12 axis-gradient text-white rounded-full flex items-center justify-center font-black text-xs shadow-lg border-2 border-white">${p.name[0]}</div>`;
+        // ২. প্রোফাইল ইমেজ অথবা আদ্যাক্ষর সেট করা (Axis Premium Style)
+        const userAvatar = p.profilePic ? 
+            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white">` : 
+            `<div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${(p.name || 'U')[0]}</div>`;
 
-// কন্টাক্ট লিস্টের এইচটিএমএল-এ ${userAvatar} বসিয়ে দিন।     
-// যদি নতুন করে কেউ ডিফোল্টার হয়, তবে গ্লোবাল ডাটাবেসে পাঠিয়ে দাও
-if (isDefaulter && !p.isDefaulterReported) {
-    p.isDefaulter = true;
-    p.isDefaulterReported = true; // এটি নিশ্চিত করবে যে বারবার ফায়ারবেসে রিকোয়েস্ট যাবে না
-    saveDB(); 
-    pushDefaulterToGlobal(p.phone, p.name, true);
-};
-        
-        // কন্ডিশন: নিজের হিসাব অথবা গ্লোবাল ফ্ল্যাগ—যেকোনো একটি থাকলেই ব্যাজ দেখাবে
+        // ৩. ডিফোল্টার এবং ওডি ব্যাজ
         const isDef = (missedCount >= 3) || (p.isDefaulter === true);
+        const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+        const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[7px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 
-        // লাল বর্ডার ব্যাজ ডিজাইন
-        const defBadge = isDef ? 
-            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
-
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
-
+        // ৪. কন্টাক্ট লিস্ট রেন্ডার করা
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
+                <!-- তথ্য সেকশন (ক্লিক করলে লেজার খুলবে) -->
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
+                    ${userAvatar}
                     <div class="flex flex-col">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
@@ -1409,14 +1397,23 @@ if (isDefaulter && !p.isDefaulterReported) {
                     </div>
                 </div>
                 
-                <div class="text-right flex items-center gap-5">
+                <!-- ডান পাশ: ব্যালেন্স এবং অ্যাকশন বাটনসমূহ -->
+                <div class="text-right flex items-center gap-4">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
-                        <i class="fas fa-trash-alt text-xs"></i>
-                    </button>
+                    
+                    <!-- অ্যাকশন এরিয়া: এডিট এবং ডিলেট -->
+                    <div class="flex flex-col gap-2 border-l border-slate-100 pl-3">
+                        <!-- এডিট আইকন (নতুন যোগ করা হলো) -->
+                        <i onclick="event.stopPropagation(); openEditPersonModalManually(${p.id})" 
+                           class="fas fa-user-edit text-[14px] text-indigo-300 hover:text-[#861F41] transition-colors cursor-pointer"></i>
+                        
+                        <!-- ডিলেট আইকন -->
+                        <i onclick="event.stopPropagation(); deletePerson(${p.id})" 
+                           class="fas fa-trash-alt text-[14px] text-slate-200 hover:text-rose-500 transition-colors cursor-pointer"></i>
+                    </div>
                 </div>
             </div>`;
     });
@@ -1424,6 +1421,12 @@ if (isDefaulter && !p.isDefaulterReported) {
     if(filteredPeople.length === 0) {
         list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Found</div>`;
     }
+}
+
+// ৫. কাস্টমার লিস্ট থেকে সরাসরি এডিট করার জন্য হেল্পার ফাংশন
+function openEditPersonModalManually(id) {
+    db.activeId = id; // এডিট করার জন্য আইডি সেট করা
+    openEditPersonModal(); // আপনার আগের তৈরি করা এডিট মোডাল কল করা
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
 function removeImage(index) {
