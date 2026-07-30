@@ -297,7 +297,6 @@ const COLLECTION = "global_paybook_ledgers"; // যেখানে মূল হ
 const ACCESS_KEYS = "access_keys"; // রাউটিং এর জন্য নতুন কালেকশন (পয়েন্ট ৯ ফিক্স)
 const DB_KEY = 'PayBook_V18_Master_Verified'; // নতুন ভার্সন কী
 const BLACKLIST = "global_blacklist"; // ডিফল্টারদের গ্লোবাল ডিরেক্টরি
-const GLOBAL_DEFAULTERS = "global_defaulters"; // এই লাইনটি অবশ্যই থাকতে হবে
         
 // গ্লোবাল স্টেট (App State)
 let db = { 
@@ -614,28 +613,24 @@ async function confirmAdd() {
 
         try {
             // ২. গ্লোবাল ডাটাবেস থেকে মিরর রেকর্ড ফ্যাচ করা (পয়েন্ট ৯ ফিক্স)
-            // confirmAdd এর ভেতরে গ্লোবাল চেক অংশটি
-const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
+            // এটি চেক করবে এই নম্বরটি অন্য কেউ রিপোর্ট করেছে কি না
+            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
+            let isGlobalBad = false;
+            let reporterName = "";
 
-if (globalDoc.exists) {
-    const proof = globalDoc.data();
-    
-    // প্রমাণ বা রিপোর্ট মেসেজ তৈরি
-    const proofReport = `🚨 REPUTATION ALERT: PROOF DETECTED!\n\n` +
-        `This customer is a reported DEFAULTER in the network.\n\n` +
-        `• Reported by: ${proof.reportedBy}\n` +
-        `• Total Outstanding: Rs. ${proof.totalAmountDue.toLocaleString()}\n` +
-        `• Failed Promises: ${proof.missedDates} times\n` +
-        `• Reported On: ${new Date(proof.updatedAt).toLocaleDateString()}\n\n` +
-        `You can contact ${proof.reportedBy} at +91 ${proof.adminPhone} for more proof.\n\n` +
-        `Do you still want to risk adding this customer?`;
-
-    // এডমিন এটি দেখে সিদ্ধান্ত নিবেন (প্রমাণ সহ)
-    if (!confirm(proofReport)) {
-        saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
-        return; 
-    }
-}
+            if (globalDoc.exists) {
+                const info = globalDoc.data();
+                isGlobalBad = true;
+                reporterName = info.reportedBy || "Another Merchant";
+                
+                const warning = `🚨 SECURITY ALERT: GLOBAL DEFAULTER!\n\nThis customer has been reported as a DEFAULTER by ${reporterName}.\n\nDo you still want to risk adding this person?`;
+                
+                if (!confirm(warning)) {
+                    saveBtn.innerText = originalText;
+                    saveBtn.disabled = false;
+                    return; // ইউজার 'না' বললে অ্যাড হবে না
+                }
+            }
 
             // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা
             db.people.unshift({
@@ -655,84 +650,15 @@ if (globalDoc.exists) {
             phInput.value = ""; 
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
-async function confirmAdd() { 
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const n = nInput.value.trim(); 
-    const ph = phInput.value.trim(); 
-    
-    if(n && ph.length === 10) { 
-        // ১. সেভ বাটন লোডিং স্টেট (পেশাদার লুক)
-        const saveBtn = document.querySelector('#addModal button:last-child');
-        const originalText = saveBtn.innerText;
-        saveBtn.innerText = "VERIFYING GLOBAL CREDIT...";
-        saveBtn.disabled = true;
-
-        let isGlobalBad = false;
-        let proof = null;
-
-        try {
-            // ২. গ্লোবাল চেক (এই অংশটুকু একটি আলাদা ব্লকের ভেতর রাখা হয়েছে যাতে এরর হলে কোড না থামে)
-            try {
-                const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-                if (globalDoc.exists) {
-                    proof = globalDoc.data();
-                    isGlobalBad = true;
-                    
-                    // প্রমাণ বা রিপোর্ট মেসেজ তৈরি
-                    const proofReport = `🚨 REPUTATION ALERT: PROOF DETECTED!\n\n` +
-                        `This customer is a reported DEFAULTER in the network.\n\n` +
-                        `• Reported by: ${proof.reportedBy || 'Axis Merchant'}\n` +
-                        `• Total Outstanding: Rs. ${(proof.totalAmountDue || 0).toLocaleString()}\n` +
-                        `• Failed Promises: ${proof.missedDates || 3} times\n` +
-                        `• Reported On: ${proof.updatedAt ? new Date(proof.updatedAt).toLocaleDateString() : 'N/A'}\n\n` +
-                        `You can contact the reporter at +91 ${proof.adminPhone || ''} for verification.\n\n` +
-                        `Do you still want to risk adding this customer?`;
-
-                    // এডমিনকে সিদ্ধান্ত নেওয়ার সুযোগ দেওয়া
-                    if (!confirm(proofReport)) {
-                        saveBtn.innerText = originalText;
-                        saveBtn.disabled = false;
-                        return; // ইউজার 'না' বললে এখান থেকেই ফাংশন থেমে যাবে
-                    }
-                }
-            } catch (innerErr) {
-                console.warn("Global Reputation Check skipped due to network/rules issue:", innerErr);
-                // গ্লোবাল চেক ফেল করলেও আমরা কোনো এলার্ট দিব না, সরাসরি কাস্টমার অ্যাড করতে চলে যাব
-            }
-
-            // ৩. নতুন কন্টাক্ট ডাটাবেসে অ্যাড করা (নিজস্ব লিস্টে)
-            db.people.unshift({
-                id: Date.now(), 
-                name: n, 
-                phone: ph, 
-                type: db.tab, 
-                isDefaulter: isGlobalBad, 
-                missedDates: isGlobalBad ? 3 : 0,
-                transactions: []
-            }); 
-
-            // ৪. ডাটা ক্লাউড এবং লোকাল মেমোরিতে সেভ করা
-            await saveDB(); 
-            
-            // ৫. ইউআই ক্লিন এবং মোডাল বন্ধ
-            nInput.value = ""; 
-            phInput.value = ""; 
-            saveBtn.innerText = originalText;
-            saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
-            
             renderHome(); 
 
-            if(isGlobalBad) {
-                alert("Security Note: Profile created with a GLOBAL DEFAULTER tag.");
-            } else {
-                alert("Account created and synced successfully.");
-            }
+            if(isGlobalBad) alert("Profile created with DEFAULTER status.");
+            else alert("Account Created successfully.");
 
-        } catch (error) {
-            console.error("Critical Save Error:", error);
-            alert("System Error: Could not save the profile. Please try again.");
+        } catch (err) {
+            console.error(err);
+            alert("Verification Error! Please check internet.");
             saveBtn.innerText = originalText;
             saveBtn.disabled = false;
         }
@@ -1505,30 +1431,22 @@ function closeZoom() {
 }
 
         // এই ফাংশনটি আপনার স্ক্রিপ্টের শেষে যোগ করুন
-// সংশোধিত গ্লোবাল রিপোর্টিং ফাংশন (প্রমাণ সহ)
-async function reportDefaulterToGlobal(person, isBad) {
-    const GLOBAL_DEFAULTERS = "global_defaulters"; 
+async function reportDefaulterToGlobal(phone, name, isBad) {
+    const GLOBAL_DEFAULTERS = "global_defaulters"; // নতুন কমন ঘর
     try {
-        const ref = db_fs.collection(GLOBAL_DEFAULTERS).doc(person.phone);
         if (isBad) {
-            // ১. এই কাস্টমারের মোট বাকি থাকা টাকা ক্যালকুলেট করা (আসল এমাউন্টে)
-            const pBal = calcBal(person.transactions, false, person.type);
-            const kBal = calcBal(person.transactions, true, person.type);
-            const totalDue = pBal + kBal;
-
-            // ২. প্রমাণ সহ গ্লোবাল ডিরেক্টরিতে সেভ করা
-            await ref.set({
-                phone: person.phone,
-                customerName: person.name,
-                reportedBy: db.admin.name, // কোন এডমিন রিপোর্ট করেছে
-                adminPhone: db.admin.phone, // প্রমাণ যাচাইয়ের জন্য এডমিনের ফোন নম্বর
-                totalAmountDue: totalDue, // প্রমাণ ১: টাকার অংক
-                missedDates: person.missedDates || 3, // প্রমাণ ২: প্রতিশ্রুতি ভঙ্গের সংখ্যা
+            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).set({
+                phone: phone,
+                name: name,
+                reportedBy: db.admin.name,
+                adminPhone: db.admin.phone,
+                status: "DEFAULTER",
                 updatedAt: new Date().toISOString()
             });
-            console.log("Global Defaulter Proof Synced.");
+            console.log("Global Defaulter Tag Synced: " + phone);
         } else {
-            await ref.delete();
+            // যদি ভুলবশত হয় বা টাকা শোধ করে দেয় তবে রিমুভ হবে
+            await db_fs.collection(GLOBAL_DEFAULTERS).doc(phone).delete();
         }
     } catch (e) { console.error("Global Reporting Failed", e); }
 }
