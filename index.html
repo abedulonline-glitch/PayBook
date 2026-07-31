@@ -1355,6 +1355,7 @@ function renderHome() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
+        // ১. ওভারডিউ এবং ডিফোল্টার ক্যালকুলেশন
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1364,19 +1365,28 @@ function renderHome() {
             }
         });
 
+        // ২. প্রোফাইল ইমেজ / এভারটার লজিক (ক্লিক করলে এডিট হবে - Point Update)
+        const userAvatar = p.profilePic ? 
+            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-pointer hover:opacity-80 transition-all" 
+                  onclick="event.stopPropagation(); openEditPersonModal(${p.id})">` : 
+            `<div onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
+                  class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer hover:opacity-80 transition-all">
+                  ${(p.name || 'U')[0]}
+            </div>`;
+
+        // ৩. ব্যাজ লজিক (বর্ডার স্টাইল)
         const isDef = (missedCount >= 3) || (p.isDefaulter === true);
         const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
         const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[7px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 
+        // ৪. কন্টাক্ট কার্ড রেন্ডারিং
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
                 <div class="flex items-center gap-4 flex-1">
-                    <!-- নামের আদ্যক্ষর (এটির ওপর ক্লিক করলে এডিট হবে) -->
-                    <div onclick="openEditPersonModal(${p.id})" class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer hover:opacity-80">
-                        ${(p.name || 'U')[0]}
-                    </div>
+                    <!-- বাম পাশ: ছবি/এভারটার (ক্লিক করলে এডিট মোডাল খুলবে) -->
+                    ${userAvatar}
                     
-                    <!-- নাম এবং ফোন (ক্লিক করলে লেজার খুলবে) -->
+                    <!-- মাঝখান: নাম এবং ফোন (ক্লিক করলে লেনদেন খুলবে) -->
                     <div onclick="openLedger(${p.id})" class="flex-1 cursor-pointer">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
@@ -1389,13 +1399,14 @@ function renderHome() {
                     </div>
                 </div>
                 
+                <!-- ডান পাশ: ব্যালেন্স এবং ডিলেট -->
                 <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
-                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                        <p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
                     
-                    <!-- শুধু ডিলেট বাটন রাখা হলো -->
+                    <!-- শুধু ডিলেট বাটনটি থাকল -->
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -1405,6 +1416,17 @@ function renderHome() {
 
     if(filteredPeople.length === 0) {
         list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Found</div>`;
+    }
+}
+
+// ৫. এডিট মোডাল খোলার হেল্পার ফাংশন (অবশ্যই এটি ফাইলে রাখুন)
+function openEditPersonModal(id) {
+    db.activeId = id; 
+    const person = db.people.find(p => p.id == id);
+    if(person) {
+        document.getElementById('editPName').value = person.name;
+        document.getElementById('editPPhone').value = person.phone;
+        document.getElementById('editPersonModal').classList.remove('hidden');
     }
 }
 // ৫. কাস্টমার লিস্ট থেকে সরাসরি এডিট করার জন্য হেল্পার ফাংশন
