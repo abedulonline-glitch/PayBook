@@ -1202,52 +1202,34 @@ function handleSmartPdfDownload() {
     renderHome();
 }
         // ১. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
-function openEditPersonModal() {
-    // চেক করা হচ্ছে কোনো কাস্টমার বর্তমানে একটিভ আছে কি না
-    if (!db.activeId) {
-        console.warn("No active ID found to edit!");
-        return;
-    }
 
-    const person = db.people.find(p => p.id === db.activeId);
-    const modal = document.getElementById('editPersonModal');
-    const nameInp = document.getElementById('editPName');
-    const phInp = document.getElementById('editPPhone');
-
-    // সব এলিমেন্ট এবং ডাটা ঠিক থাকলে তবেই কাজ করবে
-    if (person && modal && nameInp && phInp) {
-        nameInp.value = person.name;
-        phInp.value = person.phone;
-        modal.classList.remove('hidden');
-        console.log("Edit Modal opened for: " + person.name);
-    } else {
-        console.error("Required Edit elements or Person data missing!");
-    }
-}
 
 // ২. ডাটা সেভ করার ফাংশন
-function confirmEditPerson() {
+async function confirmEditPerson() {
     const newName = document.getElementById('editPName').value.trim();
     const newPhone = document.getElementById('editPPhone').value.trim();
 
-    if(!newName || newPhone.length !== 10) {
-        return alert("Please enter a valid Name and 10-digit Phone Number!");
-    }
+    if(!newName || newPhone.length !== 10) return alert("Enter Name & 10-digit Phone!");
 
-    // ডাটাবেসে আপডেট করা
-    const personIndex = db.people.findIndex(p => p.id === db.activeId);
-    if(personIndex !== -1) {
-        db.people[personIndex].name = newName;
-        db.people[personIndex].phone = newPhone;
+    // ১. ডাটাবেসে ওই ব্যক্তিকে খুঁজে বের করা (== ব্যবহার করুন যাতে নম্বর/স্ট্রিং কনফ্লিক্ট না হয়)
+    const person = db.people.find(p => p.id == db.activeId);
 
-        // সাথে সাথে স্ক্রিনের হেডার আপডেট করা
-        document.getElementById('lName').innerText = newName;
-        document.getElementById('lPhone').innerText = "+91 " + newPhone;
+    if (person) {
+        person.name = newName;
+        person.phone = newPhone;
 
-        saveDB(); // ক্লাউড এবং লোকাল মেমোরিতে সেভ
+        // ২. লেজার হেডারের তথ্য সাথে সাথে পরিবর্তন
+        if(!document.getElementById('headerLedger').classList.contains('hidden')) {
+            document.getElementById('lName').innerText = newName;
+            document.getElementById('lPhone').innerText = "+91 " + newPhone;
+        }
+
+        // ৩. ক্লাউডে সেভ করা (await ব্যবহার করুন)
+        await saveDB(); 
+        
         document.getElementById('editPersonModal').classList.add('hidden');
-        alert("Account Information Updated Successfully!");
-        renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
+        renderHome(); // হোম লিস্ট আপডেট
+        alert("Account Updated Successfully!");
     }
 }
         // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
@@ -1419,9 +1401,8 @@ function renderHome() {
                     </div>
                     
                     <div class="flex flex-col gap-2 border-l border-slate-100 pl-3">
-                        <i onclick="event.stopPropagation(); openEditPersonModalManually(${p.id})" 
+                        <i onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
                            class="fas fa-user-edit text-[16px] text-indigo-300 hover:text-[#861F41] p-1 cursor-pointer"></i>
-                        
                         <i onclick="event.stopPropagation(); deletePerson(${p.id})" 
                            class="fas fa-trash-alt text-[16px] text-slate-200 hover:text-rose-500 p-1 cursor-pointer"></i>
                     </div>
@@ -1434,22 +1415,18 @@ function renderHome() {
     }
 }
 // ৫. কাস্টমার লিস্ট থেকে সরাসরি এডিট করার জন্য হেল্পার ফাংশন
-function openEditPersonModalManually(id) {
-    // ১. আইডি সেভ করা
-    db.activeId = id; 
-    
-    // ২. ওই ব্যক্তির ডাটা খুঁজে বের করা
-    const person = db.people.find(p => p.id === id);
-    
-    if(person) {
-        // ৩. ইনপুট ফিল্ডে নাম ও নম্বর বসানো
+function openEditPersonModal(id = null) {
+    // যদি আইডি দেওয়া থাকে (লিস্ট থেকে ক্লিক করলে), তবে সেটি সেট হবে
+    // না থাকলে হেডারে থাকা db.activeId ব্যবহার হবে
+    if (id) db.activeId = id;
+
+    if (!db.activeId) return alert("Error: Account not selected!");
+
+    const person = db.people.find(p => p.id == db.activeId);
+    if (person) {
         document.getElementById('editPName').value = person.name;
         document.getElementById('editPPhone').value = person.phone;
-        
-        // ৪. এডিট মোডালটি শো করা
         document.getElementById('editPersonModal').classList.remove('hidden');
-    } else {
-        alert("Error: Contact not found!");
     }
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
