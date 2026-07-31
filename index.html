@@ -781,56 +781,109 @@ async function confirmAdd() {
     } else {
         alert("Invalid Name or 10-digit Phone Number!"); 
     }
-}
-            // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB তে যাবে)
+
+async function confirmAdd() { 
+    // ১. এলিমেন্টগুলো নিরাপদে ধরা (Null Check সহ)
+    const nInput = document.getElementById('newPName');
+    const phInput = document.getElementById('newPPhone');
+    const pImgInp = document.getElementById('pImgInput');
+    
+    if (!nInput || !phInput) return alert("System Error: Input fields not found!");
+
+    const n = nInput.value.trim(); 
+    const ph = phInput.value.trim(); 
+    
+    if(n && ph.length === 10) { 
+        const saveBtn = document.querySelector('#addModal button:last-child');
+        const originalText = saveBtn ? saveBtn.innerText : "SAVE";
+        
+        if(saveBtn) {
+            saveBtn.innerText = "CHECKING...";
+            saveBtn.disabled = true;
+        }
+
+        try {
+            // ২. গ্লোবাল ডাটা চেক (এটি এখন ট্রাই-ক্যাচ এর ভেতরে সুরক্ষিত)
+            let isGlobalBad = false;
+            let evidenceData = null;
+
+            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get().catch(e => null);
+
+            if (globalDoc && globalDoc.exists) {
+                const info = globalDoc.data();
+                if(info.status === "DEFAULTER") {
+                    isGlobalBad = true;
+                    evidenceData = info;
+                    
+                    const msg = `🚨 DEFAULTER DETECTED!\n\n` +
+                        `Owed to: ${info.reportedBy}\n` +
+                        `Debt: Rs. ${info.totalOutstanding || 0}\n` +
+                        `Notes: ${info.evidence || 'No notes'}\n\n` +
+                        `Add this person anyway?`;
+                    
+                    if (!confirm(msg)) {
+                        if(saveBtn) { saveBtn.innerText = originalText; saveBtn.disabled = false; }
+                        return;
+                    }
+                }
+            }
+
+            // ৩. প্রোফাইল ইমেজ আপলোড (যদি এলিমেন্ট থাকে এবং ফাইল সিলেক্ট করা হয়)
             let profilePicUrl = "";
-            const file = pImgInp.files[0];
-            if (file) {
-                saveBtn.innerText = "UPLOADING IMAGE...";
+            if (pImgInp && pImgInp.files && pImgInp.files[0]) {
+                if(saveBtn) saveBtn.innerText = "UPLOADING...";
                 const fd = new FormData();
-                fd.append('image', file);
+                fd.append('image', pImgInp.files[0]);
                 const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                 const dat = await res.json();
                 if(dat.success) profilePicUrl = dat.data.url;
             }
 
-            // ৩. নতুন কন্টাক্ট অবজেক্ট তৈরি
-            db.people.unshift({
+            // ৪. ডাটাবেসে কন্টাক্ট এন্ট্রি করা
+            const newPerson = {
                 id: Date.now(), 
                 name: n, 
                 phone: ph, 
-                type: db.tab, 
-                profilePic: profilePicUrl, // এখানে ইমেজের লিঙ্ক সেভ হলো
+                type: db.tab || 'CUSTOMER', 
+                profilePic: profilePicUrl,
                 isDefaulter: isGlobalBad, 
                 missedDates: isGlobalBad ? 3 : 0,
                 transactions: []
-            }); 
+            };
 
-            // ৪. ক্লাউডে এবং লোকাল স্টোরেজে সেভ
+            db.people.unshift(newPerson);
+            
+            // ক্লাউড এবং লোকাল সেভ
             await saveDB(); 
             
-            // ৫. ফর্ম ক্লিন এবং মোডাল বন্ধ
-            nInput.value = ""; phInput.value = ""; pImgInp.value = "";
-            document.getElementById('pImgPreview').classList.add('hidden');
-            document.getElementById('pImgPlaceholder').classList.remove('hidden');
+            // ৫. ফর্ম ক্লিন করা (নিরাপদে)
+            nInput.value = ""; 
+            phInput.value = ""; 
+            if(pImgInp) pImgInp.value = "";
             
-            saveBtn.innerText = originalText; 
-            saveBtn.disabled = false;
+            const pImgPrev = document.getElementById('pImgPreview');
+            const pImgPlace = document.getElementById('pImgPlaceholder');
+            if(pImgPrev) pImgPrev.classList.add('hidden');
+            if(pImgPlace) pImgPlace.classList.remove('hidden');
+
             document.getElementById('addModal').classList.add('hidden'); 
-            
-            renderHome(); // হোম স্ক্রিন রিফ্রেশ
-            alert(isGlobalBad ? "Account created with DEFAULTER status." : "Account Created Successfully!");
+            renderHome(); 
+            alert("Account Created Successfully!");
 
         } catch (err) {
-            console.error("Sync Error:", err);
-            alert("Connection Error! Please check internet.");
-            saveBtn.innerText = originalText; saveBtn.disabled = false;
+            console.error("Critical confirmAdd Error:", err);
+            alert("Connection timed out. Please try again.");
+        } finally {
+            // বাটন সব সময় আবার সচল হবে যাতে হ্যাং না মনে হয়
+            if(saveBtn) {
+                saveBtn.innerText = originalText;
+                saveBtn.disabled = false;
+            }
         }
     } else {
-        alert("Invalid Name or 10-digit Phone Number!"); 
+        alert("Enter Name & 10-digit Phone!"); 
     }
 }
-
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
