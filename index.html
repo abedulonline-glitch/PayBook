@@ -775,30 +775,22 @@ async function confirmAdd() {
     if(n && ph.length === 10) { 
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        saveBtn.innerText = "PROCESSING..."; // লোডিং টেক্সট
+        saveBtn.innerText = "WAIT: PROCESSING..."; 
         saveBtn.disabled = true;
 
         try {
-            // ১. গ্লোবাল ডাটাবেস চেক (কালেকশন নাম: global_defaulters)
+            // ১. গ্লোবাল ডিফোল্টার চেক
             const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             let isGlobalBad = false;
-            let reporter = "";
-
-            if (globalDoc.exists) {
-                const info = globalDoc.data();
-                if(info.status === "DEFAULTER") {
-                    isGlobalBad = true;
-                    reporter = info.reportedBy;
-                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\nThis number was reported by: ${reporter}\n\nDo you still want to add this person?`;
-                    if (!confirm(warning)) {
-                        saveBtn.innerText = originalText;
-                        saveBtn.disabled = false;
-                        return;
-                    }
+            if (globalDoc.exists && globalDoc.data().status === "DEFAULTER") {
+                isGlobalBad = true;
+                if (!confirm(`🚨 ALERT: This person is a reported DEFAULTER by ${globalDoc.data().reportedBy}. Add anyway?`)) {
+                    saveBtn.innerText = originalText; saveBtn.disabled = false;
+                    return;
                 }
             }
 
-            // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB তে যাবে)
+            // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB)
             let profilePicUrl = "";
             const file = pImgInp.files[0];
             if (file) {
@@ -811,39 +803,39 @@ async function confirmAdd() {
             }
 
             // ৩. নতুন কন্টাক্ট অবজেক্ট তৈরি
-            db.people.unshift({
+            const newPerson = {
                 id: Date.now(), 
                 name: n, 
                 phone: ph, 
-                type: db.tab, 
-                profilePic: profilePicUrl, // এখানে ইমেজের লিঙ্ক সেভ হলো
+                type: db.tab, // CUSTOMER বা SUPPLIER
+                profilePic: profilePicUrl,
                 isDefaulter: isGlobalBad, 
                 missedDates: isGlobalBad ? 3 : 0,
                 transactions: []
-            }); 
+            };
 
-            // ৪. ক্লাউডে এবং লোকাল স্টোরেজে সেভ
-            await saveDB(); 
+            db.people.unshift(newPerson); 
+            await saveDB(); // ক্লাউড ও লোকাল সেভ
             
-            // ৫. ফর্ম ক্লিন এবং মোডাল বন্ধ
+            // ৪. ফর্ম ক্লিন ও মোডাল বন্ধ
             nInput.value = ""; phInput.value = ""; pImgInp.value = "";
-            document.getElementById('pImgPreview').classList.add('hidden');
-            document.getElementById('pImgPlaceholder').classList.remove('hidden');
+            document.getElementById('pImgPreview')?.classList.add('hidden');
+            document.getElementById('pImgPlaceholder')?.classList.remove('hidden');
             
             saveBtn.innerText = originalText; 
             saveBtn.disabled = false;
             document.getElementById('addModal').classList.add('hidden'); 
             
-            renderHome(); // হোম স্ক্রিন রিফ্রেশ
-            alert(isGlobalBad ? "Account created with DEFAULTER status." : "Account Created Successfully!");
+            renderHome(); 
+            alert("Success: Account created!");
 
         } catch (err) {
-            console.error("Sync Error:", err);
-            alert("Connection Error! Please check internet.");
+            console.error(err);
+            alert("Error: Internet connection problem.");
             saveBtn.innerText = originalText; saveBtn.disabled = false;
         }
     } else {
-        alert("Invalid Name or 10-digit Phone Number!"); 
+        alert("Please enter Name and 10-digit Phone!"); 
     }
 }
 
@@ -1251,27 +1243,17 @@ function handleSmartPdfDownload() {
 }
 
         function switchTab(t) {
-    // ১. ডাটাবেসের ট্যাব ভ্যালু আপডেট
     db.tab = t;
-
-    // ২. বাটন দুটির আইডি খুঁজে বের করা
     const btnCust = document.getElementById('tabCust');
     const btnSupp = document.getElementById('tabSupp');
 
-    // ৩. কন্ডিশন অনুযায়ী কালার পরিবর্তন (Axis Style)
     if (t === 'CUSTOMER') {
-        // কাস্টমার বাটন একটিভ (Burgundy Color)
         btnCust.className = "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
-        // সাপ্লায়ার বাটন ইন-একটিভ (Grey Color)
         btnSupp.className = "flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all";
     } else {
-        // সাপ্লায়ার বাটন একটিভ (Burgundy Color)
         btnSupp.className = "flex-1 py-3 rounded-lg text-xs font-black bg-[#861F41] text-white shadow-md transition-all";
-        // কাস্টমার বাটন ইন-একটিভ (Grey Color)
         btnCust.className = "flex-1 py-3 rounded-lg text-xs font-black text-slate-400 transition-all";
     }
-
-    // ৪. লিস্ট রিফ্রেশ করা
     renderHome();
 }
         // ১. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
