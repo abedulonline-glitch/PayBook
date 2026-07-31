@@ -1346,17 +1346,15 @@ function renderHome() {
     document.getElementById('headerLedger').classList.add('hidden');
     
     const filteredPeople = db.people.filter(p => {
-        const matchesTab = p.type === db.tab;
         const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
         const phoneMatch = (p.phone || "").includes(searchVal);
-        return matchesTab && (nameMatch || phoneMatch);
+        return p.type === db.tab && (nameMatch || phoneMatch);
     });
 
     filteredPeople.forEach(p => {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // ১. ওডি এবং ডিফোল্টার ক্যালকুলেশন
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1366,23 +1364,20 @@ function renderHome() {
             }
         });
 
-        // ২. প্রোফাইল ইমেজ লজিক (ক্লিক করলে জুম হবে - Point Update)
-        const userAvatar = p.profilePic ? 
-            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-zoom-in" 
-                  onclick="event.stopPropagation(); openZoom('${p.profilePic}')">` : 
-            `<div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${(p.name || 'U')[0]}</div>`;
-
-        // ৩. ব্যাজ লজিক
         const isDef = (missedCount >= 3) || (p.isDefaulter === true);
         const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
         const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[7px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 
-        // ৪. রেন্ডারিং
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    ${userAvatar}
-                    <div class="flex flex-col">
+                <div class="flex items-center gap-4 flex-1">
+                    <!-- নামের আদ্যক্ষর (এটির ওপর ক্লিক করলে এডিট হবে) -->
+                    <div onclick="openEditPersonModal(${p.id})" class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer hover:opacity-80">
+                        ${(p.name || 'U')[0]}
+                    </div>
+                    
+                    <!-- নাম এবং ফোন (ক্লিক করলে লেজার খুলবে) -->
+                    <div onclick="openLedger(${p.id})" class="flex-1 cursor-pointer">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
                             ${odBadge}
@@ -1394,18 +1389,16 @@ function renderHome() {
                     </div>
                 </div>
                 
-                <div class="text-right flex items-center gap-4">
+                <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
                     
-                    <div class="flex flex-col gap-2 border-l border-slate-100 pl-3">
-                        <i onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
-                           class="fas fa-user-edit text-[16px] text-indigo-300 hover:text-[#861F41] p-1 cursor-pointer"></i>
-                        <i onclick="event.stopPropagation(); deletePerson(${p.id})" 
-                           class="fas fa-trash-alt text-[16px] text-slate-200 hover:text-rose-500 p-1 cursor-pointer"></i>
-                    </div>
+                    <!-- শুধু ডিলেট বাটন রাখা হলো -->
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
                 </div>
             </div>`;
     });
@@ -1415,15 +1408,10 @@ function renderHome() {
     }
 }
 // ৫. কাস্টমার লিস্ট থেকে সরাসরি এডিট করার জন্য হেল্পার ফাংশন
-function openEditPersonModal(id = null) {
-    // যদি আইডি দেওয়া থাকে (লিস্ট থেকে ক্লিক করলে), তবে সেটি সেট হবে
-    // না থাকলে হেডারে থাকা db.activeId ব্যবহার হবে
-    if (id) db.activeId = id;
-
-    if (!db.activeId) return alert("Error: Account not selected!");
-
-    const person = db.people.find(p => p.id == db.activeId);
-    if (person) {
+function openEditPersonModal(id) {
+    db.activeId = id; // আইডি সেট করা হলো
+    const person = db.people.find(p => p.id == id);
+    if(person) {
         document.getElementById('editPName').value = person.name;
         document.getElementById('editPPhone').value = person.phone;
         document.getElementById('editPersonModal').classList.remove('hidden');
