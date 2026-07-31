@@ -691,12 +691,10 @@ async function syncToPartner(partnerPhone, txData) {
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
 // --- ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (Profile Image & Global Check সহ) ---
-
-// --- ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (প্রমাণসহ গ্লোবাল চেক) ---
 async function confirmAdd() { 
     const nInput = document.getElementById('newPName');
     const phInput = document.getElementById('newPPhone');
-    const pImgInp = document.getElementById('pImgInput');
+    const pImgInp = document.getElementById('pImgInput'); // প্রোফাইল ইমেজ ইনপুট
     
     const n = nInput.value.trim(); 
     const ph = phInput.value.trim(); 
@@ -704,36 +702,30 @@ async function confirmAdd() {
     if(n && ph.length === 10) { 
         const saveBtn = document.querySelector('#addModal button:last-child');
         const originalText = saveBtn.innerText;
-        saveBtn.innerText = "SECURITY SCAN..."; // লোডিং টেক্সট
+        saveBtn.innerText = "PROCESSING..."; // লোডিং টেক্সট
         saveBtn.disabled = true;
 
         try {
-            // ১. গ্লোবাল ডাটাবেস 'global_defaulters' থেকে প্রমাণসহ ডাটা চেক করা
+            // ১. গ্লোবাল ডাটাবেস চেক (কালেকশন নাম: global_defaulters)
             const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
             let isGlobalBad = false;
+            let reporter = "";
 
             if (globalDoc.exists) {
                 const info = globalDoc.data();
                 if(info.status === "DEFAULTER") {
                     isGlobalBad = true;
-                    
-                    // --- প্রমাণ এবং ডিটেইলস মেসেজ তৈরি (পয়েন্ট অনুযায়ী) ---
-                    const evidenceMsg = `🚨 DEFAULTER EVIDENCE FOUND!\n\n` +
-                        `• Reported By: ${info.reportedBy}\n` +
-                        `• Reporter Contact: +91 ${info.adminPhone}\n` +
-                        `• Outstanding Debt: Rs. ${info.totalOutstanding.toLocaleString()}\n\n` +
-                        `📝 Transaction Evidence:\n"${info.evidence || 'No specific notes recorded.'}"\n\n` +
-                        `Risk detected! Do you still want to risk adding this person to your ledger? We suggest calling the reporter to verify.`;
-                    
-                    if (!confirm(evidenceMsg)) {
+                    reporter = info.reportedBy;
+                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\nThis number was reported by: ${reporter}\n\nDo you still want to add this person?`;
+                    if (!confirm(warning)) {
                         saveBtn.innerText = originalText;
                         saveBtn.disabled = false;
-                        return; // ইউজার 'না' বললে কন্টাক্ট অ্যাড হবে না
+                        return;
                     }
                 }
             }
 
-            // ২. প্রোফাইল ইমেজ আপলোড লজিক (যদি ইমেজ থাকে)
+            // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB তে যাবে)
             let profilePicUrl = "";
             const file = pImgInp.files[0];
             if (file) {
@@ -745,19 +737,19 @@ async function confirmAdd() {
                 if(dat.success) profilePicUrl = dat.data.url;
             }
 
-            // ৩. নতুন কন্টাক্ট অবজেক্ট তৈরি (গ্লোবাল ফ্ল্যাগ সহ)
+            // ৩. নতুন কন্টাক্ট অবজেক্ট তৈরি
             db.people.unshift({
                 id: Date.now(), 
                 name: n, 
                 phone: ph, 
                 type: db.tab, 
-                profilePic: profilePicUrl,
+                profilePic: profilePicUrl, // এখানে ইমেজের লিঙ্ক সেভ হলো
                 isDefaulter: isGlobalBad, 
                 missedDates: isGlobalBad ? 3 : 0,
                 transactions: []
             }); 
 
-            // ৪. ডাটা সেভ এবং সিঙ্ক করা
+            // ৪. ক্লাউডে এবং লোকাল স্টোরেজে সেভ
             await saveDB(); 
             
             // ৫. ফর্ম ক্লিন এবং মোডাল বন্ধ
@@ -770,120 +762,18 @@ async function confirmAdd() {
             document.getElementById('addModal').classList.add('hidden'); 
             
             renderHome(); // হোম স্ক্রিন রিফ্রেশ
-            alert(isGlobalBad ? "Account added with GLOBAL DEFAULTER badge." : "Account Created Successfully!");
+            alert(isGlobalBad ? "Account created with DEFAULTER status." : "Account Created Successfully!");
 
         } catch (err) {
             console.error("Sync Error:", err);
-            alert("Connection Error! Check your internet.");
-            saveBtn.innerText = originalText; 
-            saveBtn.disabled = false;
+            alert("Connection Error! Please check internet.");
+            saveBtn.innerText = originalText; saveBtn.disabled = false;
         }
     } else {
         alert("Invalid Name or 10-digit Phone Number!"); 
     }
-
-async function confirmAdd() { 
-    // ১. এলিমেন্টগুলো নিরাপদে ধরা (Null Check সহ)
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const pImgInp = document.getElementById('pImgInput');
-    
-    if (!nInput || !phInput) return alert("System Error: Input fields not found!");
-
-    const n = nInput.value.trim(); 
-    const ph = phInput.value.trim(); 
-    
-    if(n && ph.length === 10) { 
-        const saveBtn = document.querySelector('#addModal button:last-child');
-        const originalText = saveBtn ? saveBtn.innerText : "SAVE";
-        
-        if(saveBtn) {
-            saveBtn.innerText = "CHECKING...";
-            saveBtn.disabled = true;
-        }
-
-        try {
-            // ২. গ্লোবাল ডাটা চেক (এটি এখন ট্রাই-ক্যাচ এর ভেতরে সুরক্ষিত)
-            let isGlobalBad = false;
-            let evidenceData = null;
-
-            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get().catch(e => null);
-
-            if (globalDoc && globalDoc.exists) {
-                const info = globalDoc.data();
-                if(info.status === "DEFAULTER") {
-                    isGlobalBad = true;
-                    evidenceData = info;
-                    
-                    const msg = `🚨 DEFAULTER DETECTED!\n\n` +
-                        `Owed to: ${info.reportedBy}\n` +
-                        `Debt: Rs. ${info.totalOutstanding || 0}\n` +
-                        `Notes: ${info.evidence || 'No notes'}\n\n` +
-                        `Add this person anyway?`;
-                    
-                    if (!confirm(msg)) {
-                        if(saveBtn) { saveBtn.innerText = originalText; saveBtn.disabled = false; }
-                        return;
-                    }
-                }
-            }
-
-            // ৩. প্রোফাইল ইমেজ আপলোড (যদি এলিমেন্ট থাকে এবং ফাইল সিলেক্ট করা হয়)
-            let profilePicUrl = "";
-            if (pImgInp && pImgInp.files && pImgInp.files[0]) {
-                if(saveBtn) saveBtn.innerText = "UPLOADING...";
-                const fd = new FormData();
-                fd.append('image', pImgInp.files[0]);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                const dat = await res.json();
-                if(dat.success) profilePicUrl = dat.data.url;
-            }
-
-            // ৪. ডাটাবেসে কন্টাক্ট এন্ট্রি করা
-            const newPerson = {
-                id: Date.now(), 
-                name: n, 
-                phone: ph, 
-                type: db.tab || 'CUSTOMER', 
-                profilePic: profilePicUrl,
-                isDefaulter: isGlobalBad, 
-                missedDates: isGlobalBad ? 3 : 0,
-                transactions: []
-            };
-
-            db.people.unshift(newPerson);
-            
-            // ক্লাউড এবং লোকাল সেভ
-            await saveDB(); 
-            
-            // ৫. ফর্ম ক্লিন করা (নিরাপদে)
-            nInput.value = ""; 
-            phInput.value = ""; 
-            if(pImgInp) pImgInp.value = "";
-            
-            const pImgPrev = document.getElementById('pImgPreview');
-            const pImgPlace = document.getElementById('pImgPlaceholder');
-            if(pImgPrev) pImgPrev.classList.add('hidden');
-            if(pImgPlace) pImgPlace.classList.remove('hidden');
-
-            document.getElementById('addModal').classList.add('hidden'); 
-            renderHome(); 
-            alert("Account Created Successfully!");
-
-        } catch (err) {
-            console.error("Critical confirmAdd Error:", err);
-            alert("Connection timed out. Please try again.");
-        } finally {
-            // বাটন সব সময় আবার সচল হবে যাতে হ্যাং না মনে হয়
-            if(saveBtn) {
-                saveBtn.innerText = originalText;
-                saveBtn.disabled = false;
-            }
-        }
-    } else {
-        alert("Enter Name & 10-digit Phone!"); 
-    }
 }
+
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -989,7 +879,17 @@ function handleImageFiles(f) {
         previewContainer.classList.remove('hidden');
     }
 }
+function saveDB() {
+    // ১. সাথে সাথে লোকাল মেমোরিতে সেভ (এটি ১ মিলিসেকেন্ড সময় নেয়)
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
 
+    // ২. ক্লাউড সিঙ্ক হবে ব্যাকগ্রাউন্ডে (ইউজারকে ওয়েট করতে হবে না)
+    if (db.admin && db.admin.phone) {
+        db_fs.collection(COLLECTION).doc(db.admin.phone).set(db)
+            .then(() => console.log("Cloud Sync: Success"))
+            .catch(e => console.error("Cloud Sync: Failed", e));
+    }
+}
 // ২. ডাটা সেভ করার ফাংশন (V18.2)
 // --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
 async function preSave(t) {
@@ -1662,30 +1562,17 @@ function closeZoom() {
     }
 }
         // এই ফাংশনটি কাস্টমারের ফোন নম্বর গ্লোবাল ব্ল্যাকলিস্টে পাঠাবে
-async function pushDefaulterToGlobal(person) {
-    const pBal = calcBal(person.transactions, false, person.type);
-    const kBal = calcBal(person.transactions, true, person.type);
-    const totalDue = pBal + kBal;
-
-    // সর্বশেষ ৩টি লেনদেনের নোট সংগ্রহ করা (প্রমাণ হিসেবে)
-    const proofNotes = person.transactions
-        .filter(t => t.status === 'active')
-        .slice(0, 3)
-        .map(t => `${t.date}: ${t.note || 'No Note'}`)
-        .join(" | ");
-
+async function pushDefaulterToGlobal(phone, adminName, adminPhone) {
     try {
-        await db_fs.collection("global_defaulters").doc(person.phone).set({
-            phone: person.phone,
+        await db_fs.collection("global_defaulters").doc(phone).set({
+            phone: phone,
             status: "DEFAULTER",
-            totalOutstanding: totalDue,
-            reportedBy: db.admin.name,
-            adminPhone: db.admin.phone,
-            evidence: proofNotes, // এটিই প্রমাণ হিসেবে কাজ করবে
+            reportedBy: adminName,
+            adminPhone: adminPhone,
             updatedAt: new Date().toISOString()
         });
-        console.log("Defaulter reported with evidence.");
-    } catch (e) { console.error(e); }
+        console.log("Global Defaulter Sync: Done for " + phone);
+    } catch (e) { console.error("Global Sync Error", e); }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
@@ -1694,13 +1581,13 @@ async function pushDefaulterToGlobal(person) {
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
-         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function setupHistoryBack() { window.addEventListener('popstate', () => { if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome(); }); }
