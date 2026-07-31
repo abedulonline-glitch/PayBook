@@ -711,19 +711,21 @@ async function confirmAdd() {
             let isGlobalBad = false;
             let reporter = "";
 
-            if (globalDoc.exists) {
-                const info = globalDoc.data();
-                if(info.status === "DEFAULTER") {
-                    isGlobalBad = true;
-                    reporter = info.reportedBy;
-                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\nThis number was reported by: ${reporter}\n\nDo you still want to add this person?`;
-                    if (!confirm(warning)) {
-                        saveBtn.innerText = originalText;
-                        saveBtn.disabled = false;
-                        return;
-                    }
-                }
-            }
+            // confirmAdd এর ভেতরে যেখানে globalDoc.exists চেক করছেন
+if (globalDoc.exists) {
+    const info = globalDoc.data();
+    const evidenceMsg = `🚨 DEFAULTER EVIDENCE FOUND!\n\n` +
+        `This person owes Rs. ${info.totalOutstanding.toLocaleString()} to "${info.reportedBy}".\n\n` +
+        `📝 Evidence Log: ${info.evidence}\n\n` +
+        `📞 Call to Verify: +91 ${info.adminPhone}\n\n` +
+        `You can contact the reporter to verify the truth. Do you still want to add this account?`;
+
+    if (!confirm(evidenceMsg)) {
+        saveBtn.innerText = "SAVE"; saveBtn.disabled = false;
+        return;
+    }
+}
+        }
 
             // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB তে যাবে)
             let profilePicUrl = "";
@@ -1552,17 +1554,30 @@ function closeZoom() {
     }
 }
         // এই ফাংশনটি কাস্টমারের ফোন নম্বর গ্লোবাল ব্ল্যাকলিস্টে পাঠাবে
-async function pushDefaulterToGlobal(phone, adminName, adminPhone) {
+async function pushDefaulterToGlobal(person) {
+    const pBal = calcBal(person.transactions, false, person.type);
+    const kBal = calcBal(person.transactions, true, person.type);
+    const totalDue = pBal + kBal;
+
+    // সর্বশেষ ৩টি লেনদেনের নোট সংগ্রহ করা (প্রমাণ হিসেবে)
+    const proofNotes = person.transactions
+        .filter(t => t.status === 'active')
+        .slice(0, 3)
+        .map(t => `${t.date}: ${t.note || 'No Note'}`)
+        .join(" | ");
+
     try {
-        await db_fs.collection("global_defaulters").doc(phone).set({
-            phone: phone,
+        await db_fs.collection("global_defaulters").doc(person.phone).set({
+            phone: person.phone,
             status: "DEFAULTER",
-            reportedBy: adminName,
-            adminPhone: adminPhone,
+            totalOutstanding: totalDue,
+            reportedBy: db.admin.name,
+            adminPhone: db.admin.phone,
+            evidence: proofNotes, // এটিই প্রমাণ হিসেবে কাজ করবে
             updatedAt: new Date().toISOString()
         });
-        console.log("Global Defaulter Sync: Done for " + phone);
-    } catch (e) { console.error("Global Sync Error", e); }
+        console.log("Defaulter reported with evidence.");
+    } catch (e) { console.error(e); }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
