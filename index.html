@@ -263,16 +263,19 @@
         </div>
     </div>
 </div>
-    <!-- Image Full-Screen Zoom Modal -->
-<div id="imageZoomModal" class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" onclick="closeZoom()">
-    <!-- ক্লোজ বাটন -->
-    <button class="absolute top-10 right-8 text-white text-3xl opacity-70 hover:opacity-100 transition-all">
-        <i class="fas fa-times-circle"></i>
-    </button>
+    
+<!-- স্মার্ট ইমেজ জুম মোডাল -->
+<div id="imageZoomModal" 
+     class="hidden fixed inset-0 z-[5000] bg-black/95 flex items-center justify-center p-4 animate-fade" 
+     onclick="closeZoom()">
     <!-- জুম হওয়া ইমেজ -->
-    <img id="zoomedImg" src="" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl transition-transform duration-300 transform scale-95" onclick="event.stopPropagation()">
+    <img id="zoomedImg" src="" 
+         class="max-w-full max-h-[90vh] rounded-xl shadow-2xl transition-transform duration-300 transform scale-95" 
+         onclick="event.stopPropagation(); closeZoom();">
+    
+    <!-- উপরে ছোট করে ক্লোজ বাটন (ঐচ্ছিক) -->
+    <div class="absolute top-10 right-8 text-white opacity-50 text-2xl"><i class="fas fa-times-circle"></i></div>
 </div>
-
     <script>
         // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (Point 13) ---
         // --- ১. গ্লোবাল কনফিগ এবং ফায়ারবেস (V18: পিন-বেসড রাউটিং ফিক্স) ---
@@ -686,10 +689,11 @@ async function confirmAdd() {
             }
         }
 
-        let imgs = (t.images || []).map(i => `
-            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
-                 onclick="openZoom(this.src)">
-        `).join("");
+        // আপনার renderLedger লুপের ভেতরে ছবির লাইনটি এরকম হবে:
+          let imgs = (t.images || []).map(i => `
+          <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
+          onclick="openZoom(this.src)">
+          `).join("");
 
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
@@ -1328,6 +1332,7 @@ function removeImage(index) {
     renderThumbnails(); // এটি কল করতে হবে
 }
         // ১. ছবি বড় করে দেখানোর ফাংশন
+// ১. ছবি বড় করার ফাংশন
 function openZoom(src) {
     const modal = document.getElementById('imageZoomModal');
     const img = document.getElementById('zoomedImg');
@@ -1335,11 +1340,24 @@ function openZoom(src) {
     img.src = src;
     modal.classList.remove('hidden');
     
-    // হালকা এনিমেশন ফিল দেওয়ার জন্য
+    // এনিমেশন শুরু (Scale 100%)
     setTimeout(() => {
-        img.classList.remove('scale-95');
-        img.classList.add('scale-100');
+        img.style.transform = "scale(1)";
     }, 10);
+}
+
+// ২. ছবি ছোট করে বন্ধ করার ফাংশন
+function closeZoom() {
+    const modal = document.getElementById('imageZoomModal');
+    const img = document.getElementById('zoomedImg');
+    
+    // জুম আউট এনিমেশন
+    img.style.transform = "scale(0.9)";
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        img.src = ""; // মেমোরি ক্লিন করা
+    }, 200);
 }
 
 // ২. জুম বন্ধ করার ফাংশন
