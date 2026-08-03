@@ -1450,15 +1450,18 @@ function openEditPersonModal(id) {
     }
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
+// প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
 function removeImage(index) {
     // ১. গ্লোবাল অ্যারে থেকে ছবিটি বাদ দেওয়া
-    capturedFiles.splice(index, 1);
+    if (capturedFiles && capturedFiles.length > 0) {
+        capturedFiles.splice(index, 1);
+    }
     
     // ২. প্রিভিউ লিস্ট পুনরায় রেন্ডার করা
     renderThumbnails();
 }
         function renderThumbnails() {
-    const container = document.getElementById('multiImgPreview');
+    const container = document.getElementById('multiImgPreview') || document.getElementById('multiImgPreviewContainer');
     if(!container) return;
     
     container.innerHTML = ""; // আগের প্রিভিউ ক্লিয়ার করা
@@ -1468,22 +1471,21 @@ function removeImage(index) {
         
         // প্রতিটি ইমেজের জন্য একটি কন্টেইনার এবং ক্রস বাটন তৈরি
         container.innerHTML += `
-            <div class="relative w-14 h-14 mr-1 mb-1">
-                <img src="${url}" class="w-full h-full object-cover rounded-lg border shadow-sm">
-                <!-- লাল ক্রস বাটন -->
+            <div class="relative w-16 h-16 mr-3 mb-2 animate-fade">
+                <img src="${url}" class="w-full h-full object-cover rounded-xl border-2 border-white shadow-md">
+                
+                <!-- লাল ক্রস বাটন (টপ-রাইট কর্নারে) -->
                 <div onclick="removeImage(${index})" 
-                     class="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full w-5 h-5 flex items-center justify-center shadow-md border border-slate-100 cursor-pointer active:scale-90 transition-transform">
-                    <i class="fas fa-times-circle text-[12px]"></i>
+                     class="absolute -top-2 -right-2 bg-white text-[#e11d48] rounded-full w-6 h-6 flex items-center justify-center shadow-lg border border-slate-100 cursor-pointer active:scale-90 transition-transform z-[10]">
+                    <i class="fas fa-times-circle text-[16px]"></i>
                 </div>
             </div>
         `;
     });
     
-    // যদি কোনো ছবি না থাকে তবে কন্টেইনার হাইড রাখা
+    // যদি কোনো ছবি না থাকে তবে কন্টেইনার হাইড রাখা (ঐচ্ছিক)
     if(capturedFiles.length > 0) {
         container.classList.remove('hidden');
-    } else {
-        container.classList.add('hidden');
     }
 }
         function handleImageFiles(f) { 
