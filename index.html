@@ -879,7 +879,17 @@ function handleImageFiles(f) {
         previewContainer.classList.remove('hidden');
     }
 }
+function saveDB() {
+    // ১. সাথে সাথে লোকাল মেমোরিতে সেভ (এটি ১ মিলিসেকেন্ড সময় নেয়)
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
 
+    // ২. ক্লাউড সিঙ্ক হবে ব্যাকগ্রাউন্ডে (ইউজারকে ওয়েট করতে হবে না)
+    if (db.admin && db.admin.phone) {
+        db_fs.collection(COLLECTION).doc(db.admin.phone).set(db)
+            .then(() => console.log("Cloud Sync: Success"))
+            .catch(e => console.error("Cloud Sync: Failed", e));
+    }
+}
 // ২. ডাটা সেভ করার ফাংশন (V18.2)
 // --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
 async function preSave(t) {
@@ -1346,17 +1356,16 @@ function renderHome() {
     document.getElementById('headerLedger').classList.add('hidden');
     
     const filteredPeople = db.people.filter(p => {
-        const matchesTab = p.type === db.tab;
         const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
         const phoneMatch = (p.phone || "").includes(searchVal);
-        return matchesTab && (nameMatch || phoneMatch);
+        return p.type === db.tab && (nameMatch || phoneMatch);
     });
 
     filteredPeople.forEach(p => {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // ১. ওডি এবং ডিফোল্টার ক্যালকুলেশন
+        // ১. ওভারডিউ এবং ডিফোল্টার ক্যালকুলেশন
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1366,23 +1375,29 @@ function renderHome() {
             }
         });
 
-        // ২. প্রোফাইল ইমেজ লজিক (ক্লিক করলে জুম হবে - Point Update)
+        // ২. প্রোফাইল ইমেজ / এভারটার লজিক (ক্লিক করলে এডিট হবে - Point Update)
         const userAvatar = p.profilePic ? 
-            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-zoom-in" 
-                  onclick="event.stopPropagation(); openZoom('${p.profilePic}')">` : 
-            `<div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${(p.name || 'U')[0]}</div>`;
+            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-pointer hover:opacity-80 transition-all" 
+                  onclick="event.stopPropagation(); openEditPersonModal(${p.id})">` : 
+            `<div onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
+                  class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer hover:opacity-80 transition-all">
+                  ${(p.name || 'U')[0]}
+            </div>`;
 
-        // ৩. ব্যাজ লজিক
+        // ৩. ব্যাজ লজিক (বর্ডার স্টাইল)
         const isDef = (missedCount >= 3) || (p.isDefaulter === true);
         const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
         const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[7px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 
-        // ৪. রেন্ডারিং
+        // ৪. কন্টাক্ট কার্ড রেন্ডারিং
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
+                <div class="flex items-center gap-4 flex-1">
+                    <!-- বাম পাশ: ছবি/এভারটার (ক্লিক করলে এডিট মোডাল খুলবে) -->
                     ${userAvatar}
-                    <div class="flex flex-col">
+                    
+                    <!-- মাঝখান: নাম এবং ফোন (ক্লিক করলে লেনদেন খুলবে) -->
+                    <div onclick="openLedger(${p.id})" class="flex-1 cursor-pointer">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
                             ${odBadge}
@@ -1394,18 +1409,17 @@ function renderHome() {
                     </div>
                 </div>
                 
-                <div class="text-right flex items-center gap-4">
+                <!-- ডান পাশ: ব্যালেন্স এবং ডিলেট -->
+                <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
-                        <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
+                        <p class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
                     
-                    <div class="flex flex-col gap-2 border-l border-slate-100 pl-3">
-                        <i onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
-                           class="fas fa-user-edit text-[16px] text-indigo-300 hover:text-[#861F41] p-1 cursor-pointer"></i>
-                        <i onclick="event.stopPropagation(); deletePerson(${p.id})" 
-                           class="fas fa-trash-alt text-[16px] text-slate-200 hover:text-rose-500 p-1 cursor-pointer"></i>
-                    </div>
+                    <!-- শুধু ডিলেট বাটনটি থাকল -->
+                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
                 </div>
             </div>`;
     });
@@ -1414,16 +1428,22 @@ function renderHome() {
         list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Found</div>`;
     }
 }
+
+// ৫. এডিট মোডাল খোলার হেল্পার ফাংশন (অবশ্যই এটি ফাইলে রাখুন)
+function openEditPersonModal(id) {
+    db.activeId = id; 
+    const person = db.people.find(p => p.id == id);
+    if(person) {
+        document.getElementById('editPName').value = person.name;
+        document.getElementById('editPPhone').value = person.phone;
+        document.getElementById('editPersonModal').classList.remove('hidden');
+    }
+}
 // ৫. কাস্টমার লিস্ট থেকে সরাসরি এডিট করার জন্য হেল্পার ফাংশন
-function openEditPersonModal(id = null) {
-    // যদি আইডি দেওয়া থাকে (লিস্ট থেকে ক্লিক করলে), তবে সেটি সেট হবে
-    // না থাকলে হেডারে থাকা db.activeId ব্যবহার হবে
-    if (id) db.activeId = id;
-
-    if (!db.activeId) return alert("Error: Account not selected!");
-
-    const person = db.people.find(p => p.id == db.activeId);
-    if (person) {
+function openEditPersonModal(id) {
+    db.activeId = id; // আইডি সেট করা হলো
+    const person = db.people.find(p => p.id == id);
+    if(person) {
         document.getElementById('editPName').value = person.name;
         document.getElementById('editPPhone').value = person.phone;
         document.getElementById('editPersonModal').classList.remove('hidden');
@@ -1561,13 +1581,13 @@ async function pushDefaulterToGlobal(phone, adminName, adminPhone) {
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
         function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
-         function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
+        function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function setupHistoryBack() { window.addEventListener('popstate', () => { if(!document.getElementById('pageLedger').classList.contains('hidden')) goHome(); }); }
