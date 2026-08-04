@@ -549,41 +549,33 @@ async function syncToPartner(partnerPhone, txData) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
         const doc = await partnerRef.get();
+        if (!doc.exists) return; // পার্টনার না থাকলে করার কিছু নেই
 
-        let partnerDB;
-        if (doc.exists) {
-            partnerDB = doc.data();
-        } else {
-            // যদি পার্টনার এখনো রেজিস্টার না করে, তার জন্য একটি প্লেসহোল্ডার তৈরি হবে
-            partnerDB = { admin: { phone: partnerPhone }, people: [], managers: [] };
+        let partnerDB = doc.data();
+        let meInPartnerList = partnerDB.people.find(p => p.phone === db.admin.phone);
+
+        if (meInPartnerList) {
+            // চেক করা হচ্ছে এই আইডি'র ট্রানজ্যাকশন কি অলরেডি পার্টনারের কাছে আছে?
+            let existingTx = meInPartnerList.transactions.find(t => t.id === txData.id);
+
+            if (existingTx) {
+                // যদি থাকে, তবে শুধু ভেরিফিকেশন স্ট্যাটাস আপডেট করো (নতুন এন্ট্রি হবে না)
+                existingTx.verified = txData.verified;
+                console.log("Transaction status updated on partner side.");
+            } else {
+                // যদি না থাকে, তবেই নতুন করে পুশ করো (পজিশন ঠিক রেখে)
+                const mirrorTx = {
+                    ...txData,
+                    type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
+                    by: db.admin.name + " (Synced)"
+                };
+                meInPartnerList.transactions.push(mirrorTx);
+            }
+            
+            await partnerRef.set(partnerDB);
+            console.log("Partner Sync Complete.");
         }
-
-        // পার্টনারের লিস্টে আমাকে খুঁজে বের করা
-        let meInHisList = partnerDB.people.find(p => p.phone === db.admin.phone);
-
-        if (!meInHisList) {
-            meInHisList = {
-                id: Date.now(),
-                name: db.admin.name,
-                phone: db.admin.phone,
-                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), // আমার কাস্টমার মানে ওর সাপ্লায়ার
-                transactions: []
-            };
-            partnerDB.people.unshift(meInHisList);
-        }
-
-        // লেনদেন মিরর করা (টাইপ উল্টে যাবে)
-        const mirrorTx = {
-            ...txData,
-            type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-            by: db.admin.name + " (Auto-Synced)"
-        };
-
-        meInHisList.transactions.push(mirrorTx);
-        await partnerRef.set(partnerDB);
-        console.log("Global Mirror Sync Done!");
-
-    } catch (e) { console.error("Mirror Sync Error:", e); }
+    } catch (e) { console.error("Sync Logic Error:", e); }
 }
          
           function logout() {
@@ -700,108 +692,24 @@ async function syncToPartner(partnerPhone, txData) {
             renderLedger();
         }
 
-        function renderLedger() {
-    const p = db.people.find(x => x.id === db.activeId);
-    const list = document.getElementById('ledgerList'); 
-    list.innerHTML = "";
-    
-    const net = calcBal(p.transactions, db.secret, p.type);
-    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
-    const balEl = document.getElementById('mainTotal');
-    balEl.innerText = "₹ " + displayHeaderTotal;
-    balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
-
-    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
-        const isR = t.type === 'RECEIVED';
-        const isDel = t.status === 'deleted'; 
-        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
         
-        let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
-        let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
-
-        // --- ওভারডিউ দিন গণনা ---
-        let overdueHTML = "";
-        if (t.nextCollDate && t.status === 'active') {
-            const today = new Date().setHours(0,0,0,0);
-            const promised = new Date(t.nextCollDate).setHours(0,0,0,0);
-            if (today > promised) {
-                const diffDays = Math.ceil(Math.abs(today - promised) / (1000 * 60 * 60 * 24));
-                overdueHTML = `<span class="bg-rose-50 text-rose-600 text-[8px] font-bold px-2 py-0.5 rounded ml-2">Overdue: ${diffDays} Days</span>`;
-            }
-        }
-
-        // --- মিউচুয়াল ভেরিফিকেশন লজিক (Point Update) ---
-        let verifyStatusHTML = "";
-        if (t.verified) {
-            // যদি ভেরিফাই হয়ে যায়, তবে নীল ডাবল-টিক
-            verifyStatusHTML = `<i class="fas fa-check-double text-indigo-400 text-[10px] ml-2" title="Verified"></i>`;
-        } else if (t.by !== db.opName) {
-            // যদি এন্ট্রিটি অন্য কেউ করে থাকে এবং আমি এখনো দেখিনি, তবে চোখ (👁️) আইকন
-            verifyStatusHTML = `
-                <button onclick="event.stopPropagation(); verifyTx(${p.id}, ${t.id})" 
-                        class="ml-2 text-amber-500 animate-pulse" title="Click to verify this entry">
-                    <i class="fas fa-eye text-xs"></i>
-                </button>`;
-        }
-
-        let imgs = (t.images || []).map(i => `
-          <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
-          onclick="openZoom(this.src)">
-        `).join("");
-
-        list.innerHTML += `
-            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
-                <div class="text-[9px] font-bold text-slate-600 uppercase mb-2 px-2 tracking-wider">
-                    ${t.date} ${overdueHTML}
-                </div>
-                
-                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
-                    ${imgs ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>` : ''}
-                    
-                    <div class="flex justify-between items-center gap-6">
-                        <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
-                            ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
-                        </h3>
-                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">
-                            ${t.type} ${verifyStatusHTML}
-                        </p>
-                    </div>
-
-                    <p class="text-[11px] text-slate-800 font-medium mt-2 leading-tight">${t.note || ''}</p>
-                    
-                    <div class="mt-2 border-t border-slate-100 pt-1 flex justify-between items-center">
-                        <p class="text-[8px] text-slate-600 uppercase font-black">
-                            <i class="fas fa-user text-[7px] mr-1 opacity-70"></i> By: ${t.by || 'Owner'}
-                        </p>
-                        ${isDel ? '<span class="text-[8px] text-rose-500 font-bold uppercase italic">Canceled</span>' : ''}
-                    </div>
-
-                    ${!isDel ? `
-                    <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
-                        <i class="fas fa-edit text-indigo-400 text-sm" onclick="editTx(${p.id}, ${t.id})"></i>
-                        <i class="fas fa-trash-alt text-rose-300 text-sm" onclick="deleteTx(${t.id})"></i>
-                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
-                        ${t.history ? `<i class="fas fa-history text-slate-400 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
-                    </div>
-                    ` : ''}
-                </div>
-            </div>`;
-    });
-
-    const viewport = document.getElementById('mainViewport');
-    setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
-}
 
 // ৩. ভেরিফাই করার ফাংশন (অবশ্যই এটি স্ক্রিপ্টে যোগ করবেন)
 async function verifyTx(personId, txId) {
     const person = db.people.find(p => p.id === personId);
     const tx = person.transactions.find(t => t.id === txId);
+    
     if (tx) {
-        tx.verified = true;
-        await saveDB();
-        await syncToPartner(person.phone, tx); // পার্টনারকেও জানানো হলো এটি ভেরিফাইড
-        renderLedger();
-        alert("Transaction marked as Verified!");
+        tx.verified = true; // লোকাল ডাটা আপডেট
+        tx.verifiedAt = new Date().toLocaleString();
+        
+        await saveDB(); // নিজের ক্লাউডে সেভ
+        
+        // পার্টনারের ফোনেও এই স্পেসিফিক আইডি'র ট্রানজ্যাকশনটি ভেরিফাই হিসেবে মার্ক করা
+        await syncToPartner(person.phone, tx); 
+        
+        renderLedger(); // ইউআই রিফ্রেশ
+        alert("Transaction Verified ✅");
     }
 }
 
@@ -1351,6 +1259,106 @@ function initNavigation() {
                 </div>
             </div>`;
     });
+}
+        function renderLedger() {
+    const p = db.people.find(x => x.id === db.activeId);
+    const list = document.getElementById('ledgerList'); 
+    list.innerHTML = "";
+    
+    // ১. ব্যালেন্স ক্যালকুলেশন
+    const net = calcBal(p.transactions, db.secret, p.type);
+    
+    // ২. হেডার ব্যালেন্স আপডেট (১০০ দিয়ে ভাগ লজিক সহ)
+    const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
+    const balEl = document.getElementById('mainTotal');
+    balEl.innerText = "₹ " + displayHeaderTotal;
+    balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
+
+    // ৩. ট্রানজ্যাকশন ফিল্টারিং ও রেন্ডারিং
+    p.transactions.filter(t => !!t.secret === !!db.secret).forEach(t => {
+        const isR = t.type === 'RECEIVED';
+        const isDel = t.status === 'deleted'; 
+        const dAmt = t.secret ? (t.amount / 100).toFixed(2) : t.amount.toLocaleString('en-IN');
+        
+        // কালার লজিক (পাওনা/দেনা লাল)
+        let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
+        let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
+
+        // --- ওভারডিউ দিন গণনা ---
+        let overdueHTML = "";
+        if (t.nextCollDate && t.status === 'active') {
+            const today = new Date().setHours(0,0,0,0);
+            const promised = new Date(t.nextCollDate).setHours(0,0,0,0);
+            if (today > promised) {
+                const diffDays = Math.ceil(Math.abs(today - promised) / (1000 * 60 * 60 * 24));
+                overdueHTML = `<span class="bg-rose-50 text-rose-600 text-[8px] font-bold px-2 py-0.5 rounded ml-2 border border-rose-100">Overdue: ${diffDays} Days</span>`;
+            }
+        }
+
+        // --- ৪. সংশোধিত মিউচুয়াল ভেরিফিকেশন লজিক (ব্লিঙ্কিং লাল চোখ) ---
+        let verifyStatusHTML = "";
+        if (t.verified) {
+            // ভেরিফাই হয়ে গেলে সুন্দর সবুজ ডাবল-টিক
+            verifyStatusHTML = `<i class="fas fa-check-double text-emerald-500 text-[10px] ml-2" title="Verified"></i>`;
+        } else if (t.by !== db.opName) {
+            // যদি অন্য কেউ এন্ট্রি করে থাকে এবং আমি এখনো ভেরিফাই না করি -> লাল ব্লিঙ্কিং চোখ
+            verifyStatusHTML = `
+                <button onclick="event.stopPropagation(); verifyTx(${p.id}, ${t.id})" 
+                        class="ml-2 text-rose-500 animate-pulse bg-rose-50 border border-rose-200 rounded-full px-1 hover:bg-rose-100 transition-all" 
+                        title="Click to verify">
+                    <i class="fas fa-eye text-[10px]"></i>
+                </button>`;
+        } else {
+            // আমার নিজের করা এন্ট্রি যা এখনো অন্য পক্ষ দেখেনি -> সাধারণ ধূসর টিক
+            verifyStatusHTML = `<i class="fas fa-check text-slate-200 text-[10px] ml-2"></i>`;
+        }
+
+        let imgs = (t.images || []).map(i => `
+          <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
+          onclick="openZoom(this.src)">
+        `).join("");
+
+        list.innerHTML += `
+            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
+                <div class="text-[9px] font-bold text-slate-600 uppercase mb-2 px-2 tracking-wider">
+                    ${t.date} ${overdueHTML}
+                </div>
+                
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'}">
+                    ${imgs ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgs}</div>` : ''}
+                    
+                    <div class="flex justify-between items-center gap-6">
+                        <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
+                            ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
+                        </h3>
+                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">
+                            ${t.type} ${verifyStatusHTML}
+                        </p>
+                    </div>
+
+                    <p class="text-[11px] text-slate-800 font-medium mt-2 leading-tight">${t.note || ''}</p>
+                    
+                    <div class="mt-2 border-t border-slate-100 pt-1 flex justify-between items-center">
+                        <p class="text-[8px] text-slate-600 uppercase font-black">
+                            <i class="fas fa-user text-[7px] mr-1 opacity-70"></i> By: ${t.by || 'Owner'}
+                        </p>
+                        ${isDel ? '<span class="text-[8px] text-rose-500 font-bold uppercase italic">Canceled</span>' : ''}
+                    </div>
+
+                    ${!isDel ? `
+                    <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
+                        <i class="fas fa-edit text-indigo-400 text-sm active:text-indigo-700" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash-alt text-rose-300 text-sm active:text-rose-600" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto active:text-emerald-700" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        ${t.history ? `<i class="fas fa-history text-slate-400 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>`;
+    });
+
+    const viewport = document.getElementById('mainViewport');
+    setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
 function removeImage(index) {
