@@ -404,42 +404,38 @@ let db = {
 let holdTimer, autoExitTimer;
 let capturedFiles = [];
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
-        window.onload = () => {
-    
-            const urlParams = new URLSearchParams(window.location.search);
-    const viewCustomerPh = urlParams.get('v');
-    const adminPh = urlParams.get('admin');
+        window.onload = async () => {
+    // --- ১. দর্শক মোড ডিটেক্টর (URL Params Check) ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewCustPh = urlParams.get('v');    // কাস্টমার ফোন
+    const adminPh = urlParams.get('admin');   // এডমিন ফোন
+    const shareMode = urlParams.get('m');     // 'p' (Pakka) বা 's' (Secret)
 
-    // --- যদি এটি একটি ভিউ-অনলি লিঙ্ক হয় ---
-    if (viewCustomerPh && adminPh) {
+    if (viewCustPh && adminPh) {
+        // দর্শক মোড অ্যাক্টিভ হলে সরাসরি স্টেটমেন্ট দেখাবে
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('appBody').classList.remove('hidden');
         
-        // ১. লোডিং মেসেজ
-        document.getElementById('mainViewport').innerHTML = `<p class="text-center py-20 font-bold text-slate-400 animate-pulse">Loading Your Secure Statement...</p>`;
-        
-        // ২. এডমিনের ডাটাবেস থেকে তথ্য আনা
         try {
             const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
             if (doc.exists) {
                 const adminData = doc.data();
-                const person = adminData.people.find(p => p.phone === viewCustomerPh);
-                
+                const person = adminData.people.find(p => p.phone === viewCustPh);
                 if (person) {
-                    // ৩. ভিউয়ার মোডে লেজার রেন্ডার করা (নিচে ফাংশনটি দেওয়া আছে)
-                    renderPublicStatement(person, adminData.admin.name);
-                    return; // আর কোনো কোড রান হবে না
+                    // পাবলিক ভিউ রেন্ডার করা (শর্ত অনুযায়ী p বা s মোডে)
+                    renderPublicStatement(person, adminData.admin.name, shareMode);
+                    return; // সাধারণ লগইন কোড আর রান হবে না
                 }
             }
-            alert("Link expired or invalid!");
-        } catch (e) { alert("Sync Error!"); }
+            alert("This secure link has expired or is invalid.");
+        } catch (e) { console.error("Sync Error", e); }
     }
-            // ১. ডাটা লোড করা (localStorage ফিক্স সহ)
-   const data = localStorage.getItem(DB_KEY);
+
+    // --- ২. সাধারণ এডমিন লগইন লজিক (LocalStorage Fix সহ) ---
+    const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
-        // নিরাপত্তাজনিত কারণে অ্যাপ খুললেই সিক্রেট মোড অফ থাকবে
-        db.secret = false; 
+        db.secret = false; // নিরাপত্তাজনিত কারণে শুরুতে সর্বদা পাকা মোড
         localStorage.setItem(DB_KEY, JSON.stringify(db)); 
         
         if(db.admin && db.admin.phone) { 
@@ -452,7 +448,7 @@ let capturedFiles = [];
         toggleAuth('REG');
     }
 
-    // ২. স্ক্রোল ডিটেকশন লজিক (বটম বাটন হাইড/শো করার জন্য)
+    // --- ৩. স্ক্রোল ডিটেকশন (বটম বাটন হাইড/শো) ---
     let lastScrollTop = 0;
     const viewport = document.getElementById('mainViewport');
     const footer = document.getElementById('ledgerFooter');
@@ -461,62 +457,46 @@ let capturedFiles = [];
         viewport.addEventListener('scroll', function() {
             let scrollTop = viewport.scrollTop;
             if (scrollTop > lastScrollTop && scrollTop > 100) {
-                footer.classList.add('footer-hidden'); // নিচে স্ক্রোল করলে হাইড
+                footer.classList.add('footer-hidden'); 
             } else {
-                footer.classList.remove('footer-hidden'); // উপরে স্ক্রোল করলে শো
+                footer.classList.remove('footer-hidden');
             }
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
         }, { passive: true });
     }
             
-    // ৩. UI রিসেট (সিক্রেট ব্লিনকিং সরানো)
+    // --- ৪. UI এবং নেভিগেশন রিসেট ---
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
 
-    // ৪. ইভেন্ট হ্যান্ডলার এবং নেভিগেশন সেটআপ
     initSecretGesture();
     setupHistoryBack();
     
-    // ৫. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার (ক্যামেরা ও গ্যালারি)
+    // --- ৫. ট্রানজ্যাকশন ও প্রোফাইল ইমেজ হ্যান্ডলার ---
     const camInp = document.getElementById('camInp');
     const galInp = document.getElementById('galInp');
     if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
-    // ৬. নতুন প্রোফাইল পিকচার হ্যান্ডলার (রেজিস্ট্রেশন স্ক্রিনের জন্য)
     const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
             const file = e.target.files[0];
             if(file) {
                 const preview = document.getElementById('adminImgPrev');
-                const icon = document.getElementById('camIcon');
-                
-                // সাময়িকভাবে প্রিভিউ দেখানো
-                if(preview) {
-                    preview.src = URL.createObjectURL(file);
-                    preview.classList.remove('hidden');
-                }
-                if(icon) icon.classList.add('hidden');
+                if(preview) { preview.src = URL.createObjectURL(file); preview.classList.remove('hidden'); }
+                document.getElementById('camIcon')?.classList.add('hidden');
 
-                // ImgBB তে আপলোড লজিক (পয়েন্ট অনুযায়ী)
                 const fd = new FormData();
                 fd.append('image', file);
                 try {
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                     const dat = await res.json();
                     if(dat.success) {
-                        // যদি ইউজার অলরেডি রেজিস্টার্ড থাকে তবে ডাটাবেসে সেভ হবে
-                        if(db.admin) {
-                            db.admin.profilePic = dat.data.url;
-                            saveDB();
-                        } else {
-                            // নতুন রেজিস্ট্রেশনের জন্য লিঙ্কে সেভ রাখা হলো
-                            window.tempProfilePic = dat.data.url; 
-                        }
-                        console.log("Profile Picture Uploaded!");
+                        if(db.admin) { db.admin.profilePic = dat.data.url; saveDB(); }
+                        else { window.tempProfilePic = dat.data.url; }
                     }
-                } catch(err) { console.error("Profile Upload Failed", err); }
+                } catch(err) { console.error("Upload Error", err); }
             }
         };
     }
@@ -1764,51 +1744,46 @@ async function verifyAndReset() {
     } else {
         alert("Verification Failed! Incorrect Alternate Mobile Number.");
     }
-    
 }
-        // হোয়াটসঅ্যাপে স্মার্ট ভিউ লিঙ্ক পাঠানোর ফাংশন
-function shareWA(amt, type, name, customerPhone) {
-    // আপনার অ্যাপের লাইভ ইউআরএল (Firebase Hosting URL)
-    const appUrl = window.location.href.split('?')[0]; 
+        // ১. হোয়াটসঅ্যাপে স্মার্ট লিঙ্ক পাঠানো (m=p মানে পাকা, m=s মানে সিক্রেট)
+function shareWA(amt, type, name, custPhone) {
+    const appUrl = window.location.href.split('?')[0];
+    const modeFlag = db.secret ? 's' : 'p'; // বর্তমান উইন্ডো অনুযায়ী মোড সেট
+    const viewLink = `${appUrl}?v=${custPhone}&admin=${db.admin.phone}&m=${modeFlag}`;
     
-    // ইউনিক লিঙ্ক তৈরি (কাস্টমার নম্বর এবং আপনার এডমিন নম্বর সহ)
-    const viewLink = `${appUrl}?v=${customerPhone}&admin=${db.admin.phone}`;
-    
-    const msg = `Hello ${name},\n\nYour transaction of Rs. ${amt.toLocaleString()} (${type}) has been recorded. \n\nClick the link below to view your full live statement with images (No App Download Required):\n🔗 ${viewLink}\n\nThank you, ${db.admin.name}`;
-    
-    window.open(`https://wa.me/91${customerPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    const msg = `Dear ${name},\n\nTransaction: Rs. ${amt.toLocaleString()} (${type}).\n\nView your full LIVE statement here:\n🔗 ${viewLink}\n\nPayBook Pro Secure`;
+    window.open(`https://wa.me/91${custPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-        function renderPublicStatement(person, ownerName) {
-    // হেডারে কাস্টমারের নাম এবং এডমিনের নাম দেখানো
+
+// ২. পাবলিক স্টেটমেন্ট রেন্ডারার
+function renderPublicStatement(person, ownerName, mode) {
     document.getElementById('headerMain').classList.add('hidden');
     document.getElementById('headerLedger').classList.remove('hidden');
     document.getElementById('lName').innerText = person.name;
-    document.getElementById('lPhone').innerText = "Account with: " + ownerName;
-    document.getElementById('headerLedger').querySelector('.fa-arrow-left').style.display = 'none'; // ব্যাক বাটন হাইড
+    document.getElementById('lPhone').innerText = "Business with: " + ownerName;
+    document.getElementById('ledgerFooter')?.classList.add('hidden'); // এন্ট্রি বাটন বন্ধ
 
     const list = document.getElementById('ledgerList');
     list.innerHTML = "";
     
-    // শুধুমাত্র পাক্কা হিসাব দেখানো হবে (সুরক্ষার জন্য)
-    const txs = person.transactions.filter(t => t.status === 'active' && !t.secret);
+    // মোড অনুযায়ী ফিল্টার: p হলে শুধু পাকা, s হলে পাকা+কাঁচা দুটোই
+    const txs = person.transactions.filter(t => t.status === 'active' && (mode === 's' || !t.secret));
 
     txs.forEach(t => {
         const isR = t.type === 'RECEIVED';
         const imgs = (t.images || []).map(i => `<img src="${i}" class="w-full h-auto rounded-xl mb-3" onclick="openZoom(this.src)">`).join("");
+        const displayAmt = t.amount.toLocaleString('en-IN'); // সব সময় আসল টাকা দেখাবে
 
         list.innerHTML += `
-            <div class="flex flex-col ${isR ? 'items-end' : 'items-start'} w-full mb-8">
-                <div class="text-[8px] font-bold text-slate-400 uppercase mb-2 px-2">${t.date}</div>
-                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !border-slate-200">
+            <div class="flex flex-col ${isR ? 'items-end' : 'items-start'} w-full mb-10 px-2">
+                <div class="text-[8px] font-black text-slate-400 uppercase mb-2">${t.date}</div>
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !shadow-lg">
                     ${imgs}
-                    <div class="flex justify-between items-center gap-6">
-                        <h3 class="text-xl font-black ${t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600'}">₹${t.amount.toLocaleString()}</h3>
-                        <p class="text-[8px] font-bold text-slate-400">${t.type}</p>
+                    <div class="flex justify-between items-center gap-10">
+                        <h3 class="text-xl font-black ${t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600'}">₹${displayAmt}</h3>
+                        <p class="text-[9px] font-bold text-slate-400">${t.type}</p>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-2">${t.note || ''}</p>
-                    <div class="mt-2 border-t pt-1">
-                        <p class="text-[7px] text-slate-300 font-black uppercase tracking-widest text-center">PayBook Pro Secure Statement</p>
-                    </div>
                 </div>
             </div>`;
     });
@@ -1821,7 +1796,7 @@ function shareWA(amt, type, name, customerPhone) {
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
-        function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
+         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
          function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
