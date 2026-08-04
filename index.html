@@ -1266,15 +1266,16 @@ function initNavigation() {
     
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
-        const matchesSearch = p.name.toLowerCase().includes(searchVal) || p.phone.includes(searchVal);
-        return matchesTab && matchesSearch;
+        const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
+        const phoneMatch = (p.phone || "").includes(searchVal);
+        return matchesTab && (nameMatch || phoneMatch);
     });
 
     filteredPeople.forEach(p => {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ওভারডিউ এবং ডিফোল্টার লজিক ---
+        // --- ১. ওভারডিউ এবং ডিফোল্টার লজিক ---
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1284,24 +1285,30 @@ function initNavigation() {
             }
         });
 
-        // ১. ওডি ব্যাজ (সাদা ব্যাকগ্রাউন্ড + অ্যাম্বার বর্ডার)
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
-         // renderHome এর লুপের ভেতর নামের পাশে এটি বসান:
-         const globalBadge = p.isDefaulter ? 
-        `<span class="ml-2 px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 text-[7px] font-black rounded uppercase blink-secret">GLOBAL DEFAULTER</span>` : "";
-
-         // হ্যডার টেক্সট: ${p.name} ${globalBadge}
-        // ২. ডিফোল্টার ব্যাজ (সাদা ব্যাকগ্রাউন্ড + লাল বর্ডার + ব্লিঙ্কিং)
-        // যদি ডাটাবেসে isDefaulter থাকে অথবা missedCount ৩ এর বেশি হয়
+        // ২. ডিফোল্টার শর্ত চেক করা
         const isDef = p.isDefaulter === true || missedCount >= 3;
+
+        // --- ৩. এই অংশটিই আপনার কালেকশন তৈরি করবে (অটো-রিপোর্ট) ---
+        if (isDef && !p.reportedToGlobal) {
+            p.isDefaulter = true; 
+            p.reportedToGlobal = true; // যাতে একবারই রিপোর্ট হয়
+            saveDB(); 
+            // আপনার লেখা সেই ফাংশনটি এখানে কল করা হলো
+            pushDefaulterToGlobal(p); 
+        }
+
         const defBadge = isDef ? 
             `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 
+        // ৪. রেন্ডারিং কন্টাক্ট কার্ড
         list.innerHTML += `
-            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-50 relative shadow-sm overflow-hidden">
+            <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">${p.name[0]}</div>
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl border border-white/20">
+                        ${(p.name || 'U')[0]}
+                    </div>
                     <div class="flex flex-col">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
@@ -1313,23 +1320,17 @@ function initNavigation() {
                         </div>
                     </div>
                 </div>
-                
                 <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>`;
     });
-
-    if(filteredPeople.length === 0) {
-        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Matches</div>`;
-    }
 }
         // প্রিভিউ থেকে নির্দিষ্ট ছবি মুছে ফেলার ফাংশন
 function removeImage(index) {
