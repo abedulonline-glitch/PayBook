@@ -93,12 +93,39 @@ header {
                 <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Unlock Account</button>
             </div>
 
-            <div id="regBox" class="hidden space-y-4 text-left">
-                <input type="text" id="regName" placeholder="Owner Name" class="axis-input">
-                <input type="number" id="regPhone" placeholder="10-Digit Mobile" class="axis-input">
-                <input type="password" id="regPin" placeholder="Set 4-Digit PIN" maxlength="4" class="axis-input text-center pin-box">
-                <button onclick="handleRegistration()" class="w-full py-4 axis-gradient text-white rounded-xl font-bold mt-4 shadow-lg uppercase">Register Profile</button>
+            <!-- রেজিস্ট্রেশন বক্স: নতুন প্রোফাইল ইমেজ এবং রিকভারি ফিল্ড সহ -->
+<div id="regBox" class="hidden space-y-4 text-left animate-fade">
+    <!-- ১. প্রোফাইল ইমেজ সিলেক্টর -->
+    <div class="flex flex-col items-center mb-6">
+        <label for="adminImgInp" class="relative cursor-pointer group">
+            <div class="w-24 h-24 rounded-full border-2 border-dashed border-[#861F41] flex items-center justify-center overflow-hidden bg-slate-50 shadow-inner group-hover:border-solid transition-all">
+                <i id="camIcon" class="fas fa-camera text-[#861F41] opacity-40 text-2xl"></i>
+                <img id="adminImgPrev" class="hidden w-full h-full object-cover">
             </div>
+            <div class="absolute bottom-0 right-0 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                <i class="fas fa-plus text-[10px]"></i>
+            </div>
+        </label>
+        <input type="file" id="adminImgInp" accept="image/*" class="hidden">
+        <p class="text-[9px] font-black text-slate-400 uppercase mt-2 tracking-widest">Upload Profile Picture</p>
+    </div>
+
+    <!-- ২. সাধারণ তথ্য -->
+    <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
+    <input type="number" id="regPhone" placeholder="Primary Mobile Number" class="axis-input">
+    <input type="password" id="regPin" placeholder="Set 4-Digit Access PIN" maxlength="4" class="axis-input text-center tracking-[0.5rem]">
+
+    <!-- ৩. পিন রিকভারি ইনফো (পয়েন্ট অনুযায়ী) -->
+    <div class="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 mt-4">
+        <p class="text-[9px] font-black text-indigo-900 uppercase mb-3 tracking-widest flex items-center gap-2">
+            <i class="fas fa-shield-halved"></i> PIN Recovery Settings
+        </p>
+        <input type="number" id="altPhone" placeholder="Alternate Mobile (For Reset)" class="axis-input !bg-white mb-3 !p-3 !text-sm">
+        <input type="text" id="recoveryClue" placeholder="Secret Recovery Clue (Hint)" class="axis-input !bg-white !p-3 !text-sm">
+    </div>
+
+    <button onclick="handleRegistration()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl mt-6 uppercase tracking-widest active:scale-95">Register Profile</button>
+</div>
         </div>
     </div>
 
@@ -337,13 +364,13 @@ let holdTimer, autoExitTimer;
 let capturedFiles = [];
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = () => {
+    // ১. ডাটা লোড করা (localStorage ফিক্স সহ)
     const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
-        
-        // অ্যাপ রিফ্রেশ করলে সর্বদা সিক্রেট মোড অফ হয়ে যাবে
+        // নিরাপত্তাজনিত কারণে অ্যাপ খুললেই সিক্রেট মোড অফ থাকবে
         db.secret = false; 
-        localStorage.setItem(DB_KEY, JSON.stringify(db)); // পাক্কা স্টেট সেভ করা হলো
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); 
         
         if(db.admin && db.admin.phone) { 
             toggleAuth('LOGIN'); 
@@ -355,34 +382,74 @@ let capturedFiles = [];
         toggleAuth('REG');
     }
 
-     let lastScrollTop = 0;
-const viewport = document.getElementById('mainViewport');
-const footer = document.getElementById('ledgerFooter');
+    // ২. স্ক্রোল ডিটেকশন লজিক (বটম বাটন হাইড/শো করার জন্য)
+    let lastScrollTop = 0;
+    const viewport = document.getElementById('mainViewport');
+    const footer = document.getElementById('ledgerFooter');
 
-// স্ক্রোল ডিটেকশন লজিক
-viewport.addEventListener('scroll', function() {
-    let scrollTop = viewport.scrollTop;
-
-    if (scrollTop > lastScrollTop && scrollTop > 100) {
-        // নিচে স্ক্রোল করলে বাটন হাইড হবে
-        footer.classList.add('footer-hidden');
-    } else {
-        // উপরে স্ক্রোল করলে বাটন আবার আসবে
-        footer.classList.remove('footer-hidden');
+    if(viewport && footer) {
+        viewport.addEventListener('scroll', function() {
+            let scrollTop = viewport.scrollTop;
+            if (scrollTop > lastScrollTop && scrollTop > 100) {
+                footer.classList.add('footer-hidden'); // নিচে স্ক্রোল করলে হাইড
+            } else {
+                footer.classList.remove('footer-hidden'); // উপরে স্ক্রোল করলে শো
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
+        }, { passive: true });
     }
-    
-    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
-}, { passive: true });
             
-    // UI থেকে সিক্রেট ব্লিনকিং ইফেক্ট সরিয়ে ফেলা
+    // ৩. UI রিসেট (সিক্রেট ব্লিনকিং সরানো)
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
 
+    // ৪. ইভেন্ট হ্যান্ডলার এবং নেভিগেশন সেটআপ
     initSecretGesture();
     setupHistoryBack();
     
-    document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
-    document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
+    // ৫. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার (ক্যামেরা ও গ্যালারি)
+    const camInp = document.getElementById('camInp');
+    const galInp = document.getElementById('galInp');
+    if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
+    if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
+
+    // ৬. নতুন প্রোফাইল পিকচার হ্যান্ডলার (রেজিস্ট্রেশন স্ক্রিনের জন্য)
+    const adminImgInp = document.getElementById('adminImgInp');
+    if(adminImgInp) {
+        adminImgInp.onchange = async (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const preview = document.getElementById('adminImgPrev');
+                const icon = document.getElementById('camIcon');
+                
+                // সাময়িকভাবে প্রিভিউ দেখানো
+                if(preview) {
+                    preview.src = URL.createObjectURL(file);
+                    preview.classList.remove('hidden');
+                }
+                if(icon) icon.classList.add('hidden');
+
+                // ImgBB তে আপলোড লজিক (পয়েন্ট অনুযায়ী)
+                const fd = new FormData();
+                fd.append('image', file);
+                try {
+                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                    const dat = await res.json();
+                    if(dat.success) {
+                        // যদি ইউজার অলরেডি রেজিস্টার্ড থাকে তবে ডাটাবেসে সেভ হবে
+                        if(db.admin) {
+                            db.admin.profilePic = dat.data.url;
+                            saveDB();
+                        } else {
+                            // নতুন রেজিস্ট্রেশনের জন্য লিঙ্কে সেভ রাখা হলো
+                            window.tempProfilePic = dat.data.url; 
+                        }
+                        console.log("Profile Picture Uploaded!");
+                    }
+                } catch(err) { console.error("Profile Upload Failed", err); }
+            }
+        };
+    }
 };
 
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
@@ -829,30 +896,7 @@ function toggleSearchBar() {
     }
 }
 
-// ২. window.onload ফাংশনটি সংশোধন করুন (টাইপো ফিক্সড)
-window.onload = () => {
-    // এখানে loc9alStorage কেটে localStorage করুন
-    const data = localStorage.getItem(DB_KEY); 
-    if(data) {
-        db = JSON.parse(data);
-        db.secret = false; // সর্বদা পাকা মোডে শুরু হবে
-        if(db.admin && db.admin.phone) { 
-            toggleAuth('LOGIN'); 
-            syncCloud(); 
-        } else {
-            toggleAuth('REG');
-        }
-    } else {
-        toggleAuth('REG');
-    }
-    
-    // বাকি ইভেন্ট হ্যান্ডলার...
-    initSecretGesture();
-    setupHistoryBack();
-    
-    document.getElementById('camInp').onchange = e => handleImageFiles(e.target.files[0]);
-    document.getElementById('galInp').onchange = e => handleImageFiles(e.target.files[0]);
-};
+
        // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
 function handleSmartPdfDownload() {
     const { jsPDF } = window.jspdf;
@@ -1533,6 +1577,63 @@ function closeZoom() {
             alert("Transaction updated and verification reset! Partner needs to re-verify.");
         }
     });
+}
+        // ১. নম্বর ট্রান্সফার ফাংশন (পয়েন্ট অনুযায়ী)
+async function transferAccount(newPhone) {
+    if(newPhone.length !== 10) return alert("Enter a valid 10-digit number!");
+    
+    if(confirm(`WARNING: All your data will be moved from ${db.admin.phone} to ${newPhone}. Your old ID will be deleted. Continue?`)) {
+        const oldPhone = db.admin.phone;
+        
+        // ফায়ারস্টোরে নতুন ডক তৈরি করা (পুরানো ডাটা সহ)
+        await db_fs.collection(COLLECTION).doc(newPhone).set(db);
+        
+        // এক্সেস কি আপডেট করা (পুরানো পিন দিয়েই নতুন নম্বরে ঢুকবে)
+        const accessKey = newPhone + db.admin.pin;
+        await db_fs.collection(ACCESS_KEYS).doc(accessKey).set({
+            targetOwnerPhone: newPhone,
+            role: 'ADMIN',
+            name: db.admin.name
+        });
+
+        // পুরানো ডাটা মুছে ফেলা (নিরাপত্তার জন্য)
+        await db_fs.collection(COLLECTION).doc(oldPhone).delete();
+        
+        db.admin.phone = newPhone;
+        saveDB();
+        alert("Account Transfer Successful!");
+        location.reload();
+    }
+}
+
+// ২. পিন রিকভারি সিস্টেম (Forgot PIN)
+async function forgotPinProcess() {
+    const regPhone = prompt("Enter your Registered Mobile Number:");
+    const altPhone = prompt("Enter your Alternate Recovery Number:");
+    const clue = prompt("Enter your Secret Recovery Clue:");
+
+    const doc = await db_fs.collection(COLLECTION).doc(regPhone).get();
+    if(doc.exists) {
+        const data = doc.data();
+        if(data.admin.altPhone === altPhone && data.admin.clue === clue) {
+            const newPin = prompt("Verification Success! Enter New 4-Digit PIN:");
+            if(newPin.length === 4) {
+                data.admin.pin = newPin;
+                // এক্সেস কি আপডেট
+                await db_fs.collection(ACCESS_KEYS).doc(regPhone + newPin).set({
+                    targetOwnerPhone: regPhone,
+                    role: 'ADMIN',
+                    name: data.admin.name
+                });
+                await db_fs.collection(COLLECTION).doc(regPhone).set(data);
+                alert("PIN Reset Successful! Please Login.");
+            }
+        } else {
+            alert("Security Check Failed! Access Denied.");
+        }
+    } else {
+        alert("No account found!");
+    }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
