@@ -549,33 +549,38 @@ async function syncToPartner(partnerPhone, txData) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
         const doc = await partnerRef.get();
-        if (!doc.exists) return; // পার্টনার না থাকলে করার কিছু নেই
+        if (!doc.exists) return; // পার্টনার রেজিস্টার্ড না থাকলে সিঙ্ক হবে না
 
         let partnerDB = doc.data();
+        // পার্টনারের কন্টাক্ট লিস্টে আমার (এডমিনের) নম্বরটি খোঁজা
         let meInPartnerList = partnerDB.people.find(p => p.phone === db.admin.phone);
 
         if (meInPartnerList) {
-            // চেক করা হচ্ছে এই আইডি'র ট্রানজ্যাকশন কি অলরেডি পার্টনারের কাছে আছে?
+            // চেক করা হচ্ছে: এই আইডি'র ট্রানজ্যাকশন কি পার্টনারের ফোনে অলরেডি আছে?
             let existingTx = meInPartnerList.transactions.find(t => t.id === txData.id);
 
             if (existingTx) {
-                // যদি থাকে, তবে শুধু ভেরিফিকেশন স্ট্যাটাস আপডেট করো (নতুন এন্ট্রি হবে না)
-                existingTx.verified = txData.verified;
-                console.log("Transaction status updated on partner side.");
+                // --- এডিট মোড: বিদ্যমান লেনদেন আপডেট করা ---
+                existingTx.amount = txData.amount;
+                existingTx.note = txData.note;
+                existingTx.verified = txData.verified; // এটি false হয়ে যাবে
+                existingTx.by = db.admin.name + " (Edited)";
+                console.log("Partner's record updated successfully.");
             } else {
-                // যদি না থাকে, তবেই নতুন করে পুশ করো (পজিশন ঠিক রেখে)
+                // --- নতুন এন্ট্রি মোড ---
                 const mirrorTx = {
                     ...txData,
                     type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                    by: db.admin.name + " (Synced)"
+                    by: db.admin.name + " (Auto-Synced)",
+                    verified: false // নতুন এন্ট্রি সব সময় আন-ভেরিফাইড থাকবে
                 };
                 meInPartnerList.transactions.push(mirrorTx);
             }
             
+            // ক্লাউডে সেভ করা (এটিই সুলতানের ফোন আপডেট করবে)
             await partnerRef.set(partnerDB);
-            console.log("Partner Sync Complete.");
         }
-    } catch (e) { console.error("Sync Logic Error:", e); }
+    } catch (e) { console.error("Mirror Sync Error:", e); }
 }
          
           function logout() {
@@ -1497,14 +1502,45 @@ function closeZoom() {
         console.log("Defaulter reported with evidence successfully.");
     } catch (e) { console.error("Global Reporting Error:", e); }
 }
+        function editTx(pid, tid) {
+    const p = db.people.find(x => x.id === pid);
+    const t = p.transactions.find(x => x.id === tid);
+    
+    askPin(async () => {
+        const nAmt = parseFloat(prompt("Edit Amount (Original):", t.amount));
+        const nNote = prompt("Edit Note:", t.note);
+        
+        if (!isNaN(nAmt)) {
+            // ১. হিস্ট্রি সেভ করা
+            if (!t.history) t.history = [];
+            t.history.push({ amt: t.amount, note: t.note, date: new Date().toLocaleString() });
+
+            // ২. মূল ডাটা আপডেট
+            t.amount = nAmt;
+            t.note = nNote;
+
+            // ৩. ভেরিফিকেশন রিসেট (খুবই গুরুত্বপূর্ণ)
+            // যেহেতু এমাউন্ট বদলে গেছে, তাই এটি আবার ভেরিফাই করতে হবে
+            t.verified = false; 
+            t.by = db.opName; // কে এডিট করল তার নাম
+
+            await saveDB(); 
+            
+            // ৪. পার্টনারের ফোনেও আপডেট এবং রিসেট পাঠানো
+            await syncToPartner(p.phone, t); 
+
+            renderLedger();
+            alert("Transaction updated and verification reset! Partner needs to re-verify.");
+        }
+    });
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
         function renderAll() { if(!document.getElementById('pageLedger').classList.contains('hidden')) renderLedger(); else renderHome(); }
         function deleteTx(tid) { askPin(() => { const p=db.people.find(x=>x.id===db.activeId); p.transactions.find(t=>t.id===tid).status='deleted'; saveDB(); renderLedger(); }); }
-        function editTx(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); askPin(() => { const n=parseFloat(prompt("New Original Amt:", t.amount)), nt=prompt("Note:", t.note); if(!t.history) t.history=[]; t.history.push({amt:t.amount, date:new Date().toLocaleString()}); t.amount=n; t.note=nt; saveDB(); renderLedger(); }); }
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
-         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
+        function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
         function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
