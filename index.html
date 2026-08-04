@@ -405,8 +405,37 @@ let holdTimer, autoExitTimer;
 let capturedFiles = [];
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = () => {
-    // ১. ডাটা লোড করা (localStorage ফিক্স সহ)
-    const data = localStorage.getItem(DB_KEY);
+    
+            const urlParams = new URLSearchParams(window.location.search);
+    const viewCustomerPh = urlParams.get('v');
+    const adminPh = urlParams.get('admin');
+
+    // --- যদি এটি একটি ভিউ-অনলি লিঙ্ক হয় ---
+    if (viewCustomerPh && adminPh) {
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appBody').classList.remove('hidden');
+        
+        // ১. লোডিং মেসেজ
+        document.getElementById('mainViewport').innerHTML = `<p class="text-center py-20 font-bold text-slate-400 animate-pulse">Loading Your Secure Statement...</p>`;
+        
+        // ২. এডমিনের ডাটাবেস থেকে তথ্য আনা
+        try {
+            const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
+            if (doc.exists) {
+                const adminData = doc.data();
+                const person = adminData.people.find(p => p.phone === viewCustomerPh);
+                
+                if (person) {
+                    // ৩. ভিউয়ার মোডে লেজার রেন্ডার করা (নিচে ফাংশনটি দেওয়া আছে)
+                    renderPublicStatement(person, adminData.admin.name);
+                    return; // আর কোনো কোড রান হবে না
+                }
+            }
+            alert("Link expired or invalid!");
+        } catch (e) { alert("Sync Error!"); }
+    }
+            // ১. ডাটা লোড করা (localStorage ফিক্স সহ)
+   const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
         // নিরাপত্তাজনিত কারণে অ্যাপ খুললেই সিক্রেট মোড অফ থাকবে
@@ -1735,6 +1764,54 @@ async function verifyAndReset() {
     } else {
         alert("Verification Failed! Incorrect Alternate Mobile Number.");
     }
+    
+}
+        // হোয়াটসঅ্যাপে স্মার্ট ভিউ লিঙ্ক পাঠানোর ফাংশন
+function shareWA(amt, type, name, customerPhone) {
+    // আপনার অ্যাপের লাইভ ইউআরএল (Firebase Hosting URL)
+    const appUrl = window.location.href.split('?')[0]; 
+    
+    // ইউনিক লিঙ্ক তৈরি (কাস্টমার নম্বর এবং আপনার এডমিন নম্বর সহ)
+    const viewLink = `${appUrl}?v=${customerPhone}&admin=${db.admin.phone}`;
+    
+    const msg = `Hello ${name},\n\nYour transaction of Rs. ${amt.toLocaleString()} (${type}) has been recorded. \n\nClick the link below to view your full live statement with images (No App Download Required):\n🔗 ${viewLink}\n\nThank you, ${db.admin.name}`;
+    
+    window.open(`https://wa.me/91${customerPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+        function renderPublicStatement(person, ownerName) {
+    // হেডারে কাস্টমারের নাম এবং এডমিনের নাম দেখানো
+    document.getElementById('headerMain').classList.add('hidden');
+    document.getElementById('headerLedger').classList.remove('hidden');
+    document.getElementById('lName').innerText = person.name;
+    document.getElementById('lPhone').innerText = "Account with: " + ownerName;
+    document.getElementById('headerLedger').querySelector('.fa-arrow-left').style.display = 'none'; // ব্যাক বাটন হাইড
+
+    const list = document.getElementById('ledgerList');
+    list.innerHTML = "";
+    
+    // শুধুমাত্র পাক্কা হিসাব দেখানো হবে (সুরক্ষার জন্য)
+    const txs = person.transactions.filter(t => t.status === 'active' && !t.secret);
+
+    txs.forEach(t => {
+        const isR = t.type === 'RECEIVED';
+        const imgs = (t.images || []).map(i => `<img src="${i}" class="w-full h-auto rounded-xl mb-3" onclick="openZoom(this.src)">`).join("");
+
+        list.innerHTML += `
+            <div class="flex flex-col ${isR ? 'items-end' : 'items-start'} w-full mb-8">
+                <div class="text-[8px] font-bold text-slate-400 uppercase mb-2 px-2">${t.date}</div>
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !border-slate-200">
+                    ${imgs}
+                    <div class="flex justify-between items-center gap-6">
+                        <h3 class="text-xl font-black ${t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600'}">₹${t.amount.toLocaleString()}</h3>
+                        <p class="text-[8px] font-bold text-slate-400">${t.type}</p>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-2">${t.note || ''}</p>
+                    <div class="mt-2 border-t pt-1">
+                        <p class="text-[7px] text-slate-300 font-black uppercase tracking-widest text-center">PayBook Pro Secure Statement</p>
+                    </div>
+                </div>
+            </div>`;
+    });
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
@@ -1744,7 +1821,6 @@ async function verifyAndReset() {
         function showHistory(pid, tid) { const p=db.people.find(x=>x.id===pid), t=p.transactions.find(x=>x.id===tid); alert("History:\n" + t.history.map(x=>`${x.date}: Rs. ${x.amt}`).join("\n")); }
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
-        function shareWA(amt, t, n) { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Receipt: '+n+'\n'+t+': Rs.'+amt)}`); }
         function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
         function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
