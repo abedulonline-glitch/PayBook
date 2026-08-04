@@ -92,7 +92,13 @@ header {
                 <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
                 <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Unlock Account</button>
             </div>
-
+            <!-- লগইন বাটনের নিচে এটি বসান -->
+            <div class="text-center mt-6">
+              <button onclick="openForgotPinModal()" class="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-[#861F41] transition-all">
+                Forgot PIN? Reset Now
+             </button>
+            </div>
+ 
             <!-- রেজিস্ট্রেশন বক্স: নতুন প্রোফাইল ইমেজ এবং রিকভারি ফিল্ড সহ -->
 <div id="regBox" class="hidden space-y-4 text-left animate-fade">
     <!-- ১. প্রোফাইল ইমেজ সিলেক্টর -->
@@ -306,6 +312,28 @@ header {
         <div class="flex gap-4">
             <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
             <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+    <!-- পিন রিসেট মোডাল (Axis Style) -->
+<div id="forgotPinModal" class="hidden fixed inset-0 bg-black/80 z-[6000] flex items-center justify-center p-6">
+    <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 shadow-2xl animate-fade">
+        <div class="text-center mb-8">
+            <i class="fas fa-key-skeleton text-4xl text-[#861F41] opacity-20 mb-4"></i>
+            <h3 class="text-xl font-black text-[#861F41] uppercase tracking-tighter">Reset Access PIN</h3>
+            <p class="text-[10px] text-slate-400 font-bold mt-1">Verify your identity to continue</p>
+        </div>
+
+        <div class="space-y-4">
+            <input type="number" id="resetRegPhone" placeholder="Registered Phone Number" class="axis-input !p-3 !text-sm">
+            <input type="number" id="resetAltPhone" placeholder="Your Alternate Number" class="axis-input !p-3 !text-sm">
+            <input type="text" id="resetClue" placeholder="Your Secret Clue (Hint)" class="axis-input !p-3 !text-sm">
+        </div>
+
+        <div class="flex gap-3 mt-8">
+            <button onclick="document.getElementById('forgotPinModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-[10px]">Cancel</button>
+            <button onclick="handlePinRecovery()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Verify & Reset</button>
         </div>
     </div>
 </div>
@@ -1633,6 +1661,61 @@ async function forgotPinProcess() {
         }
     } else {
         alert("No account found!");
+    }
+}
+
+        // ১. মোডাল ওপেন করার ফাংশন
+function openForgotPinModal() {
+    document.getElementById('forgotPinModal').classList.remove('hidden');
+}
+
+// ২. পিন রিসেট করার মূল লজিক (পয়েন্ট অনুযায়ী)
+async function handlePinRecovery() {
+    const regPh = document.getElementById('resetRegPhone').value.trim();
+    const altPh = document.getElementById('resetAltPhone').value.trim();
+    const clue = document.getElementById('resetClue').value.trim();
+
+    if(!regPh || !altPh || !clue) return alert("Please fill all verification fields!");
+
+    try {
+        // ফায়ারস্টোর থেকে মেইন ডাটা চেক করা
+        const doc = await db_fs.collection(COLLECTION).doc(regPh).get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            
+            // অল্টারনেট নম্বর এবং ক্লু চেক করা
+            if(data.admin.altPhone === altPh && data.admin.clue === clue) {
+                const newPin = prompt("Verification Success! Enter your NEW 4-digit PIN:");
+                
+                if(newPin && newPin.length === 4) {
+                    // ১. ডাটাবেসে পিন আপডেট
+                    data.admin.pin = newPin;
+                    
+                    // ২. এক্সেস কি (Access Key) আপডেট (যাতে নতুন পিন দিয়ে লগইন করা যায়)
+                    const accessKey = regPh + newPin;
+                    await db_fs.collection(ACCESS_KEYS).doc(accessKey).set({
+                        targetOwnerPhone: regPh,
+                        role: 'ADMIN',
+                        name: data.admin.name
+                    });
+
+                    // ৩. মেইন কালেকশন আপডেট
+                    await db_fs.collection(COLLECTION).doc(regPh).set(data);
+                    
+                    alert("Success! Your PIN has been reset. Please login now.");
+                    location.reload();
+                } else {
+                    alert("Error: PIN must be exactly 4 digits.");
+                }
+            } else {
+                alert("Identity verification failed! Incorrect Alternate Number or Clue.");
+            }
+        } else {
+            alert("No account found with this primary phone number.");
+        }
+    } catch (e) {
+        alert("System Error: Check internet connection.");
     }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
