@@ -92,14 +92,8 @@ header {
                 <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
                 <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Unlock Account</button>
             </div>
-            <!-- লগইন বাটনের নিচে এটি বসান -->
-            <div class="text-center mt-6">
-              <button onclick="openForgotPinModal()" class="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-[#861F41] transition-all">
-                Forgot PIN? Reset Now
-             </button>
-            </div>
- 
-            <!-- রেজিস্ট্রেশন বক্স: নতুন প্রোফাইল ইমেজ এবং রিকভারি ফিল্ড সহ -->
+            
+   <!-- রেজিস্ট্রেশন বক্স: নতুন প্রোফাইল ইমেজ এবং রিকভারি ফিল্ড সহ -->
 <div id="regBox" class="hidden space-y-4 text-left animate-fade">
     <!-- ১. প্রোফাইল ইমেজ সিলেক্টর -->
     <div class="flex flex-col items-center mb-6">
@@ -129,6 +123,13 @@ header {
         <input type="number" id="altPhone" placeholder="Alternate Mobile (For Reset)" class="axis-input !bg-white mb-3 !p-3 !text-sm">
         <input type="text" id="recoveryClue" placeholder="Secret Recovery Clue (Hint)" class="axis-input !bg-white !p-3 !text-sm">
     </div>
+
+    <!-- লগইন বাটনের নিচে এটি বসান -->
+            <div class="text-center mt-6">
+              <button onclick="openForgotPinModal()" class="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-[#861F41] transition-all">
+                Forgot PIN? Reset Now
+             </button>
+            </div>
 
     <button onclick="handleRegistration()" class="w-full py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl mt-6 uppercase tracking-widest active:scale-95">Register Profile</button>
 </div>
