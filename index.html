@@ -719,23 +719,35 @@ async function syncToPartner(partnerPhone, txData) {
         let isRed = (p.type === 'CUSTOMER' ? t.type === 'GIVEN' : t.type === 'RECEIVED');
         let txColorClass = isRed ? 'text-rose-600' : 'text-emerald-600';
 
-        // --- নতুন লজিক: Overdue দিন গণনা (Point Update) ---
+        // --- ওভারডিউ দিন গণনা ---
         let overdueHTML = "";
         if (t.nextCollDate && t.status === 'active') {
             const today = new Date().setHours(0,0,0,0);
             const promised = new Date(t.nextCollDate).setHours(0,0,0,0);
             if (today > promised) {
-                const diffTime = Math.abs(today - promised);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                overdueHTML = `<span class="bg-rose-50 text-rose-600 text-[8px] font-bold px-2 py-0.5 rounded ml-2 border border-rose-100">Overdue: ${diffDays} Days</span>`;
+                const diffDays = Math.ceil(Math.abs(today - promised) / (1000 * 60 * 60 * 24));
+                overdueHTML = `<span class="bg-rose-50 text-rose-600 text-[8px] font-bold px-2 py-0.5 rounded ml-2">Overdue: ${diffDays} Days</span>`;
             }
         }
 
-        // আপনার renderLedger লুপের ভেতরে ছবির লাইনটি এরকম হবে:
-          let imgs = (t.images || []).map(i => `
+        // --- মিউচুয়াল ভেরিফিকেশন লজিক (Point Update) ---
+        let verifyStatusHTML = "";
+        if (t.verified) {
+            // যদি ভেরিফাই হয়ে যায়, তবে নীল ডাবল-টিক
+            verifyStatusHTML = `<i class="fas fa-check-double text-indigo-400 text-[10px] ml-2" title="Verified"></i>`;
+        } else if (t.by !== db.opName) {
+            // যদি এন্ট্রিটি অন্য কেউ করে থাকে এবং আমি এখনো দেখিনি, তবে চোখ (👁️) আইকন
+            verifyStatusHTML = `
+                <button onclick="event.stopPropagation(); verifyTx(${p.id}, ${t.id})" 
+                        class="ml-2 text-amber-500 animate-pulse" title="Click to verify this entry">
+                    <i class="fas fa-eye text-xs"></i>
+                </button>`;
+        }
+
+        let imgs = (t.images || []).map(i => `
           <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2 border border-slate-100 cursor-zoom-in" 
           onclick="openZoom(this.src)">
-          `).join("");
+        `).join("");
 
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 ${isDel ? 'tx-deleted' : ''}">
@@ -750,7 +762,9 @@ async function syncToPartner(partnerPhone, txData) {
                         <h3 class="text-xl font-black ${txColorClass} tracking-tighter">
                             ₹${dAmt} ${t.type === 'GIVEN' ? '↑' : '↓'}
                         </h3>
-                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">${t.type}</p>
+                        <p class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">
+                            ${t.type} ${verifyStatusHTML}
+                        </p>
                     </div>
 
                     <p class="text-[11px] text-slate-800 font-medium mt-2 leading-tight">${t.note || ''}</p>
@@ -764,9 +778,9 @@ async function syncToPartner(partnerPhone, txData) {
 
                     ${!isDel ? `
                     <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
-                        <i class="fas fa-edit text-indigo-400 text-sm active:text-indigo-700" onclick="editTx(${p.id}, ${t.id})"></i>
-                        <i class="fas fa-trash-alt text-rose-300 text-sm active:text-rose-600" onclick="deleteTx(${t.id})"></i>
-                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto active:text-emerald-700" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
+                        <i class="fas fa-edit text-indigo-400 text-sm" onclick="editTx(${p.id}, ${t.id})"></i>
+                        <i class="fas fa-trash-alt text-rose-300 text-sm" onclick="deleteTx(${t.id})"></i>
+                        <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto" onclick="shareWA(${t.amount},'${t.type}','${p.name}')"></i>
                         ${t.history ? `<i class="fas fa-history text-slate-400 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
                     </div>
                     ` : ''}
@@ -776,6 +790,19 @@ async function syncToPartner(partnerPhone, txData) {
 
     const viewport = document.getElementById('mainViewport');
     setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
+}
+
+// ৩. ভেরিফাই করার ফাংশন (অবশ্যই এটি স্ক্রিপ্টে যোগ করবেন)
+async function verifyTx(personId, txId) {
+    const person = db.people.find(p => p.id === personId);
+    const tx = person.transactions.find(t => t.id === txId);
+    if (tx) {
+        tx.verified = true;
+        await saveDB();
+        await syncToPartner(person.phone, tx); // পার্টনারকেও জানানো হলো এটি ভেরিফাইড
+        renderLedger();
+        alert("Transaction marked as Verified!");
+    }
 }
 
         // --- ৫. ডাটা এন্ট্রি এবং মাল্টি-ইমেজ (Point 3a, 3c, 3d, 9) ---
@@ -797,14 +824,12 @@ function handleImageFiles(f) {
     }
 }
 
-// ২. ডাটা সেভ করার ফাংশন (V18.2)
 // --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
 async function preSave(t) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value); 
     if(!amt || amt <= 0) return alert("Please enter amount!");
 
-    // কালেকশন ডেট ভ্যালু নেওয়া
     const nextDateVal = document.getElementById('nextCollDate')?.value || null;
 
     const act = async () => {
@@ -814,8 +839,6 @@ async function preSave(t) {
 
         try {
             let uploadedImgs = [];
-            
-            // লুপ চালিয়ে ইমেজগুলো ImgBB-তে আপলোড করা
             const filesToUpload = (typeof capturedFiles !== 'undefined') ? capturedFiles : [];
             for(let file of filesToUpload) {
                 const fd = new FormData();
@@ -829,7 +852,7 @@ async function preSave(t) {
 
             const person = db.people.find(x => x.id === db.activeId);
             
-            // ১. নতুন ট্রানজ্যাকশন অবজেক্ট তৈরি (Next Collection Date সহ)
+            // নতুন ট্রানজ্যাকশন অবজেক্ট (Verified: false যোগ করা হয়েছে)
             const newTx = { 
                 id: Date.now(), 
                 amount: amt, 
@@ -837,32 +860,30 @@ async function preSave(t) {
                 secret: !!db.secret, 
                 date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
                 note: document.getElementById('txNote').value.trim(), 
-                nextCollDate: nextDateVal, // এখানে নেক্সট কালেকশন ডেট সেভ হচ্ছে
+                nextCollDate: nextDateVal, 
                 images: uploadedImgs, 
                 by: db.opName || 'Owner', 
+                verified: false, // ডিফল্টভাবে আন-ভেরিফাইড থাকবে
                 status: 'active' 
             };
 
-            // ২. নিজের লিস্টে সেভ করা
             person.transactions.push(newTx);
-            await saveDB(); // ক্লাউড সিঙ্ক
+            await saveDB(); 
             
-            // ৩. মিরর সিঙ্ক (পয়েন্ট ৯ অনুযায়ী পার্টনারের ফোনে পাঠানো)
             if (typeof syncToPartner === 'function') {
                 await syncToPartner(person.phone, newTx);
             }
 
             renderLedger(); 
             
-            // ৪. কাজ শেষ হলে সব ইনপুট ক্লিয়ার করা (Form Cleaning)
             if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
             if(document.getElementById('txNote')) document.getElementById('txNote').value = "";
             if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
             amtInput.value = "";
             capturedFiles = []; 
             
-            closeDrawer(); // ড্রয়ার বন্ধ হবে
-            alert("Transaction saved successfully!");
+            closeDrawer(); 
+            alert("Transaction saved and waiting for verification.");
 
         } catch(error) {
             console.error("Critical Sync Error:", error);
@@ -873,7 +894,6 @@ async function preSave(t) {
         }
     };
 
-    // সিক্রেট মোড পিন ভেরিফিকেশন (কাস্টমারের থেকে টাকা পেলে)
     if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') {
         askPin(act); 
     } else {
