@@ -87,11 +87,23 @@ header {
                 <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
             </div>
 
-            <div id="loginBox" class="space-y-4">
-                <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
-                <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
-                <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Unlock Account</button>
-            </div>
+            <!-- ১. লগইন বক্স সেকশন খুঁজুন -->
+<div id="loginBox" class="space-y-4">
+    <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
+    <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
+    
+    <!-- লগইন বাটন -->
+    <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">
+        Unlock Dashboard
+    </button>
+
+    <!-- !!! এইখানে আপনার পিন চেঞ্জের কোডটি পেস্ট করুন !!! -->
+    <div class="text-center mt-6">
+        <button onclick="showRecoveryStep1()" class="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-[#861F41] active:opacity-50 transition-all">
+            Forgot PIN? Use Recovery Hint
+        </button>
+    </div>
+</div>
             <!-- loginBox এর ভেতরে এটি বসান -->
 
     
