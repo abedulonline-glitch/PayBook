@@ -85,12 +85,19 @@ header {
             <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
                 <button onclick="toggleAuth('LOGIN')" id="tabLogin" class="flex-1 py-3 rounded-xl text-xs font-black bg-[#861F41] text-white shadow-md transition-all">LOGIN</button>
                 <button onclick="toggleAuth('REG')" id="tabReg" class="flex-1 py-3 rounded-xl text-xs font-black text-slate-400">REGISTER</button>
+             <!-- loginBox এর ভেতরে এটি বসান -->
+          <div class="text-center mt-6">
+            <button onclick="showRecoveryStep1()" class="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-[#861F41] active:opacity-50 transition-all">
+             Forgot PIN? Use Recovery Hint
+          </button>
+        </div>
             </div>
 
             <div id="loginBox" class="space-y-4">
                 <input type="number" id="loginPhone" placeholder="Mobile Number" class="axis-input">
                 <input type="password" id="loginPin" placeholder="PIN" maxlength="4" class="axis-input text-center pin-box shadow-inner">
                 <button onclick="handleLogin()" class="w-full py-4 bg-[#861F41] text-white rounded-xl font-bold mt-4 shadow-lg uppercase tracking-widest active:scale-95">Unlock Account</button>
+           
             </div>
             
    <!-- রেজিস্ট্রেশন বক্স: নতুন প্রোফাইল ইমেজ এবং রিকভারি ফিল্ড সহ -->
@@ -109,6 +116,12 @@ header {
         <input type="file" id="adminImgInp" accept="image/*" class="hidden">
         <p class="text-[9px] font-black text-slate-400 uppercase mt-2 tracking-widest">Upload Profile Picture</p>
     </div>
+    <!-- রেজিস্ট্রেশন ফর্মের ভেতর এটি যোগ করুন -->
+<div class="space-y-3 mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+    <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Security Recovery Info</p>
+    <input type="number" id="regAltPhone" placeholder="Alternate Mobile Number" class="axis-input !p-3 !text-sm">
+    <input type="text" id="regClue" placeholder="Security Hint (e.g., bsbl, sister name)" class="axis-input !p-3 !text-sm">
+</div>
 
     <!-- ২. সাধারণ তথ্য -->
     <input type="text" id="regName" placeholder="Business Owner Name" class="axis-input">
@@ -317,25 +330,49 @@ header {
     </div>
 </div>
 
-    <!-- পিন রিসেট মোডাল (Axis Style) -->
-<div id="forgotPinModal" class="hidden fixed inset-0 bg-black/80 z-[6000] flex items-center justify-center p-6">
-    <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 shadow-2xl animate-fade">
-        <div class="text-center mb-8">
-            <i class="fas fa-key-skeleton text-4xl text-[#861F41] opacity-20 mb-4"></i>
-            <h3 class="text-xl font-black text-[#861F41] uppercase tracking-tighter">Reset Access PIN</h3>
-            <p class="text-[10px] text-slate-400 font-bold mt-1">Verify your identity to continue</p>
+    <!-- ৪.৫. স্মার্ট পিন রিকভারি মোডাল (পয়েন্ট অনুযায়ী রি-ডিজাইন) -->
+<div id="recoveryModal" class="hidden fixed inset-0 bg-black/80 z-[6000] flex items-center justify-center p-6 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 shadow-2xl animate-fade text-center">
+        <!-- ব্র্যান্ড আইকন -->
+        <div class="w-16 h-16 bg-slate-50 rounded-full mx-auto flex items-center justify-center mb-6 border border-slate-100 shadow-inner">
+            <i class="fas fa-user-shield text-[#861F41] text-2xl opacity-40"></i>
+        </div>
+        
+        <h3 class="text-xl font-black text-[#861F41] uppercase tracking-tighter mb-2">Secure Recovery</h3>
+
+        <!-- ধাপ ১: ফোন নম্বর যাচাই করে ক্লু খুঁজে আনা -->
+        <div id="recoveryStep1" class="animate-fade">
+            <p class="text-[10px] text-slate-400 font-bold mb-6">Enter your registered mobile to get hint</p>
+            <input type="number" id="recPrimaryPhone" placeholder="Registered 10-Digit Phone" 
+                   class="axis-input !p-4 !bg-slate-50 !border-none mb-6 text-center font-bold">
+            <button onclick="fetchHint()" 
+                    class="axis-gradient text-white w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">
+                Find My Hint
+            </button>
         </div>
 
-        <div class="space-y-4">
-            <input type="number" id="resetRegPhone" placeholder="Registered Phone Number" class="axis-input !p-3 !text-sm">
-            <input type="number" id="resetAltPhone" placeholder="Your Alternate Number" class="axis-input !p-3 !text-sm">
-            <input type="text" id="resetClue" placeholder="Your Secret Clue (Hint)" class="axis-input !p-3 !text-sm">
+        <!-- ধাপ ২: ক্লু দেখানো এবং অল্টারনেট নম্বর দিয়ে রিসেট করা -->
+        <div id="recoveryStep2" class="hidden animate-fade">
+            <div class="bg-rose-50 p-5 rounded-2xl mb-6 border border-rose-100 text-left">
+                <p class="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">Your Security Hint:</p>
+                <p id="displayClue" class="text-md font-black text-[#861F41] italic tracking-tight">---</p>
+            </div>
+            
+            <p class="text-[10px] text-slate-400 font-bold mb-4">Now verify your Alternate Number</p>
+            <input type="number" id="recAltPhone" placeholder="Alternate Mobile Number" 
+                   class="axis-input !p-4 !bg-slate-50 !border-none mb-6 text-center font-bold">
+            
+            <button onclick="verifyAndReset()" 
+                    class="axis-gradient text-white w-full py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">
+                Verify & Reset PIN
+            </button>
         </div>
-
-        <div class="flex gap-3 mt-8">
-            <button onclick="document.getElementById('forgotPinModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-[10px]">Cancel</button>
-            <button onclick="handlePinRecovery()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Verify & Reset</button>
-        </div>
+        
+        <!-- ক্লোজ বাটন -->
+        <button onclick="document.getElementById('recoveryModal').classList.add('hidden')" 
+                class="mt-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] hover:text-[#861F41] transition-colors">
+            Back to Login
+        </button>
     </div>
 </div>
     
