@@ -2006,98 +2006,93 @@ function openAdminEditModal() {
 async function saveAdminProfileChanges() {
     const nameInp = document.getElementById('editAdminName');
     const phInp = document.getElementById('editAdminPhone');
-    const saveBtn = document.querySelector('#adminEditModal button:last-child');
     const fileInp = document.getElementById('newAdminImg');
+    const saveBtn = document.querySelector('#adminEditModal button:last-child');
 
     const newName = nameInp.value.trim();
     const newPhone = phInp.value.trim();
     const oldPhone = db.admin.phone;
     const file = fileInp.files[0];
 
-    if(!newName || newPhone.length !== 10) return alert("Please provide valid Name & 10-digit Phone!");
+    if(!newName || newPhone.length !== 10) return alert("Valid data required!");
 
-    // বাটন লক করা যাতে ইউজার বুঝতে পারে কাজ চলছে
-    saveBtn.innerText = "UPLOADING...";
-    saveBtn.disabled = true;
-
-    try {
-        // ১. নতুন ছবি থাকলে সেটি ImgBB তে আপলোড করা
-        if(file) {
-            const fd = new FormData();
-            fd.append('image', file);
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-            const dat = await res.json();
-            if(dat.success) {
-                db.admin.profilePic = dat.data.url; // ডাটাবেসে নতুন লিঙ্ক সেট
-            } else {
-                throw new Error("Image Upload Failed");
-            }
+    // --- ১. ইন্সট্যান্ট ইউআই আপডেট (Optimistic UI) ---
+    const updateLocally = () => {
+        // যদি নতুন ফাইল থাকে, তবে আপলোড হওয়ার আগেই ফোনের লোকাল লিঙ্ক দিয়ে ছবি দেখাবে
+        if (file) {
+            const localUrl = URL.createObjectURL(file);
+            db.admin.profilePic = localUrl; 
         }
-
+        
         db.admin.name = newName;
         db.opName = newName;
+        
+        // লোকাল মেমোরিতে সেভ
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+        
+        // হেডার এবং অ্যাপের নাম সাথে সাথে আপডেট
+        updateUIAfterProfileChange(); 
+        document.getElementById('adminEditModal').classList.add('hidden');
+        alert("Profile Updated Instantly! 🌍 (Syncing in background)");
+    };
 
-        // ২. নম্বর ট্রান্সফার লজিক (যদি নম্বর পরিবর্তন করা হয়)
-        if(newPhone !== oldPhone) {
-            if(confirm(`Move everything to ${newPhone}? Your current login will expire.`)) {
-                // নতুন এক্সেস কি তৈরি
+    // --- ২. ব্যাকগ্রাউন্ড সিঙ্ক লজিক (ইন্টারনেট এরর দিলেও অ্যাপ আটকাবে না) ---
+    (async () => {
+        try {
+            let onlineImgUrl = db.admin.profilePic;
+
+            // ব্যাকগ্রাউন্ডে ImgBB তে আপলোড
+            if (file) {
+                const fd = new FormData();
+                fd.append('image', file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) onlineImgUrl = dat.data.url;
+            }
+
+            // যদি নম্বর বদলানো হয় (Transfer Logic)
+            if (newPhone !== oldPhone) {
+                // এটি ব্যাকগ্রাউন্ডে ডাটাবেস মাইগ্রেশন করবে
                 await db_fs.collection(ACCESS_KEYS).doc(newPhone + db.admin.pin).set({
                     targetOwnerPhone: newPhone, role: 'ADMIN', name: newName
                 });
-                
                 db.admin.phone = newPhone;
-                db.ownerPhone = newPhone;
-                
-                // নতুন ডক তৈরি এবং পুরানোটি ডিলিট
+                db.admin.profilePic = onlineImgUrl;
                 await db_fs.collection(COLLECTION).doc(newPhone).set(db);
                 await db_fs.collection(COLLECTION).doc(oldPhone).delete();
                 await db_fs.collection(ACCESS_KEYS).doc(oldPhone + db.admin.pin).delete();
-                
-                alert("Account Transferred Successfully!");
-                location.reload();
-                return;
+                location.reload(); // নম্বর বদলালে শুধু একবার রিফ্রেশ হবে
+            } else {
+                // নম্বর না বদলালে শুধু ক্লাউড সিঙ্ক
+                db.admin.profilePic = onlineImgUrl;
+                await saveDB(); 
+                console.log("Profile Cloud Sync Done ✅");
             }
+        } catch (e) {
+            console.error("Background Profile Sync Failed, but local is saved.", e);
         }
+    })();
 
-        // ৩. লোকাল এবং ক্লাউড সেভ
-        await saveDB(); 
-
-        // ৪. পেজ রিফ্রেশ না করে হেডারের ছবি আপডেট (ইন্সট্যান্ট ভিউ)
-        if (db.admin.profilePic) {
-            const headerImg = document.getElementById('ownerHeaderPic');
-            if(headerImg) {
-                headerImg.src = db.admin.profilePic;
-                headerImg.classList.remove('hidden');
-                document.getElementById('userInitials')?.classList.add('hidden');
-            }
-        }
-
-        document.getElementById('adminEditModal').classList.add('hidden');
-        alert("Account Updated Successfully! 🌍");
-
-    } catch(err) {
-        console.error("Profile Edit Error:", err);
-        alert("Something went wrong! Check your internet and try again.");
-    } finally {
-        // এরর আসুক বা সাকসেস—বাটন আবার সচল হবে
-        saveBtn.innerText = "Save Profile";
-        saveBtn.disabled = false;
-    }
+    // ৩. কল করুন
+    updateLocally();
 }
 
-// UI আপডেট করার হেল্পার ফাংশন
+// ২. হেডারের ছবি আপডেট করার ফাংশন (অবশ্যই এটি ফাইলে রাখুন)
 function updateUIAfterProfileChange() {
     const headerImg = document.getElementById('ownerHeaderPic');
-    const userInitials = document.getElementById('userInitials');
-    const ownerNameDisplay = document.getElementById('ownerName');
-
-    if (db.admin.profilePic) {
+    const initials = document.getElementById('userInitials');
+    
+    if (db.admin.profilePic && headerImg) {
         headerImg.src = db.admin.profilePic;
         headerImg.classList.remove('hidden');
-        userInitials?.classList.add('hidden');
+        initials?.classList.add('hidden');
     }
-    if (ownerNameDisplay) ownerNameDisplay.innerText = db.admin.name;
+    if(document.getElementById('ownerName')) {
+        document.getElementById('ownerName').innerText = db.admin.name;
+    }
 }
+
+
 
 // renderHome লুপের ভেতর যেখানে ইউজার এভারটার দেখান, সেখানে এটি ব্যবহার করুন:
 function getUserAvatar(person) {
