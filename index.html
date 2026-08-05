@@ -454,115 +454,137 @@ let db = {
 let holdTimer, autoExitTimer;
 let capturedFiles = [];
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
-        window.onload = async () => {
-    // -window.onload = async () => {
-    // --- ১. দর্শক মোড ডিটেক্টর (URL Params Check) ---
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewCustPh = urlParams.get('v');
-    const adminPh = urlParams.get('admin');
-    const shareMode = urlParams.get('m');
-
-    if (viewCustPh && adminPh) {
-        document.getElementById('authScreen').classList.add('hidden');
-        document.getElementById('appBody').classList.remove('hidden');
-        try {
-            const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
-            if (doc.exists) {
-                const adminData = doc.data();
-                const person = adminData.people.find(p => p.phone === viewCustPh);
-                if (person) {
-                    renderPublicStatement(person, adminData.admin.name, shareMode);
-                    return; 
-                }
-            }
-            alert("This secure link has expired or is invalid.");
-        } catch (e) { console.error("Sync Error", e); }
-    }
-
-    // --- ২. সাধারণ এডমিন লগইন লজিক ---
+        window.onload = () => {
+    // --- ১. প্রাথমিক ডাটা লোড (লোকাল থেকে - সুপার ফাস্ট) ---
     const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
-        db.secret = false; 
+        db.secret = false; // নিরাপত্তাজনিত কারণে শুরুতে সর্বদা পাকা মোড
         localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-        if(db.admin && db.admin.phone) { 
-            toggleAuth('LOGIN'); 
-            syncCloud(); // ক্লাউড সিঙ্ক শুরু
-            
-            // --- ৩. মিরর ফিক্স: কাস্টমারদের প্রোফাইল অটো-আপডেট করা (নতুন যোগ করা) ---
-            refreshConnectedProfiles(); 
-        } else {
-            toggleAuth('REG');
-        }
+    }
+
+    // --- ২. ইউআরএল প্যারামিটার চেক (দর্শক মোড ডিটেক্টর) ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewCustPh = urlParams.get('v');
+    const adminPh = urlParams.get('admin');
+    const shareMode = urlParams.get('m') || 'p';
+
+    if (viewCustPh && adminPh) {
+        // দর্শক মোড অ্যাক্টিভ হলে আলাদা থ্রেডে লোড হবে
+        handlePublicViewerMode(viewCustPh, adminPh, shareMode);
+        return; // অ্যাডমিন লগইন এরিয়া আর রান হবে না
+    }
+
+    // --- ৩. অ্যাডমিন লগইন/রেজিস্ট্রেশন স্ট্যাটাস চেক ---
+    if(db.admin && db.admin.phone) { 
+        enterApp(); // ডাটাবেস চেক করার আগেই ড্যাশবোর্ড খুলে দেবে
+        
+        // ব্যাকগ্রাউন্ডে ক্লাউড সিঙ্ক এবং প্রোফাইল আপডেট (Anti-Freeze)
+        setTimeout(() => {
+            syncCloud(); 
+            refreshProfilesInBackground(); 
+        }, 1500); 
     } else {
         toggleAuth('REG');
     }
 
-    // --- ৪. স্ক্রোল ডিটেকশন (বটম বাটন হাইড/শো) ---
-    let lastScrollTop = 0;
-    const viewport = document.getElementById('mainViewport');
-    const footer = document.getElementById('ledgerFooter');
-    if(viewport && footer) {
-        viewport.addEventListener('scroll', function() {
-            let scrollTop = viewport.scrollTop;
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
-                footer.classList.add('footer-hidden'); 
-            } else {
-                footer.classList.remove('footer-hidden');
-            }
-            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
-        }, { passive: true });
-    }
-            
-    // --- ৫. UI এবং নেভিগেশন রিসেট ---
+    // --- ৪. ইউআই এবং জেস্টচার সেটআপ ---
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+    
     initSecretGesture();
     setupHistoryBack();
+    setupGlobalScrollListener(); // নিচে আলাদা ফাংশন দেওয়া হলো
 
-    // --- ৬. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার ---
+    // --- ৫. মিডিয়া এবং ইমেজ হ্যান্ডলার সেটআপ ---
+    setupImageInputHandlers();
+};
+
+// --- ফাস্ট ভিউয়ার ফাংশন ---
+async function handlePublicViewerMode(vPh, aPh, mode) {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+    try {
+        const doc = await db_fs.collection(COLLECTION).doc(aPh).get();
+        if (doc.exists) {
+            const adminData = doc.data();
+            const person = adminData.people.find(p => p.phone === vPh);
+            if (person) renderPublicStatement(person, adminData.admin.name, mode);
+        }
+    } catch (e) { console.log("Public Sync Failed"); }
+}
+
+// --- ইমেজ এবং প্রোফাইল হ্যান্ডলার (নিরাপদে আইডি চেক সহ) ---
+function setupImageInputHandlers() {
     const camInp = document.getElementById('camInp');
     const galInp = document.getElementById('galInp');
     if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
-    // --- ৭. রেজিস্ট্রেশন স্ক্রিনের প্রোফাইল ইমেজ হ্যান্ডলার ---
     const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
             const file = e.target.files[0];
-            if(file) {
-                const preview = document.getElementById('adminImgPrev');
-                if(preview) { preview.src = URL.createObjectURL(file); preview.classList.remove('hidden'); }
-                document.getElementById('camIcon')?.classList.add('hidden');
-                const fd = new FormData(); fd.append('image', file);
-                try {
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json();
+            if(!file) return;
+            const preview = document.getElementById('adminImgPrev');
+            if(preview) { preview.src = URL.createObjectURL(file); preview.classList.remove('hidden'); }
+            document.getElementById('camIcon')?.classList.add('hidden');
+
+            const fd = new FormData();
+            fd.append('image', file);
+            fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd })
+                .then(r => r.json())
+                .then(dat => {
                     if(dat.success) {
                         if(db.admin) { db.admin.profilePic = dat.data.url; saveDB(); }
                         else { window.tempProfilePic = dat.data.url; }
+                        console.log("Profile Pic Synced");
                     }
-                } catch(err) { console.error("Upload Error", err); }
-            }
+                }).catch(e => console.log("Upload Error"));
         };
     }
+}
 
-    // --- ৮. এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার ---
-    const newAdminImg = document.getElementById('newAdminImg');
-    if(newAdminImg) {
-        newAdminImg.onchange = (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                const editPreview = document.getElementById('editAdminPreview');
-                if(editPreview) {
-                    editPreview.src = URL.createObjectURL(file);
-                    console.log("Account Center: Image Preview Updated ✅");
+// --- স্ক্রোল ডিটেকশন (স্মার্ট এবং অপ্টিমাইজড) ---
+function setupGlobalScrollListener() {
+    let lastScrollTop = 0;
+    const viewport = document.getElementById('mainViewport');
+    const footer = document.getElementById('ledgerFooter');
+    if(!viewport || !footer) return;
+
+    viewport.addEventListener('scroll', function() {
+        let scrollTop = viewport.scrollTop;
+        if (scrollTop > lastScrollTop && scrollTop > 100) {
+            footer.classList.add('footer-hidden'); 
+        } else {
+            footer.classList.remove('footer-hidden');
+        }
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
+    }, { passive: true });
+}
+
+// --- ব্যাকগ্রাউন্ড প্রোফাইল রিফ্রেশ (Mirror Fix + Anti-Freeze) ---
+async function refreshProfilesInBackground() {
+    if (!db.people || db.people.length === 0) return;
+    
+    // প্রতি ৩ জন কাস্টমার পরপর বিরতি নেবে যাতে প্রসেস হ্যাং না হয়
+    for (let i = 0; i < db.people.length; i++) {
+        const person = db.people[i];
+        db_fs.collection("global_profiles").doc(person.phone).get().then(doc => {
+            if (doc.exists) {
+                const latest = doc.data();
+                if (person.name !== latest.name || person.profilePic !== latest.profilePic) {
+                    person.name = latest.name;
+                    person.profilePic = latest.profilePic;
+                    localStorage.setItem(DB_KEY, JSON.stringify(db));
+                    renderHome(); 
                 }
             }
-        };
+        }).catch(e => {});
+
+        if (i % 3 === 0) await new Promise(r => setTimeout(r, 800)); // ৫০০-৮০০ms গ্যাপ
     }
-};
+}
 
     // --- ৬.১ এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার (নতুন যোগ করা) ---
     const newAdminImg = document.getElementById('newAdminImg');
@@ -2068,41 +2090,7 @@ function getUserAvatar(person) {
     // না থাকলে নামের আদ্যক্ষর
     return `<div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${person.name[0]}</div>`;
 }
-        // কাস্টমার/সাপ্লায়ার প্রোফাইল অটো-সিঙ্ক ইঞ্জিন (Mirror Fix)
-async function refreshConnectedProfiles() {
-    if (!db.people || db.people.length === 0) return;
-
-    let isAnyProfileUpdated = false;
-    
-    console.log("Checking for profile updates of your contacts...");
-
-    for (let person of db.people) {
-        try {
-            // প্রতিটি কন্টাক্টের ফোন নম্বর দিয়ে 'global_profiles' কালেকশনে সার্চ করা
-            const profileDoc = await db_fs.collection("global_profiles").doc(person.phone).get();
-            
-            if (profileDoc.exists) {
-                const latestData = profileDoc.data();
-                
-                // যদি নাম বা প্রোফাইল পিকচার বদলে থাকে, তবে লোকাল ডাটা আপডেট হবে
-                if (person.name !== latestData.name || person.profilePic !== latestData.profilePic) {
-                    person.name = latestData.name;
-                    person.profilePic = latestData.profilePic;
-                    isAnyProfileUpdated = true;
-                    console.log(`Mirror Sync: Updated info for ${latestData.name}`);
-                }
-            }
-        } catch (error) {
-            console.warn(`Sync failed for ${person.phone}:`, error);
-        }
-    }
-
-    // যদি কোনো পরিবর্তন হয়ে থাকে, তবে ডাটা সেভ এবং হোম স্ক্রিন রিফ্রেশ হবে
-    if (isAnyProfileUpdated) {
-        saveDB(); 
-        renderHome();
-    }
-}
+        
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
