@@ -820,78 +820,86 @@ async function syncToPartner(partnerPhone, txData) {
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
-        async function confirmAdd() {
-    const n = document.getElementById('newPName').value.trim();
-    const ph = document.getElementById('newPPhone').value.trim();
+        // --- কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (V18.4: গ্লোবাল প্রোফাইল ফ্যাচিং সহ) ---
+async function confirmAdd() {
+    const nInput = document.getElementById('newPName');
+    const phInput = document.getElementById('newPPhone');
+    const n = nInput.value.trim();
+    const ph = phInput.value.trim();
     
     if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
 
-    // ১. চেক করা: এই নম্বরটি কি আপনার লিস্টে অলরেডি আছে? (ডুপ্লিকেট প্রোটেকশন)
+    // ১. ডুপ্লিকেট চেক (আপনার লিস্টে অলরেডি আছে কি না)
     if(db.people.some(x => x.phone === ph)) {
         return alert("Error: This number is already in your contact list!");
     }
 
     const saveBtn = document.querySelector('#addModal button:last-child');
     const originalBtnText = saveBtn.innerText;
-    saveBtn.innerText = "SECURITY VERIFYING...";
+    saveBtn.innerText = "GLOBAL SYNCING..."; // প্রফেশনাল লোডিং
     saveBtn.disabled = true;
 
     try {
-        // ২. গ্লোবাল ব্ল্যাকলিস্ট থেকে প্রমাণসহ ডাটা চেক করা
+        // ২. গ্লোবাল ডাটাবেস থেকে তথ্য অনুসন্ধান (Defaulter Check & Profile Check)
+        // ২.১ ডিফোল্টার চেক
         const blackListDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-        
         let initialDefaulterStatus = false;
-        
+        let evidenceMsg = "";
+
         if(blackListDoc.exists) {
             const info = blackListDoc.data();
-            
-            // --- প্রমাণসহ বিস্তারিত মেসেজ (পয়েন্ট অনুযায়ী) ---
-            const evidenceMsg = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
-                `This person is a REPORTED DEFAULTER in PayBook network.\n\n` +
+            evidenceMsg = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
                 `• Reported By: ${info.reportedBy}\n` +
-                `• Contact Admin: +91 ${info.adminPhone}\n` +
-                `• Amount Due: Rs. ${info.totalOutstanding.toLocaleString()}\n\n` +
-                `📝 Evidence Notes:\n"${info.evidence || 'No specific notes provided.'}"\n\n` +
-                `Do you still want to risk adding this person to your ledger?`;
+                `• Amount Due: Rs. ${info.totalOutstanding.toLocaleString()}\n` +
+                `📝 Evidence: "${info.evidence}"\n\n` +
+                `Do you still want to risk adding this person?`;
 
             if(!confirm(evidenceMsg)) {
-                saveBtn.innerText = originalBtnText; 
-                saveBtn.disabled = false;
-                return; // ইউজার বাতিল করলে কন্টাক্ট অ্যাড হবে না
+                saveBtn.innerText = originalBtnText; saveBtn.disabled = false;
+                return;
             }
-            initialDefaulterStatus = true; // ইউজার রাজি হলে ডিফোল্টার ব্যাজ সহ অ্যাড হবে
+            initialDefaulterStatus = true;
         }
 
-        // ৩. কন্টাক্ট লিস্টে অ্যাড করা
+        // ২.২ গ্লোবাল প্রোফাইল চেক (পয়েন্ট অনুযায়ী অটো-পিকচার ফ্যাচিং)
+        const globalProfileDoc = await db_fs.collection(COLLECTION).doc(ph).get();
+        let globalPic = null;
+        if(globalProfileDoc.exists) {
+            const partnerData = globalProfileDoc.data();
+            globalPic = partnerData.admin.profilePic || null;
+            console.log("Global Profile Found: Syncing Picture...");
+        }
+
+        // ৩. নতুন কন্টাক্ট লিস্টে অ্যাড করা (ফ্যাচ করা ছবি সহ)
         db.people.unshift({
             id: Date.now(),
             name: n,
             phone: ph,
-            type: db.tab, // Customer বা Supplier যা সিলেক্ট করা আছে
+            type: db.tab, // Customer বা Supplier
+            profilePic: globalPic, // গ্লোবাল থেকে অটোমেটিক ছবি চলে আসলো
             isDefaulter: initialDefaulterStatus,
             transactions: []
         });
 
-        // ৪. ডাটা সেভ করা
+        // ৪. ডাটা সেভ এবং মেমোরি আপডেট
         await saveDB(); 
         
-        // ৫. ফর্ম ক্লিন এবং ক্লোজ করা
-        document.getElementById('newPName').value = "";
-        document.getElementById('newPPhone').value = "";
+        // ৫. ফর্ম ক্লিন এবং ক্লোজ
+        nInput.value = "";
+        phInput.value = "";
         document.getElementById('addModal').classList.add('hidden');
         
-        renderHome(); // হোম স্ক্রিন আপডেট
-        alert("Account Created with Global Reputation Check.");
+        renderHome(); // ড্যাশবোর্ড রিফ্রেশ
+        alert(globalPic ? "Account created! Profile picture synced from Global Database." : "Account Created Successfully.");
 
     } catch(e) {
-        console.error("Global Sync Error:", e);
-        alert("Network Error! Please check your internet connection.");
+        console.error("Critical Sync Error:", e);
+        alert("Network Error! Please try again.");
     } finally {
         saveBtn.innerText = originalBtnText;
         saveBtn.disabled = false;
     }
 }
-
         function openLedger(id) {
             history.pushState(null, null, window.location.pathname);
             db.activeId = id; const p = db.people.find(x => x.id === id);
@@ -1382,11 +1390,13 @@ function initNavigation() {
         function renderHome() {
     const list = document.getElementById('contactList'); 
     const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    if(!list) return;
     list.innerHTML = "";
     
     document.getElementById('headerMain').classList.remove('hidden'); 
     document.getElementById('headerLedger').classList.add('hidden');
     
+    // ডাটা ফিল্টার করা (ট্যাব এবং সার্চ অনুযায়ী)
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
         const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
@@ -1408,30 +1418,37 @@ function initNavigation() {
             }
         });
 
-        // ২. ডিফোল্টার শর্ত চেক করা
         const isDef = p.isDefaulter === true || missedCount >= 3;
 
-        // --- ৩. এই অংশটিই আপনার কালেকশন তৈরি করবে (অটো-রিপোর্ট) ---
+        // --- ২. গ্লোবাল কালেকশন রিপোর্ট ট্রিগার (অটো-রিপোর্ট) ---
         if (isDef && !p.reportedToGlobal) {
             p.isDefaulter = true; 
-            p.reportedToGlobal = true; // যাতে একবারই রিপোর্ট হয়
+            p.reportedToGlobal = true; 
             saveDB(); 
-            // আপনার লেখা সেই ফাংশনটি এখানে কল করা হলো
             pushDefaulterToGlobal(p); 
         }
 
-        const defBadge = isDef ? 
-            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
+        // --- ৩. প্রোফাইল ইমেজ বনাম আদ্যক্ষর (Point Update) ---
+        const userAvatarHTML = p.profilePic ? 
+            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-zoom-in" 
+                  onclick="event.stopPropagation(); openZoom('${p.profilePic}')">` : 
+            `<div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">
+                ${(p.name || 'U')[0]}
+            </div>`;
 
-        // ৪. রেন্ডারিং কন্টাক্ট কার্ড
+        // ৪. ব্যাজ লজিক
+        const defBadge = isDef ? 
+            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
+
+        // ৫. কন্টাক্ট কার্ড রেন্ডারিং
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl border border-white/20">
-                        ${(p.name || 'U')[0]}
-                    </div>
+                    <!-- এখানে ছবি অথবা আদ্যক্ষর দেখানো হচ্ছে -->
+                    ${userAvatarHTML}
+                    
                     <div class="flex flex-col">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
@@ -1443,19 +1460,25 @@ function initNavigation() {
                         </div>
                     </div>
                 </div>
+                
                 <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
+                    
+                    <!-- ডিলেট বাটন -->
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>`;
     });
-}
-        function renderLedger() {
+
+    if(filteredPeople.length === 0) {
+        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Account Found</div>`;
+    }
+}        function renderLedger() {
     const p = db.people.find(x => x.id === db.activeId);
     const list = document.getElementById('ledgerList'); 
     list.innerHTML = "";
