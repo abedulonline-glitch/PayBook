@@ -2007,51 +2007,79 @@ async function saveAdminProfileChanges() {
     const nameInp = document.getElementById('editAdminName');
     const phInp = document.getElementById('editAdminPhone');
     const saveBtn = document.querySelector('#adminEditModal button:last-child');
-    
+    const fileInp = document.getElementById('newAdminImg');
+
     const newName = nameInp.value.trim();
     const newPhone = phInp.value.trim();
     const oldPhone = db.admin.phone;
-    const file = document.getElementById('newAdminImg').files[0];
+    const file = fileInp.files[0];
 
-    if(!newName || newPhone.length !== 10) return alert("Enter valid details!");
+    if(!newName || newPhone.length !== 10) return alert("Please provide valid Name & 10-digit Phone!");
 
-    saveBtn.innerText = "UPDATING...";
+    // বাটন লক করা যাতে ইউজার বুঝতে পারে কাজ চলছে
+    saveBtn.innerText = "UPLOADING...";
     saveBtn.disabled = true;
 
     try {
-        // ১. ইমেজ আপলোড
+        // ১. নতুন ছবি থাকলে সেটি ImgBB তে আপলোড করা
         if(file) {
             const fd = new FormData();
             fd.append('image', file);
             const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
             const dat = await res.json();
             if(dat.success) {
-                db.admin.profilePic = dat.data.url; // ডাটাবেসে সেভ হলো
+                db.admin.profilePic = dat.data.url; // ডাটাবেসে নতুন লিঙ্ক সেট
+            } else {
+                throw new Error("Image Upload Failed");
             }
         }
 
         db.admin.name = newName;
         db.opName = newName;
 
-        // ২. যদি ফোন নম্বর পরিবর্তন হয় তবেই রিফ্রেশ লাগবে (ট্রান্সফার লজিক)
+        // ২. নম্বর ট্রান্সফার লজিক (যদি নম্বর পরিবর্তন করা হয়)
         if(newPhone !== oldPhone) {
-            await transferAccountLogic(oldPhone, newPhone, newName);
-            location.reload(); // নম্বর বদলালে রিফ্রেশ অনিবার্য
-            return;
+            if(confirm(`Move everything to ${newPhone}? Your current login will expire.`)) {
+                // নতুন এক্সেস কি তৈরি
+                await db_fs.collection(ACCESS_KEYS).doc(newPhone + db.admin.pin).set({
+                    targetOwnerPhone: newPhone, role: 'ADMIN', name: newName
+                });
+                
+                db.admin.phone = newPhone;
+                db.ownerPhone = newPhone;
+                
+                // নতুন ডক তৈরি এবং পুরানোটি ডিলিট
+                await db_fs.collection(COLLECTION).doc(newPhone).set(db);
+                await db_fs.collection(COLLECTION).doc(oldPhone).delete();
+                await db_fs.collection(ACCESS_KEYS).doc(oldPhone + db.admin.pin).delete();
+                
+                alert("Account Transferred Successfully!");
+                location.reload();
+                return;
+            }
         }
 
         // ৩. লোকাল এবং ক্লাউড সেভ
         await saveDB(); 
 
-        // ৪. পেজ রিফ্রেশ না করে সরাসরি UI আপডেট করা (যাতে লগআউট না হয়)
-        updateUIAfterProfileChange();
-        
+        // ৪. পেজ রিফ্রেশ না করে হেডারের ছবি আপডেট (ইন্সট্যান্ট ভিউ)
+        if (db.admin.profilePic) {
+            const headerImg = document.getElementById('ownerHeaderPic');
+            if(headerImg) {
+                headerImg.src = db.admin.profilePic;
+                headerImg.classList.remove('hidden');
+                document.getElementById('userInitials')?.classList.add('hidden');
+            }
+        }
+
         document.getElementById('adminEditModal').classList.add('hidden');
-        alert("Profile Updated Successfully! 🌍");
+        alert("Account Updated Successfully! 🌍");
 
     } catch(err) {
-        alert("Update failed. Try again.");
+        console.error("Profile Edit Error:", err);
+        alert("Something went wrong! Check your internet and try again.");
     } finally {
+        // এরর আসুক বা সাকসেস—বাটন আবার সচল হবে
         saveBtn.innerText = "Save Profile";
         saveBtn.disabled = false;
     }
