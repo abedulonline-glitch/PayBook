@@ -545,21 +545,28 @@ function syncCloud() {
         }
 
         // ২. রেজিস্ট্রেশন ফাংশন সংশোধন (Point 2: পিন-বেসড রাউটিং লজিক সহ)
+// ২. সংশোধিত রেজিস্ট্রেশন ফাংশন (Alternate Phone ও Clue সেভ লজিক সহ)
 async function handleRegistration() {
     const n = document.getElementById('regName').value.trim();
     const ph = document.getElementById('regPhone').value.trim();
     const p = document.getElementById('regPin').value.trim();
+    
+    // নতুন সিকিউরিটি ফিল্ডগুলো নেওয়া হচ্ছে
+    const altPh = document.getElementById('regAltPhone').value.trim();
+    const clue = document.getElementById('regClue').value.trim();
+    
     const accessKey = ph + p;
 
-    if(!n || ph.length !== 10 || p.length < 4) {
-        return alert("Error: Provide Owner Name, 10-digit Mobile, and 4-digit PIN!");
+    // ভ্যালিডেশন: সব তথ্য দেওয়া বাধ্যতামূলক
+    if(!n || ph.length !== 10 || p.length < 4 || altPh.length !== 10 || !clue) {
+        return alert("Error: Please provide Name, 10-digit Phone, 4-digit PIN, 10-digit Alternate Phone, and a Hint Clue!");
     }
 
     try {
-        // ১. চেক করা হচ্ছে এই পিন কম্বিনেশন কি অলরেডি বুকড?
+        // ১. চেক করা হচ্ছে এই চাবি (ফোন+পিন) কি আগে কেউ নিয়েছে?
         const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
         const keyDoc = await keyRef.get();
-        if(keyDoc.exists) return alert("This PIN is already used for this number. Use another.");
+        if(keyDoc.exists) return alert("This PIN combination is already used for this number. Use another.");
 
         // ২. মেইন ডাটাবেস চেক করা (অন্য কেউ আমাকে অ্যাড করে রেখেছে কি না)
         const docRef = db_fs.collection(COLLECTION).doc(ph);
@@ -568,11 +575,24 @@ async function handleRegistration() {
         if (doc.exists) {
             // যদি সুলতান আপনাকে আগেই অ্যাড করে থাকে, তবে ওই ডাটা আপনার প্রোফাইল হবে
             db = doc.data();
-            db.admin = { name: n, phone: ph, pin: p }; // এখন আপনিই মালিক
+            // এডমিন ইনফো আপডেট (রিকভারি ইনফো সহ)
+            db.admin = { 
+                name: n, 
+                phone: ph, 
+                pin: p, 
+                altPhone: altPh, 
+                clue: clue 
+            }; 
         } else {
-            // একদম নতুন একাউন্ট
+            // একদম নতুন একাউন্ট স্ট্রাকচার
             db = {
-                admin: { name: n, phone: ph, pin: p },
+                admin: { 
+                    name: n, 
+                    phone: ph, 
+                    pin: p, 
+                    altPhone: altPh, 
+                    clue: clue 
+                },
                 people: [],
                 managers: [],
                 secret: false,
@@ -584,16 +604,24 @@ async function handleRegistration() {
             };
         }
 
-        // ৩. এক্সেস কি এবং মেইন ডাটা সেভ
-        await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
-        await docRef.set(db);
+        // ৩. এক্সেস কি এবং মেইন ডাটা সেভ (Firestore এ রাইট করা)
+        await keyRef.set({ 
+            targetOwnerPhone: ph, 
+            role: 'ADMIN', 
+            name: n 
+        });
+        
+        await db_fs.collection(COLLECTION).doc(ph).set(db);
 
+        // ৪. লোকাল স্টোরেজ আপডেট
         localStorage.setItem(DB_KEY, JSON.stringify(db));
-        alert("Success! Your global account is ready.");
-        location.reload();
+
+        alert("Successfully Account Registered with Recovery Info!");
+        location.reload(); // রিফ্রেশ হয়ে লগইন ট্যাবে যাবে
 
     } catch(error) {
-        alert("Registration Failed! Check internet.");
+        console.error("Registration Error:", error);
+        alert("Registration Failed! Please check your internet connection.");
     }
 }
 // ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
