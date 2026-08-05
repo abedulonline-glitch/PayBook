@@ -455,6 +455,7 @@ let holdTimer, autoExitTimer;
 let capturedFiles = [];
         // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
         window.onload = async () => {
+    // -window.onload = async () => {
     // --- ১. দর্শক মোড ডিটেক্টর (URL Params Check) ---
     const urlParams = new URLSearchParams(window.location.search);
     const viewCustPh = urlParams.get('v');
@@ -486,7 +487,10 @@ let capturedFiles = [];
         localStorage.setItem(DB_KEY, JSON.stringify(db)); 
         if(db.admin && db.admin.phone) { 
             toggleAuth('LOGIN'); 
-            syncCloud(); 
+            syncCloud(); // ক্লাউড সিঙ্ক শুরু
+            
+            // --- ৩. মিরর ফিক্স: কাস্টমারদের প্রোফাইল অটো-আপডেট করা (নতুন যোগ করা) ---
+            refreshConnectedProfiles(); 
         } else {
             toggleAuth('REG');
         }
@@ -494,7 +498,7 @@ let capturedFiles = [];
         toggleAuth('REG');
     }
 
-    // --- ৩. স্ক্রোল ডিটেকশন (বটম বাটন হাইড/শো) ---
+    // --- ৪. স্ক্রোল ডিটেকশন (বটম বাটন হাইড/শো) ---
     let lastScrollTop = 0;
     const viewport = document.getElementById('mainViewport');
     const footer = document.getElementById('ledgerFooter');
@@ -510,19 +514,19 @@ let capturedFiles = [];
         }, { passive: true });
     }
             
-    // --- ৪. UI এবং নেভিগেশন রিসেট ---
+    // --- ৫. UI এবং নেভিগেশন রিসেট ---
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
     initSecretGesture();
     setupHistoryBack();
 
-    // --- ৫. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার ---
+    // --- ৬. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার ---
     const camInp = document.getElementById('camInp');
     const galInp = document.getElementById('galInp');
     if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
-    // --- ৬. রেজিস্ট্রেশন স্ক্রিনের প্রোফাইল ইমেজ হ্যান্ডলার ---
+    // --- ৭. রেজিস্ট্রেশন স্ক্রিনের প্রোফাইল ইমেজ হ্যান্ডলার ---
     const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
@@ -543,6 +547,22 @@ let capturedFiles = [];
             }
         };
     }
+
+    // --- ৮. এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার ---
+    const newAdminImg = document.getElementById('newAdminImg');
+    if(newAdminImg) {
+        newAdminImg.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const editPreview = document.getElementById('editAdminPreview');
+                if(editPreview) {
+                    editPreview.src = URL.createObjectURL(file);
+                    console.log("Account Center: Image Preview Updated ✅");
+                }
+            }
+        };
+    }
+};
 
     // --- ৬.১ এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার (নতুন যোগ করা) ---
     const newAdminImg = document.getElementById('newAdminImg');
@@ -2048,7 +2068,41 @@ function getUserAvatar(person) {
     // না থাকলে নামের আদ্যক্ষর
     return `<div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${person.name[0]}</div>`;
 }
-        
+        // কাস্টমার/সাপ্লায়ার প্রোফাইল অটো-সিঙ্ক ইঞ্জিন (Mirror Fix)
+async function refreshConnectedProfiles() {
+    if (!db.people || db.people.length === 0) return;
+
+    let isAnyProfileUpdated = false;
+    
+    console.log("Checking for profile updates of your contacts...");
+
+    for (let person of db.people) {
+        try {
+            // প্রতিটি কন্টাক্টের ফোন নম্বর দিয়ে 'global_profiles' কালেকশনে সার্চ করা
+            const profileDoc = await db_fs.collection("global_profiles").doc(person.phone).get();
+            
+            if (profileDoc.exists) {
+                const latestData = profileDoc.data();
+                
+                // যদি নাম বা প্রোফাইল পিকচার বদলে থাকে, তবে লোকাল ডাটা আপডেট হবে
+                if (person.name !== latestData.name || person.profilePic !== latestData.profilePic) {
+                    person.name = latestData.name;
+                    person.profilePic = latestData.profilePic;
+                    isAnyProfileUpdated = true;
+                    console.log(`Mirror Sync: Updated info for ${latestData.name}`);
+                }
+            }
+        } catch (error) {
+            console.warn(`Sync failed for ${person.phone}:`, error);
+        }
+    }
+
+    // যদি কোনো পরিবর্তন হয়ে থাকে, তবে ডাটা সেভ এবং হোম স্ক্রিন রিফ্রেশ হবে
+    if (isAnyProfileUpdated) {
+        saveDB(); 
+        renderHome();
+    }
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
