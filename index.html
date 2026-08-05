@@ -1779,19 +1779,35 @@ async function resetPinFinal() {
 
     if(newPin.length === 4) {
         const ph = data.admin.phone;
-        data.admin.pin = newPin;
+        const oldPin = data.admin.pin; // ডাটাবেসে থাকা আগের পিন
+        
+        const oldAccessKey = ph + oldPin; // পুরানো চাবি
+        const newAccessKey = ph + newPin; // নতুন চাবি
 
         try {
-            // ১. এক্সেস কি আপডেট (যাতে নতুন পিন দিয়ে লগইন হয়)
-            await db_fs.collection(ACCESS_KEYS).doc(ph + newPin).set({
-                targetOwnerPhone: ph, role: 'ADMIN', name: data.admin.name
+            // ১. নতুন এক্সেস কি (Access Key) তৈরি করা
+            await db_fs.collection(ACCESS_KEYS).doc(newAccessKey).set({
+                targetOwnerPhone: ph, 
+                role: 'ADMIN', 
+                name: data.admin.name
             });
-            // ২. মেইন ডাটা আপডেট
+
+            // ২. অত্যন্ত জরুরি: পুরানো এক্সেস কি-টি ডাটাবেস থেকে ডিলিট করা
+            if (oldPin !== newPin) {
+                await db_fs.collection(ACCESS_KEYS).doc(oldAccessKey).delete();
+                console.log("Old Access Key Deleted Successfully");
+            }
+
+            // ৩. মেইন লেজার ডাটাবেসে নতুন পিন আপডেট করা
+            data.admin.pin = newPin;
             await db_fs.collection(COLLECTION).doc(ph).set(data);
 
-            alert("Security PIN updated! You can now login with your new PIN.");
-            location.reload(); // অ্যাপ রিফ্রেশ হয়ে মেইন লগইনে যাবে
-        } catch(e) { alert("Update failed! Check internet."); }
+            localStorage.setItem(DB_KEY, JSON.stringify(data));
+            alert("PIN Reset Successful! Old PIN is now deactivated.");
+            location.reload();
+        } catch(e) { 
+            alert("Error during PIN reset. Please try again."); 
+        }
     } else {
         alert("PIN must be exactly 4 digits!");
     }
@@ -1865,6 +1881,36 @@ function renderPublicStatement(person, ownerName, mode) {
             </div>`;
     });
 }
+        async function changePin() {
+    const newPin = prompt("Enter your NEW 4-Digit PIN:");
+    
+    if(newPin && newPin.length === 4) {
+        const ph = db.admin.phone;
+        const oldPin = db.admin.pin;
+        
+        const oldAccessKey = ph + oldPin;
+        const newAccessKey = ph + newPin;
+
+        try {
+            // নতুন কি সেভ করা
+            await db_fs.collection(ACCESS_KEYS).doc(newAccessKey).set({
+                targetOwnerPhone: ph, role: 'ADMIN', name: db.admin.name
+            });
+
+            // পুরানো কি ডিলিট করা (যাতে আগের পিন কাজ না করে)
+            await db_fs.collection(ACCESS_KEYS).doc(oldAccessKey).delete();
+
+            // মেইন ডাটা আপডেট
+            db.admin.pin = newPin;
+            saveDB();
+            
+            alert("Security PIN Changed! Please log in again.");
+            location.reload();
+        } catch(e) { alert("Failed to update PIN!"); }
+    } else {
+        alert("Invalid PIN! Must be 4 digits.");
+    }
+}
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
@@ -1874,8 +1920,7 @@ function renderPublicStatement(person, ownerName, mode) {
         function renderManagers() { const l=document.getElementById('mgrList'); l.innerHTML=""; (db.managers||[]).forEach(m=>l.innerHTML+=`<div class="p-4 bg-slate-50 rounded-2xl flex justify-between mb-2"><span>${m.name} (${m.phone}) PIN: <b>${m.pin}</b></span><i class="fas fa-trash text-rose-300" onclick="delMgr('${m.phone}')"></i></div>`); }
         function delMgr(ph) { if(confirm("Delete?")) { db.managers=db.managers.filter(m=>m.phone!==ph); saveDB(); renderManagers(); } }
          function shareApp() { window.open(`https://wa.me/?text=${encodeURIComponent('PayBook Pro: Global Ledger. Download: ' + window.location.href)}`); }
-        function changePin() { const p=prompt("New 4-Digit PIN:"); if(p && p.length===4) { db.admin.pin=p; saveDB(); alert("PIN Changed!"); } }
-        function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
+         function transferAcc() { const v=prompt("Confirm Phone:"); if(v===db.admin.phone) { const n=prompt("New 10-Digit Phone:"); if(n && n.length===10) { db.admin.phone=n; saveDB(); location.reload(); } } }
          function openMediaSelector() { document.getElementById('mediaSheet').classList.remove('hidden'); }
         function triggerCamera() { document.getElementById('camInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
         function triggerGallery() { document.getElementById('galInp').click(); document.getElementById('mediaSheet').classList.add('hidden'); }
