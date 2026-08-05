@@ -166,20 +166,24 @@ header {
         </div>
         
         <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
-        <!-- লেজার হেডার আপডেট: নামের অংশটি ক্লিকযোগ্য করা হলো -->
-<div id="headerLedger" class="hidden flex justify-between items-center w-full">
+        <div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-5 shadow-lg">
     <div class="flex items-center gap-4">
-        <i class="fas fa-arrow-left" onclick="goHome()"></i>
-        <!-- এখানে onclick যোগ করা হয়েছে -->
-        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
-            <h2 id="lName" class="text-sm font-bold leading-none">Client</h2>
+        <!-- ব্যাক অ্যারো -->
+        <div onclick="goHome()" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full active:scale-75 transition-all">
+            <i class="fas fa-arrow-left text-white"></i>
+        </div>
+        
+        <!-- ক্লায়েন্ট ইনফো (ক্লিক করলে এডিট হবে) -->
+        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50 transition-all">
+            <h2 id="lName" class="text-sm font-bold leading-none text-white">Client Name</h2>
             <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
         </div>
     </div>
+
     <div class="flex items-center gap-3">
-        <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
-        <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
-        <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
+        <i class="fas fa-file-pdf opacity-80 mr-2 text-white" onclick="askPin(handleSmartPdfDownload)"></i>
+        <span id="mainTotal" class="font-black text-lg tracking-tighter text-white">0.00</span>
+        <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none text-white">₹</span>
     </div>
 </div>
 
@@ -1413,51 +1417,34 @@ function handleSmartPdfDownload() {
     renderHome();
 }
         // ১. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
-function openEditPersonModal() {
-    const person = db.people.find(p => p.id === db.activeId);
-    if(person) {
-        document.getElementById('editPName').value = person.name;
-        document.getElementById('editPPhone').value = person.phone;
-        document.getElementById('editPersonModal').classList.remove('hidden');
-    }
-}
+function openEditPersonModal(id = null) {
+    // যদি আইডি দেওয়া থাকে (হোম থেকে), তবে সেটি সেট হবে। না থাকলে বর্তমান উইন্ডোর আইডি থাকবে।
+    if (id) db.activeId = id; 
 
-// ২. ডাটা সেভ করার ফাংশন
-// ১. এডিট মোডালের ইমেজ প্রিভিউ হ্যান্ডলার
-document.getElementById('editPImgInput').onchange = e => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = ev => {
-            document.getElementById('editPImgPreview').src = ev.target.result;
-            document.getElementById('editPImgPreview').classList.remove('hidden');
-            document.getElementById('editPImgPlaceholder').classList.add('hidden');
-        };
-        reader.readAsDataURL(file);
-    }
-};
-
-// ২. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
-function openEditPersonModal(id) {
-    db.activeId = id; 
-    const person = db.people.find(p => p.id == id);
+    const person = db.people.find(p => p.id == db.activeId);
+    
     if(person) {
         document.getElementById('editPName').value = person.name;
         document.getElementById('editPPhone').value = person.phone;
         
-        // ইমেজ হ্যান্ডলিং
-        const imgPrev = document.getElementById('editPImgPreview');
-        const placeholder = document.getElementById('editPImgPlaceholder');
-        if(person.profilePic) {
-            imgPrev.src = person.profilePic;
-            imgPrev.classList.remove('hidden');
-            placeholder.classList.add('hidden');
+        // ইমেজ প্রিভিউ ফিক্স
+        const editImgPrev = document.getElementById('editPImgPreview');
+        const editPlaceholder = document.getElementById('editPImgPlaceholder');
+        
+        if (person.profilePic) {
+            editImgPrev.src = person.profilePic;
+            editImgPrev.classList.remove('hidden');
+            editPlaceholder?.classList.add('hidden');
         } else {
-            imgPrev.classList.add('hidden');
-            placeholder.classList.remove('hidden');
+            editImgPrev.classList.add('hidden');
+            editPlaceholder?.classList.remove('hidden');
         }
         
+        // মোডাল শো করা
         document.getElementById('editPersonModal').classList.remove('hidden');
+        console.log("Edit Panel Opened for: " + person.name);
+    } else {
+        console.error("No account data found to edit!");
     }
 }
 
@@ -1612,7 +1599,6 @@ function initNavigation() {
     document.getElementById('headerMain').classList.remove('hidden'); 
     document.getElementById('headerLedger').classList.add('hidden');
     
-    // ডাটা ফিল্টার করা (ট্যাব এবং সার্চ অনুযায়ী)
     const filteredPeople = db.people.filter(p => {
         const matchesTab = p.type === db.tab;
         const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
@@ -1624,7 +1610,6 @@ function initNavigation() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ১. ওভারডিউ এবং ডিফোল্টার লজিক ---
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1636,36 +1621,28 @@ function initNavigation() {
 
         const isDef = p.isDefaulter === true || missedCount >= 3;
 
-        // --- ২. গ্লোবাল কালেকশন রিপোর্ট ট্রিগার (অটো-রিপোর্ট) ---
         if (isDef && !p.reportedToGlobal) {
-            p.isDefaulter = true; 
-            p.reportedToGlobal = true; 
-            saveDB(); 
-            pushDefaulterToGlobal(p); 
+            p.isDefaulter = true; p.reportedToGlobal = true; 
+            saveDB(); pushDefaulterToGlobal(p); 
         }
 
-        // --- ৩. প্রোফাইল ইমেজ বনাম আদ্যক্ষর (Point Update) ---
+        // --- এভারটার লজিক: ছবিতে টাচ করলে এডিট মোডাল খুলবে ---
         const userAvatarHTML = p.profilePic ? 
-            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-zoom-in" 
-                  onclick="event.stopPropagation(); openZoom('${p.profilePic}')">` : 
-            `<div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20">
+            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-pointer active:scale-90 transition-all" 
+                  onclick="event.stopPropagation(); openEditPersonModal(${p.id})">` : 
+            `<div onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
+                  class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer active:scale-90 transition-all">
                 ${(p.name || 'U')[0]}
             </div>`;
 
-        // ৪. ব্যাজ লজিক
-        const defBadge = isDef ? 
-            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
+        const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+        const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
 
-        // ৫. কন্টাক্ট কার্ড রেন্ডারিং
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <!-- এখানে ছবি অথবা আদ্যক্ষর দেখানো হচ্ছে -->
+                <div class="flex items-center gap-4 flex-1">
                     ${userAvatarHTML}
-                    
-                    <div class="flex flex-col">
+                    <div onclick="openLedger(${p.id})" class="flex flex-col flex-1 cursor-pointer">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
                             ${odBadge}
@@ -1676,25 +1653,20 @@ function initNavigation() {
                         </div>
                     </div>
                 </div>
-                
                 <div class="text-right flex items-center gap-5">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    
-                    <!-- ডিলেট বাটন -->
                     <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>`;
     });
-
-    if(filteredPeople.length === 0) {
-        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Account Found</div>`;
-    }
-}        function renderLedger() {
+}
+        
+        function renderLedger() {
     const p = db.people.find(x => x.id === db.activeId);
     const list = document.getElementById('ledgerList'); 
     list.innerHTML = "";
