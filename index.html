@@ -1981,59 +1981,64 @@ async function saveAdminProfileChanges() {
     const oldPhone = db.admin.phone;
     const file = document.getElementById('newAdminImg').files[0];
 
-    if(!newName || newPhone.length !== 10) return alert("Please enter valid Name & 10-digit Phone!");
+    if(!newName || newPhone.length !== 10) return alert("Enter valid details!");
 
-    const originalText = saveBtn.innerText;
     saveBtn.innerText = "UPDATING...";
     saveBtn.disabled = true;
 
     try {
-        // ১. যদি নতুন ছবি থাকে তবে ImgBB তে আপলোড হবে
+        // ১. ইমেজ আপলোড
         if(file) {
             const fd = new FormData();
             fd.append('image', file);
             const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
             const dat = await res.json();
             if(dat.success) {
-                db.admin.profilePic = dat.data.url;
+                db.admin.profilePic = dat.data.url; // ডাটাবেসে সেভ হলো
             }
         }
 
         db.admin.name = newName;
         db.opName = newName;
 
-        // ২. নম্বর ট্রান্সফার লজিক (যদি নম্বর বদলানো হয়)
+        // ২. যদি ফোন নম্বর পরিবর্তন হয় তবেই রিফ্রেশ লাগবে (ট্রান্সফার লজিক)
         if(newPhone !== oldPhone) {
-            if(confirm(`Move all data to new number: ${newPhone}?`)) {
-                // নতুন এক্সেস কি তৈরি
-                await db_fs.collection(ACCESS_KEYS).doc(newPhone + db.admin.pin).set({
-                    targetOwnerPhone: newPhone, role: 'ADMIN', name: newName
-                });
-                // পুরানো নম্বর থেকে ডাটা ট্রান্সফার
-                db.admin.phone = newPhone;
-                db.ownerPhone = newPhone;
-                await db_fs.collection(COLLECTION).doc(newPhone).set(db);
-                // পুরানো ডক ডিলিট
-                await db_fs.collection(COLLECTION).doc(oldPhone).delete();
-                await db_fs.collection(ACCESS_KEYS).doc(oldPhone + db.admin.pin).delete();
-            }
+            await transferAccountLogic(oldPhone, newPhone, newName);
+            location.reload(); // নম্বর বদলালে রিফ্রেশ অনিবার্য
+            return;
         }
 
         // ৩. লোকাল এবং ক্লাউড সেভ
         await saveDB(); 
+
+        // ৪. পেজ রিফ্রেশ না করে সরাসরি UI আপডেট করা (যাতে লগআউট না হয়)
+        updateUIAfterProfileChange();
+        
+        document.getElementById('adminEditModal').classList.add('hidden');
         alert("Profile Updated Successfully! 🌍");
-        location.reload();
 
     } catch(err) {
-        console.error("Update Error:", err);
-        alert("Failed to sync. Check your internet and try again.");
+        alert("Update failed. Try again.");
     } finally {
-        // এরর হলেও বাটন সচল করা যাতে হ্যাং না থাকে
-        saveBtn.innerText = originalText;
+        saveBtn.innerText = "Save Profile";
         saveBtn.disabled = false;
     }
 }
-// ৩. হোম স্ক্রিনে কাস্টমার/সাপ্লায়ারের প্রোফাইল পিকচার দেখানো (পয়েন্ট অনুযায়ী)
+
+// UI আপডেট করার হেল্পার ফাংশন
+function updateUIAfterProfileChange() {
+    const headerImg = document.getElementById('ownerHeaderPic');
+    const userInitials = document.getElementById('userInitials');
+    const ownerNameDisplay = document.getElementById('ownerName');
+
+    if (db.admin.profilePic) {
+        headerImg.src = db.admin.profilePic;
+        headerImg.classList.remove('hidden');
+        userInitials?.classList.add('hidden');
+    }
+    if (ownerNameDisplay) ownerNameDisplay.innerText = db.admin.name;
+}
+
 // renderHome লুপের ভেতর যেখানে ইউজার এভারটার দেখান, সেখানে এটি ব্যবহার করুন:
 function getUserAvatar(person) {
     // যদি ওই কাস্টমারের নিজস্ব ছবি থাকে, তবে তা দেখাবে
