@@ -323,32 +323,43 @@ header {
     </div>
 </div>
 
-    <!-- স্মার্ট পিন রিকভারি মোডাল -->
+<!-- স্মার্ট ৩-ধাপের পিন রিকভারি মোডাল -->
 <div id="recoveryModal" class="hidden fixed inset-0 bg-black/80 z-[6000] flex items-center justify-center p-6">
-    <div class="bg-white w-full max-w-sm rounded-[3rem] p-10 shadow-2xl text-center">
-        <i class="fas fa-user-shield text-4xl text-[#861F41] opacity-20 mb-6"></i>
-        <h3 class="text-xl font-black text-[#861F41] uppercase tracking-tighter mb-2">PIN Recovery</h3>
+    <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 shadow-2xl text-center animate-fade">
+        <div class="w-16 h-16 bg-slate-50 rounded-2xl mx-auto mb-6 flex items-center justify-center text-[#861F41] shadow-inner">
+            <i class="fas fa-user-shield text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-black text-[#861F41] uppercase tracking-tighter mb-6">Security Recovery</h3>
         
-        <!-- Step 1: ফোন নম্বর যাচাই -->
-        <div id="recoveryStep1">
-            <p class="text-[10px] text-slate-400 font-bold mb-6">Enter registered mobile to see your hint</p>
-            <input type="number" id="recPrimaryPhone" placeholder="10-Digit Mobile" class="axis-input mb-6">
-            <button onclick="fetchHint()" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase text-[10px]">Get Hint</button>
+        <!-- ধাপ ১: রেজিস্টার্ড মোবাইল নম্বর যাচাই -->
+        <div id="recoveryStep1" class="space-y-6">
+            <input type="number" id="recPrimaryPhone" placeholder="Registered Mobile" class="axis-input shadow-sm">
+            <button onclick="fetchHint()" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-lg">Get My Hint</button>
         </div>
 
-        <!-- Step 2: ক্লু দেখানো এবং অল্টারনেট নম্বর যাচাই -->
-        <div id="recoveryStep2" class="hidden">
-            <div class="bg-indigo-50 p-4 rounded-2xl mb-6 border border-indigo-100">
-                <p class="text-[8px] font-bold text-slate-400 uppercase mb-1">Your Security Hint:</p>
-                <p id="displayClue" class="text-lg font-black text-[#861F41] italic">---</p>
+        <!-- ধাপ ২: ক্লু দেখানো এবং অল্টারনেট নম্বর যাচাই -->
+        <div id="recoveryStep2" class="hidden space-y-6">
+            <div class="bg-slate-50 p-5 rounded-2xl border-l-4 border-[#861F41]">
+                <p class="text-[8px] font-black text-slate-400 uppercase mb-2 tracking-widest">Your Security Hint:</p>
+                <p id="displayClue" class="text-lg font-bold text-[#861F41] italic tracking-tight">---</p>
             </div>
-            <p class="text-[10px] text-slate-400 font-bold mb-6">Enter your alternate mobile to reset PIN</p>
-            <input type="number" id="recAltPhone" placeholder="Alternate Number" class="axis-input mb-6">
-            <button onclick="verifyAndReset()" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase text-[10px]">Verify & Reset</button>
+            <input type="number" id="recAltPhone" placeholder="Enter Alternate Mobile" class="axis-input shadow-sm">
+            <button onclick="verifyIdentity()" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-lg">Verify Identity</button>
+        </div>
+
+        <!-- ধাপ ৩: নতুন পিন সেট করা -->
+        <div id="recoveryStep3" class="hidden space-y-6">
+            <div class="bg-emerald-50 p-4 rounded-2xl text-emerald-700 text-[10px] font-bold uppercase">
+                <i class="fas fa-check-circle mr-1"></i> Identity Verified
+            </div>
+            <input type="password" id="newRecoveredPin" placeholder="Set New 4-Digit PIN" maxlength="4" class="axis-input text-center text-2xl tracking-[1rem] shadow-inner">
+            <button onclick="resetPinFinal()" class="axis-gradient text-white w-full py-4 rounded-xl font-bold uppercase text-[10px] tracking-widest shadow-lg">Update Secure PIN</button>
         </div>
         
-        <button onclick="document.getElementById('recoveryModal').classList.add('hidden')" class="mt-6 text-[10px] font-bold text-slate-300 uppercase tracking-widest">Back to Login</button>
+        <button onclick="document.getElementById('recoveryModal').classList.add('hidden')" class="mt-8 text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] hover:text-[#861F41] transition-all">Back to Login</button>
     </div>
+  </div> 
+ </div>
 </div>
     
 <!-- স্মার্ট ইমেজ জুম মোডাল -->
@@ -1699,24 +1710,62 @@ function showRecoveryStep1() {
 }
 
 // ২. ডাটাবেস থেকে ক্লু (Hint) খুঁজে আনা
+// ১. ডাটাবেস থেকে ক্লু খুঁজে আনা
 async function fetchHint() {
     const ph = document.getElementById('recPrimaryPhone').value.trim();
-    if(ph.length !== 10) return alert("Enter 10-digit primary phone!");
+    if(ph.length !== 10) return alert("Please enter 10-digit mobile number!");
 
-    const doc = await db_fs.collection(COLLECTION).doc(ph).get();
-    if (doc.exists) {
-        const data = doc.data();
-        if(data.admin.clue) {
-            // স্টেপ ২ শো করা এবং ক্লু দেখানো
-            document.getElementById('displayClue').innerText = data.admin.clue;
-            document.getElementById('recoveryStep1').classList.add('hidden');
-            document.getElementById('recoveryStep2').classList.remove('hidden');
-            window.tempRecoveryData = data; // সাময়িকভাবে ডাটা রাখা হলো
-        } else {
-            alert("No recovery clue set for this account! Please contact support.");
-        }
+    try {
+        const doc = await db_fs.collection(COLLECTION).doc(ph).get();
+        if (doc.exists) {
+            const data = doc.data();
+            if(data.admin && data.admin.clue) {
+                // ধাপ ২ শো করা
+                document.getElementById('displayClue').innerText = data.admin.clue;
+                document.getElementById('recoveryStep1').classList.add('hidden');
+                document.getElementById('recoveryStep2').classList.remove('hidden');
+                window.tempRecoveryData = data; // ডাটা মেমোরিতে রাখা হলো
+            } else { alert("No recovery clue set! Contact Admin."); }
+        } else { alert("Account not found in PayBook network!"); }
+    } catch (e) { alert("Network Error! Try again."); }
+}
+
+// ২. অল্টারনেট নম্বর ভেরিফাই করা
+function verifyIdentity() {
+    const altPhInput = document.getElementById('recAltPhone').value.trim();
+    const data = window.tempRecoveryData;
+
+    if(altPhInput === data.admin.altPhone) {
+        // ধাপ ৩ শো করা (পিন পরিবর্তনের ঘর)
+        document.getElementById('recoveryStep2').classList.add('hidden');
+        document.getElementById('recoveryStep3').classList.remove('hidden');
     } else {
-        alert("Account not found!");
+        alert("Verification Failed! Alternate number does not match.");
+    }
+}
+
+// ৩. নতুন পিন সেভ করা (চূড়ান্ত ধাপ)
+async function resetPinFinal() {
+    const newPin = document.getElementById('newRecoveredPin').value.trim();
+    const data = window.tempRecoveryData;
+
+    if(newPin.length === 4) {
+        const ph = data.admin.phone;
+        data.admin.pin = newPin;
+
+        try {
+            // ১. এক্সেস কি আপডেট (যাতে নতুন পিন দিয়ে লগইন হয়)
+            await db_fs.collection(ACCESS_KEYS).doc(ph + newPin).set({
+                targetOwnerPhone: ph, role: 'ADMIN', name: data.admin.name
+            });
+            // ২. মেইন ডাটা আপডেট
+            await db_fs.collection(COLLECTION).doc(ph).set(data);
+
+            alert("Security PIN updated! You can now login with your new PIN.");
+            location.reload(); // অ্যাপ রিফ্রেশ হয়ে মেইন লগইনে যাবে
+        } catch(e) { alert("Update failed! Check internet."); }
+    } else {
+        alert("PIN must be exactly 4 digits!");
     }
 }
 
