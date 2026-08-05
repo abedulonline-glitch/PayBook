@@ -351,18 +351,46 @@ header {
     </div>
 </div>
     <!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল -->
+<!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল (Stylish Burgundy Update) -->
 <div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-    <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
-        <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Update Account</h3>
-        <input id="editPName" type="text" placeholder="Edit Full Name" class="axis-input mb-4">
-        <input id="editPPhone" type="number" placeholder="Edit Mobile Number" class="axis-input mb-10">
-        <div class="flex gap-4">
-            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
-            <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">Save Changes</button>
+    <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
+        <!-- টপ হ্যান্ডেল -->
+        <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8"></div>
+        
+        <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">Update Account</h3>
+
+        <!-- প্রোফাইল ইমেজ এডিটর -->
+        <div class="flex flex-col items-center mb-8">
+            <div class="relative group">
+                <label for="editPImgInput" class="w-24 h-24 bg-slate-50 rounded-full border-2 border-dashed border-[#861F41]/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner transition-all hover:border-[#861F41]">
+                    <i id="editPImgPlaceholder" class="fas fa-camera text-[#861F41]/40 text-2xl hidden"></i>
+                    <img id="editPImgPreview" class="w-full h-full object-cover">
+                </label>
+                <input type="file" id="editPImgInput" accept="image/*" class="hidden">
+                <div class="absolute -bottom-1 -right-1 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                    <i class="fas fa-edit text-[10px]"></i>
+                </div>
+            </div>
+            <p class="text-[9px] font-black text-[#861F41]/50 uppercase mt-3 tracking-widest">Change Photo</p>
+        </div>
+
+        <!-- ইনপুট ফিল্ডস: Burgundy থিম -->
+        <div class="space-y-4 text-left">
+            <input id="editPName" type="text" placeholder="Update Name" class="axis-input !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold">
+            <input id="editPPhone" type="number" placeholder="Update Mobile" class="axis-input !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold">
+        </div>
+
+        <!-- একশন বাটন -->
+        <div class="flex gap-4 mt-10">
+            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest">
+                Cancel
+            </button>
+            <button onclick="confirmEditPerson()" class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl uppercase tracking-widest active:scale-95 transition-all">
+                Save Changes
+            </button>
         </div>
     </div>
 </div>
-
 <!-- স্মার্ট ৩-ধাপের পিন রিকভারি মোডাল -->
 <div id="recoveryModal" class="hidden fixed inset-0 bg-black/80 z-[6000] flex items-center justify-center p-6">
     <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 shadow-2xl text-center animate-fade">
@@ -1395,28 +1423,81 @@ function openEditPersonModal() {
 }
 
 // ২. ডাটা সেভ করার ফাংশন
-function confirmEditPerson() {
-    const newName = document.getElementById('editPName').value.trim();
-    const newPhone = document.getElementById('editPPhone').value.trim();
-
-    if(!newName || newPhone.length !== 10) {
-        return alert("Please enter a valid Name and 10-digit Phone Number!");
+// ১. এডিট মোডালের ইমেজ প্রিভিউ হ্যান্ডলার
+document.getElementById('editPImgInput').onchange = e => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            document.getElementById('editPImgPreview').src = ev.target.result;
+            document.getElementById('editPImgPreview').classList.remove('hidden');
+            document.getElementById('editPImgPlaceholder').classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
     }
+};
 
-    // ডাটাবেসে আপডেট করা
-    const personIndex = db.people.findIndex(p => p.id === db.activeId);
-    if(personIndex !== -1) {
-        db.people[personIndex].name = newName;
-        db.people[personIndex].phone = newPhone;
+// ২. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
+function openEditPersonModal(id) {
+    db.activeId = id; 
+    const person = db.people.find(p => p.id == id);
+    if(person) {
+        document.getElementById('editPName').value = person.name;
+        document.getElementById('editPPhone').value = person.phone;
+        
+        // ইমেজ হ্যান্ডলিং
+        const imgPrev = document.getElementById('editPImgPreview');
+        const placeholder = document.getElementById('editPImgPlaceholder');
+        if(person.profilePic) {
+            imgPrev.src = person.profilePic;
+            imgPrev.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        } else {
+            imgPrev.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+        }
+        
+        document.getElementById('editPersonModal').classList.remove('hidden');
+    }
+}
 
-        // সাথে সাথে স্ক্রিনের হেডার আপডেট করা
-        document.getElementById('lName').innerText = newName;
-        document.getElementById('lPhone').innerText = "+91 " + newPhone;
+// ৩. এডিট সেভ করার ফাংশন (ইমেজ আপলোড সহ)
+async function confirmEditPerson() {
+    const nameInp = document.getElementById('editPName');
+    const phInp = document.getElementById('editPPhone');
+    const fileInp = document.getElementById('editPImgInput');
+    const saveBtn = document.querySelector('#editPersonModal button:last-child');
 
-        saveDB(); // ক্লাউড এবং লোকাল মেমোরিতে সেভ
+    if(!nameInp.value || phInp.value.length !== 10) return alert("Valid data required!");
+
+    saveBtn.innerText = "UPDATING...";
+    saveBtn.disabled = true;
+
+    try {
+        const person = db.people.find(p => p.id == db.activeId);
+        
+        // ছবি বদলানো হলে সেটি আপলোড হবে
+        if (fileInp.files[0]) {
+            const fd = new FormData();
+            fd.append('image', fileInp.files[0]);
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+            const dat = await res.json();
+            if(dat.success) person.profilePic = dat.data.url;
+        }
+
+        person.name = nameInp.value.trim();
+        person.phone = phInp.value.trim();
+
+        await saveDB(); // ক্লাউড ও লোকাল সেভ
         document.getElementById('editPersonModal').classList.add('hidden');
-        alert("Account Information Updated Successfully!");
-        renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
+        renderHome();
+        alert("Account Information Updated!");
+
+    } catch (e) {
+        alert("Sync Error! Try again.");
+    } finally {
+        saveBtn.innerText = "SAVE CHANGES";
+        saveBtn.disabled = false;
     }
 }
         // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
