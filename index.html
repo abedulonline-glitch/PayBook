@@ -165,13 +165,11 @@ header {
             </div>
         </div>
         
-        <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
-        <!-- কাস্টমার লেজার হেডার: প্রোফাইল পিকচার সহ (Updated V18) -->
-<!-- কাস্টমার লেজার হেডার: সংশোধিত ডিজাইন (V18.1) -->
+        <!-- কাস্টমার লেজার হেডার: অদৃশ্য সিক্রেট ট্রিগার সহ (V18.2) -->
 <div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-4 shadow-lg">
     <div class="flex items-center gap-3 flex-1 overflow-hidden">
         
-        <!-- ১. ব্যাক অ্যারো (রাউন্ড ছাড়া, একদম বামে) -->
+        <!-- ১. ব্যাক অ্যারো (রাউন্ড ছাড়া) -->
         <i class="fas fa-arrow-left text-white text-lg p-1 active:scale-75 transition-all cursor-pointer" onclick="goHome()"></i>
         
         <!-- ২. কাস্টমার প্রোফাইল পিকচার -->
@@ -180,20 +178,21 @@ header {
             <span id="lHeaderInitials" class="text-xs font-bold text-white uppercase"></span>
         </div>
 
-        <!-- ৩. নাম এবং ফোন (১০০% এক লাইনে ফিক্সড) -->
+        <!-- ৩. নাম এবং ফোন (১০০% এক লাইনে) -->
         <div onclick="openEditPersonModal()" class="flex flex-col flex-1 overflow-hidden cursor-pointer active:opacity-60 transition-all">
-            <!-- truncate ব্যবহার করা হয়েছে যাতে নাম অনেক বড় হলেও ডিজাইন না ভেঙে শেষে ডট ডট (...) দেখায় -->
-            <h2 id="lName" class="text-sm font-black leading-tight text-white truncate">Name</h2>
-            <p id="lPhone" class="text-[10px] text-white/80 font-bold tracking-widest whitespace-nowrap"></p>
+            <h2 id="lName" class="text-sm font-black text-white truncate leading-tight">Name</h2>
+            <p id="lPhone" class="text-[10px] text-white/80 font-bold tracking-widest whitespace-nowrap leading-none mt-1"></p>
         </div>
     </div>
 
-    <!-- ৪. ডান পাশের আইকন এবং ব্যালেন্স -->
+    <!-- ৪. ডান পাশের পিডিএফ এবং ব্যালেন্স (সিক্রেট ট্রিগার সহ) -->
     <div class="flex items-center gap-3">
-        <i class="fas fa-file-pdf opacity-80 text-white text-lg" onclick="askPin(handleSmartPdfDownload)"></i>
-        <div class="flex flex-col items-end">
-            <span id="mainTotal" class="font-black text-lg tracking-tighter text-white">0.00</span>
-            <span id="secretTrigger" class="text-[10px] font-black opacity-30 text-white select-none cursor-pointer">₹</span>
+        <i class="fas fa-file-pdf opacity-80 text-white text-lg active:scale-75" onclick="askPin(handleSmartPdfDownload)"></i>
+        
+        <!-- ব্যালেন্স এরিয়া: ₹ সিম্বলটিই এখন সিক্রেট বাটন -->
+        <div class="flex items-center font-black text-lg tracking-tighter text-white">
+            <span id="secretTrigger" class="cursor-pointer select-none transition-all active:scale-75 mr-1">₹</span>
+            <span id="mainTotal">0.00</span>
         </div>
     </div>
 </div>
@@ -989,11 +988,48 @@ async function syncToPartner(partnerPhone, txData) {
         }
 
         function initSecretGesture() {
-            const el = document.getElementById('secretTrigger');
-            el.onclick = () => { if(db.secret) exitSecret(); };
-            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); };
-            el.onpointerup = () => clearTimeout(holdTimer);
+    const el = document.getElementById('secretTrigger');
+    if(!el) return;
+
+    // ১. কুইক এক্সিট: সিক্রেট মোডে থাকা অবস্থায় জাস্ট টাচ করলেই পাক্কা মোডে ফিরবে
+    el.onclick = () => {
+        if (db.secret) {
+            exitSecret(); // সাথে সাথে ভ্যানিশ
         }
+    };
+
+    // ২. এন্টার সিক্রেট: ২.৫ সেকেন্ড চেপে ধরলে পিন চাইবে
+    el.onpointerdown = (e) => {
+        if (!db.secret) {
+            holdTimer = setTimeout(() => {
+                askPin(() => { 
+                    db.secret = true; 
+                    // সিক্রেট মোড চালু হলে সিম্বলটি লাল হবে এবং ব্লিঙ্ক করবে
+                    el.classList.add('blink-secret'); 
+                    renderAll(); 
+                    startTimer(); // আপনার ১ মিনিটের টাইমার শুরু হবে
+                });
+            }, 2500);
+        }
+    };
+
+    // মাউস বা টাচ ছেড়ে দিলে টাইমার ক্লিয়ার হবে
+    el.onpointerup = () => clearTimeout(holdTimer);
+    el.onpointerleave = () => clearTimeout(holdTimer);
+}
+
+// ৩. এক্সিট ফাংশন (যা সিম্বলকে আগের অবস্থায় ফিরিয়ে আনবে)
+function exitSecret() {
+    db.secret = false;
+    clearTimeout(autoExitTimer); 
+    
+    // সিম্বল থেকে ব্লিঙ্কিং এবং লাল কালার সরিয়ে দেওয়া
+    const el = document.getElementById('secretTrigger');
+    if(el) el.classList.remove('blink-secret');
+    
+    renderAll(); // সাথে সাথে পাক্কা মোড রেন্ডার হবে
+    console.log("Returned to Pakka Mode (Secure Exit)");
+}
         function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); } 
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
