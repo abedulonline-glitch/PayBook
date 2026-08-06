@@ -1761,7 +1761,7 @@ function initNavigation() {
     // ২. হেডার ব্যালেন্স আপডেট (১০০ দিয়ে ভাগ লজিক সহ)
     const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
     const balEl = document.getElementById('mainTotal');
-    balEl.innerText = "₹ " + displayHeaderTotal;
+    balEl.innerText = displayHeaderTotal;
     balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
 
     // ৩. ট্রানজ্যাকশন ফিল্টারিং ও রেন্ডারিং
