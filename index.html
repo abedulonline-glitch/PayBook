@@ -851,38 +851,59 @@ async function handleRegistration() {
 }
 // ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
 async function handleLogin() {
-    const ph = document.getElementById('loginPhone').value.trim();
-    const pin = document.getElementById('loginPin').value.trim();
-    const accessKey = ph + pin;
+    const phInput = document.getElementById('loginPhone');
+    const pinInput = document.getElementById('loginPin');
+    
+    if(!phInput || !pinInput) return alert("System Error: Login fields missing!");
 
-    if(ph.length !== 10 || pin.length < 4) return alert("Enter correct Details!");
+    const ph = phInput.value.trim();
+    const pin = pinInput.value.trim();
+
+    if(ph.length !== 10 || pin.length < 4) {
+        return alert("Please enter a valid 10-digit Phone and 4-digit PIN!");
+    }
 
     try {
-        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(accessKey).get();
+        // ১. ফায়ারস্টোর থেকে সরাসরি ওই ফোন নম্বরের ডক চেক করা (পয়েন্ট ৪ ফিক্স)
+        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(ph + pin).get();
 
         if (keyDoc.exists) {
             const routing = keyDoc.data();
-            const docRef = db_fs.collection(COLLECTION).doc(routing.targetOwnerPhone);
-            const doc = await docRef.get();
+            const targetPhone = routing.targetOwnerPhone;
+
+            // ২. মেইন ডাটাবেস ফেচ করা
+            const doc = await db_fs.collection(COLLECTION).doc(targetPhone).get();
 
             if (doc.exists) {
-                db = JSON.parse(JSON.stringify(doc.data())); 
+                // ডাটা সফলভাবে পাওয়া গেছে
+                db = JSON.parse(JSON.stringify(doc.data()));
                 db.role = routing.role;
                 db.opName = routing.name;
-                db.ownerPhone = routing.targetOwnerPhone;
+                db.ownerPhone = targetPhone;
                 db.secret = false;
 
-                // --- পয়েন্ট ৯: মিরর কন্টাক্ট ডিসকভারি (নতুন কেউ আমাকে অ্যাড করেছে কি না) ---
-                await discoverMirrorUpdates(ph);
+                // লোকাল মেমোরি আপডেট
+                localStorage.setItem(DB_KEY, JSON.stringify(db));
 
-                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+                // ৩. সরাসরি অ্যাপে প্রবেশ (কোনো এরর মেসেজ ছাড়া)
                 enterApp();
-                alert(`Welcome ${routing.name}! Sync Complete.`);
+                
+                // সফলতার মেসেজ (ঐচ্ছিক)
+                console.log("Login Successful as " + routing.role);
+                return; // ফাংশন এখানেই শেষ হবে, ক্যাচ ব্লকে যাবে না
+            } else {
+                alert("Error: Business data not found. Please contact the owner.");
             }
         } else {
-            alert("No access found! Please check Phone/PIN or Register.");
+            // যদি পিন বা নম্বর না মেলে
+            alert("Login Failed: Incorrect Phone or PIN. Please try again.");
         }
-    } catch (e) { alert("Login failed! Check internet."); }
+
+    } catch (error) {
+        // শুধুমাত্র যদি ইন্টারনেট বা ডাটাবেসে সত্যিকারের সমস্যা হয় তবেই এটি দেখাবে
+        console.error("Critical Login Error:", error);
+        alert("Network Error: Could not connect to PayBook server. Please check your internet.");
+    }
 }
 
 // এই ফাংশনটি আপনার জন্য অন্য ফোনের ডাটা খুঁজে আনবে
