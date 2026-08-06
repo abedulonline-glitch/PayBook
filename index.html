@@ -166,16 +166,23 @@ header {
         </div>
         
         <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
-        <div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-5 shadow-lg">
-    <div class="flex items-center gap-4">
+        <!-- কাস্টমার লেজার হেডার: প্রোফাইল পিকচার সহ (Updated V18) -->
+<div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-5 shadow-lg">
+    <div class="flex items-center gap-3">
         <!-- ব্যাক অ্যারো -->
         <div onclick="goHome()" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full active:scale-75 transition-all">
             <i class="fas fa-arrow-left text-white"></i>
         </div>
         
-        <!-- ক্লায়েন্ট ইনফো (ক্লিক করলে এডিট হবে) -->
+        <!-- কাস্টমার ছবি এলাকা (ক্লিক করলে এডিট হবে) -->
+        <div onclick="openEditPersonModal()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30 overflow-hidden cursor-pointer active:scale-90 transition-all">
+            <img id="lHeaderPic" class="hidden w-full h-full object-cover">
+            <span id="lHeaderInitials" class="text-xs font-bold text-white uppercase"></span>
+        </div>
+
+        <!-- নাম এবং নম্বর (ক্লিক করলে এডিট হবে) -->
         <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50 transition-all">
-            <h2 id="lName" class="text-sm font-bold leading-none text-white">Client Name</h2>
+            <h2 id="lName" class="text-sm font-bold leading-none text-white tracking-tight">Name</h2>
             <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
         </div>
     </div>
@@ -1068,13 +1075,39 @@ async function confirmAdd() {
     }
 }
         function openLedger(id) {
-            history.pushState(null, null, window.location.pathname);
-            db.activeId = id; const p = db.people.find(x => x.id === id);
-            document.getElementById('lName').innerText = p.name;
-            document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden');
-            document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden');
-            renderLedger();
-        }
+    history.pushState(null, null, window.location.pathname);
+    db.activeId = id; 
+    
+    // ডাটাবেস থেকে ওই ব্যক্তিকে খুঁজে বের করা (আইডি ম্যাচিং)
+    const p = db.people.find(x => x.id == id);
+    if(!p) return;
+
+    // ১. নাম এবং ফোন সেট করা
+    document.getElementById('lName').innerText = p.name;
+    document.getElementById('lPhone').innerText = "+91 " + p.phone;
+
+    // ২. হেডার ইমেজ কন্ট্রোল করা
+    const headerPic = document.getElementById('lHeaderPic');
+    const headerInit = document.getElementById('lHeaderInitials');
+    
+    if (p.profilePic) {
+        headerPic.src = p.profilePic;
+        headerPic.classList.remove('hidden');
+        headerInit.classList.add('hidden');
+    } else {
+        headerPic.classList.add('hidden');
+        headerInit.innerText = p.name.substring(0,1).toUpperCase();
+        headerInit.classList.remove('hidden');
+    }
+
+    // ৩. স্ক্রিন সুইচ করা
+    document.getElementById('headerMain').classList.add('hidden'); 
+    document.getElementById('headerLedger').classList.remove('hidden');
+    document.getElementById('pageHome').classList.add('hidden'); 
+    document.getElementById('pageLedger').classList.remove('hidden');
+    
+    renderLedger();
+}
 
         
 
@@ -1453,39 +1486,50 @@ async function confirmEditPerson() {
     const nameInp = document.getElementById('editPName');
     const phInp = document.getElementById('editPPhone');
     const fileInp = document.getElementById('editPImgInput');
-    const saveBtn = document.querySelector('#editPersonModal button:last-child');
 
-    if(!nameInp.value || phInp.value.length !== 10) return alert("Valid data required!");
+    if(!nameInp.value || phInp.value.length !== 10) return alert("Valid Name & 10-digit Phone Required!");
 
-    saveBtn.innerText = "UPDATING...";
-    saveBtn.disabled = true;
+    const person = db.people.find(p => p.id == db.activeId);
+    if(!person) return;
 
-    try {
-        const person = db.people.find(p => p.id == db.activeId);
-        
-        // ছবি বদলানো হলে সেটি আপলোড হবে
-        if (fileInp.files[0]) {
-            const fd = new FormData();
-            fd.append('image', fileInp.files[0]);
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-            const dat = await res.json();
-            if(dat.success) person.profilePic = dat.data.url;
-        }
+    // --- ১. ইন্সট্যান্ট আপডেট (Optimistic UI) ---
+    const newName = nameInp.value.trim();
+    const newPhone = phInp.value.trim();
 
-        person.name = nameInp.value.trim();
-        person.phone = phInp.value.trim();
-
-        await saveDB(); // ক্লাউড ও লোকাল সেভ
-        document.getElementById('editPersonModal').classList.add('hidden');
-        renderHome();
-        alert("Account Information Updated!");
-
-    } catch (e) {
-        alert("Sync Error! Try again.");
-    } finally {
-        saveBtn.innerText = "SAVE CHANGES";
-        saveBtn.disabled = false;
+    if(fileInp.files[0]) {
+        // ফোনের গ্যালারি থেকে টেম্পোরারি লিঙ্ক নিয়ে সাথে সাথে ছবি দেখানো
+        const localPreviewUrl = URL.createObjectURL(fileInp.files[0]);
+        person.profilePic = localPreviewUrl;
     }
+    
+    person.name = newName;
+    person.phone = newPhone;
+
+    // সাথে সাথে লিস্ট এবং হেডার আপডেট
+    renderHome(); 
+    openLedger(db.activeId); // বর্তমানে থাকা হেডারকেও সাথে সাথে নতুন ডাটা দিয়ে রিফ্রেশ করা
+    
+    // মোডাল বন্ধ করা
+    document.getElementById('editPersonModal').classList.add('hidden');
+
+    // --- ২. ব্যাকগ্রাউন্ড প্রসেসিং (ক্লাউড সিঙ্ক এবং ইমেজ আপলোড) ---
+    (async () => {
+        try {
+            if (fileInp.files[0]) {
+                const fd = new FormData();
+                fd.append('image', fileInp.files[0]);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success) person.profilePic = dat.data.url; // আসল অনলাইন লিঙ্ক সেভ হলো
+            }
+            await saveDB(); // ব্যাকগ্রাউন্ডে ক্লাউড সিঙ্ক
+            console.log("Global sync completed in background.");
+        } catch (e) {
+            console.error("Background sync failed, but local data is safe.", e);
+        }
+    })();
+
+    alert("Profile updated successfully!");
 }
         // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
 async function hireManager() {
