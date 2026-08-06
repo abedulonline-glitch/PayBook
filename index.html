@@ -1254,7 +1254,6 @@ function handleImageFiles(f) {
 }
 
 // --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
-// --- ৫. ডাটা এন্ট্রি ফাংশন (V18.3: Micro-second Response / UI-First Logic) ---
 async function preSave(t) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value); 
@@ -1264,17 +1263,17 @@ async function preSave(t) {
     const noteVal = document.getElementById('txNote').value.trim();
     const dateVal = document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB');
 
-    // --- ১. ইন্সট্যান্ট সেভ প্রসেস (ব্যবহারকারীকে অপেক্ষা করতে হবে না) ---
+    // --- ১. এই ফাংশনটি বাটন চাপার সাথে সাথে রান হবে ---
     const instantSaveAction = async () => {
         const person = db.people.find(x => x.id === db.activeId);
         
-        // ছবি আপলোড হওয়ার আগে ফোনের গ্যালারি থেকে টেম্পোরারি লিঙ্ক তৈরি (ইন্সট্যান্ট ভিউয়ের জন্য)
+        // ছবি আপলোড হওয়ার আগে লোকাল প্রিভিউ লিঙ্ক তৈরি
         const localPreviews = capturedFiles.map(f => URL.createObjectURL(f));
         
         // আপলোডের জন্য ফাইলের একটি কপি রাখা (কারণ ড্রয়ার বন্ধ হলে এটি খালি হয়ে যাবে)
         const filesToSync = [...capturedFiles];
 
-        // নতুন ট্রানজ্যাকশন অবজেক্ট (লোকাল কপি)
+        // নতুন ট্রানজ্যাকশন অবজেক্ট (ইন্সট্যান্ট কপি)
         const newTx = { 
             id: Date.now(), 
             amount: amt, 
@@ -1283,26 +1282,25 @@ async function preSave(t) {
             date: dateVal, 
             note: noteVal, 
             nextCollDate: nextDateVal,
-            images: localPreviews, // শুরুতে ফোনের লোকাল ছবি দেখাবে
+            images: localPreviews, // লোকাল ছবি দেখাবে
             by: db.opName || 'Owner', 
             verified: false,
             status: 'active',
-            isSyncing: true // ব্যাকগ্রাউন্ডে কাজ চলছে বোঝাতে একটি ফ্ল্যাগ
+            isSyncing: true
         };
 
-        // ২. লোকাল ডাটাবেসে পুশ এবং সাথে সাথে স্ক্রিন আপডেট
+        // ২. লোকাল ডাটাবেসে পুশ এবং সাথে সাথে স্ক্রিন ও ড্রয়ার আপডেট
         person.transactions.push(newTx);
-        localStorage.setItem(DB_KEY, JSON.stringify(db)); // দ্রুত লোকাল মেমোরিতে সেভ
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); // মুহূর্তের মধ্যে লোকাল সেভ
         
-        renderLedger(); // মাইক্রো-সেকেন্ডে লেনদেনটি লিস্টে চলে আসবে
-        closeDrawer();  // সাথে সাথে ড্রয়ার বন্ধ হয়ে যাবে
+        renderLedger(); // লেনদেন লিস্টে চলে আসবে
+        closeDrawer();  // ড্রয়ার সাথে সাথে বন্ধ হবে (ব্ল্যাক স্ক্রিন ফিক্স)
 
-        // --- ৩. ব্যাকগ্রাউন্ড সিঙ্ক (চুপিচুপি ক্লাউডে ডাটা পাঠানো) ---
+        // --- ৩. ব্যাকগ্রাউন্ড সিঙ্ক (পর্দার আড়ালে ইমেজ আপলোড ও ক্লাউড সেভ) ---
         (async () => {
             try {
                 let uploadedUrls = [];
-                // ব্যাকগ্রাউন্ডে ছবিগুলো ImgBB-তে আপলোড করা
-                for(let file of filesToUpload) {
+                for(let file of filesToSync) {
                     const fd = new FormData();
                     fd.append('image', file);
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
@@ -1310,21 +1308,19 @@ async function preSave(t) {
                     if(dat.success) uploadedUrls.push(dat.data.url);
                 }
 
-                // আপলোড শেষ হলে টেম্পোরারি লিঙ্ক বদলে অরিজিনাল লিঙ্ক বসানো
+                // আপলোড শেষ হলে অরিজিনাল লিঙ্ক দিয়ে আপডেট
                 newTx.images = uploadedUrls;
-                newTx.isSyncing = false; // সিঙ্ক সফল
+                newTx.isSyncing = false; 
 
-                // ফাইনাল গ্লোবাল সেভ এবং পার্টনার সিঙ্ক
+                // ফাইনাল ক্লাউড সেভ এবং পার্টনার সিঙ্ক
                 await saveDB(); 
                 if (typeof syncToPartner === 'function') {
                     await syncToPartner(person.phone, newTx);
                 }
-                
-                console.log("Background Cloud Sync: Success for ID " + newTx.id);
-                // অরিজিনাল ইমেজ লিঙ্কগুলো আপডেট করার জন্য একবার রি-রেন্ডার (ইউজার টের পাবে না)
-                renderLedger(); 
+                console.log("Background Cloud Sync: Done ✅");
+                renderLedger(); // অরিজিনাল ছবি লোড করার জন্য একবার রিফ্রেশ
             } catch (error) {
-                console.error("Background sync failed, but data is saved locally.", error);
+                console.error("Background sync failed, but data is safe locally.", error);
             }
         })();
 
@@ -1728,15 +1724,29 @@ function initNavigation() {
     document.getElementById('addModal').classList.remove('hidden'); 
 }
         function closeDrawer() { 
-    document.getElementById('entryDrawer').classList.remove('open'); 
-    setTimeout(() => {
-        document.getElementById('entryDrawer').classList.add('hidden'); 
-        // ইনপুট এবং ছবি ক্লিয়ার করা হচ্ছে
-        document.getElementById('txAmt').value = ""; 
-        document.getElementById('txNote').value = ""; 
-        capturedFiles = []; 
-        document.getElementById('multiImgPreview').innerHTML = "";
-    }, 400); 
+    const drawer = document.getElementById('entryDrawer');
+    if (drawer) {
+        drawer.classList.remove('open'); 
+        setTimeout(() => {
+            drawer.classList.add('hidden'); 
+            
+            // ইনপুট ফিল্ডগুলো বারগুন্ডি থিম অনুযায়ী ক্লিয়ার করা হচ্ছে
+            document.getElementById('txAmt').value = ""; 
+            document.getElementById('txNote').value = ""; 
+            if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
+            
+            // গ্লোবাল ইমেজ ভেরিয়েবল রিসেট
+            capturedFiles = []; 
+            
+            // প্রিভিউ কন্টেইনার খালি করা (আপনার মাল্টি-ইমেজ আইডিমতো)
+            const preview = document.getElementById('multiImgPreview') || document.getElementById('multiImgPreviewContainer');
+            if(preview) {
+                preview.innerHTML = "";
+            }
+            
+            console.log("Form Cleaned and Drawer Hidden.");
+        }, 400); 
+    }
 }
         function renderHome() {
     const list = document.getElementById('contactList'); 
