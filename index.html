@@ -167,30 +167,34 @@ header {
         
         <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
         <!-- কাস্টমার লেজার হেডার: প্রোফাইল পিকচার সহ (Updated V18) -->
-<div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-5 shadow-lg">
-    <div class="flex items-center gap-3">
-        <!-- ব্যাক অ্যারো -->
-        <div onclick="goHome()" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full active:scale-75 transition-all">
-            <i class="fas fa-arrow-left text-white"></i>
-        </div>
+<!-- কাস্টমার লেজার হেডার: সংশোধিত ডিজাইন (V18.1) -->
+<div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-4 shadow-lg">
+    <div class="flex items-center gap-3 flex-1 overflow-hidden">
         
-        <!-- কাস্টমার ছবি এলাকা (ক্লিক করলে এডিট হবে) -->
-        <div onclick="openEditPersonModal()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30 overflow-hidden cursor-pointer active:scale-90 transition-all">
+        <!-- ১. ব্যাক অ্যারো (রাউন্ড ছাড়া, একদম বামে) -->
+        <i class="fas fa-arrow-left text-white text-lg p-1 active:scale-75 transition-all cursor-pointer" onclick="goHome()"></i>
+        
+        <!-- ২. কাস্টমার প্রোফাইল পিকচার -->
+        <div onclick="openEditPersonModal()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30 overflow-hidden flex-shrink-0 cursor-pointer active:scale-90 transition-all">
             <img id="lHeaderPic" class="hidden w-full h-full object-cover">
             <span id="lHeaderInitials" class="text-xs font-bold text-white uppercase"></span>
         </div>
 
-        <!-- নাম এবং নম্বর (ক্লিক করলে এডিট হবে) -->
-        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50 transition-all">
-            <h2 id="lName" class="text-sm font-bold leading-none text-white tracking-tight">Name</h2>
-            <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
+        <!-- ৩. নাম এবং ফোন (১০০% এক লাইনে ফিক্সড) -->
+        <div onclick="openEditPersonModal()" class="flex flex-col flex-1 overflow-hidden cursor-pointer active:opacity-60 transition-all">
+            <!-- truncate ব্যবহার করা হয়েছে যাতে নাম অনেক বড় হলেও ডিজাইন না ভেঙে শেষে ডট ডট (...) দেখায় -->
+            <h2 id="lName" class="text-sm font-black leading-tight text-white truncate">Name</h2>
+            <p id="lPhone" class="text-[10px] text-white/80 font-bold tracking-widest whitespace-nowrap"></p>
         </div>
     </div>
 
+    <!-- ৪. ডান পাশের আইকন এবং ব্যালেন্স -->
     <div class="flex items-center gap-3">
-        <i class="fas fa-file-pdf opacity-80 mr-2 text-white" onclick="askPin(handleSmartPdfDownload)"></i>
-        <span id="mainTotal" class="font-black text-lg tracking-tighter text-white">0.00</span>
-        <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none text-white">₹</span>
+        <i class="fas fa-file-pdf opacity-80 text-white text-lg" onclick="askPin(handleSmartPdfDownload)"></i>
+        <div class="flex flex-col items-end">
+            <span id="mainTotal" class="font-black text-lg tracking-tighter text-white">0.00</span>
+            <span id="secretTrigger" class="text-[10px] font-black opacity-30 text-white select-none cursor-pointer">₹</span>
+        </div>
     </div>
 </div>
 
