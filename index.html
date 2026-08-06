@@ -235,78 +235,74 @@ header {
 
     <!-- ৩. ডাটা এন্ট্রি ড্রয়ার (Axis Burgundy UI Update) -->
 <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-<!-- ৩. ডাটা এন্ট্রি ড্রয়ার (স্লিম এবং স্মার্ট ভার্সন) -->
-<div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden z-[500] flex flex-col justify-end">
-    <!-- ড্রয়ার কার্ড: max-height ব্যবহার করা হয়েছে যাতে এটি খুব বড় না হয় -->
-    <div class="bg-white rounded-t-[2.5rem] p-6 shadow-2xl animate-fade-up max-h-[85vh] overflow-y-auto no-scrollbar">
+    <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
+        <!-- টপ স্লিম হ্যান্ডেল -->
+        <div class="w-16 h-1.5 bg-slate-100 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
         
-        <!-- টপ হ্যান্ডেল এবং কুইক ক্যানসেল -->
-        <div class="flex flex-col items-center mb-6">
-            <div class="w-12 h-1 bg-slate-200 rounded-full mb-2" onclick="closeDrawer()"></div>
-            <button onclick="closeDrawer()" class="text-[10px] font-bold text-[#861F41]/40 uppercase tracking-widest hover:text-rose-500">
-                <i class="fas fa-times-circle mr-1"></i> Cancel Entry
-            </button>
-        </div>
-        
-        <!-- এমাউন্ট এরিয়া: আরও স্লিম করা হয়েছে -->
-        <div class="text-center mb-6">
-            <p id="drawerActionType" class="text-[9px] font-black text-[#861F41] uppercase tracking-[0.2em] opacity-60">Amount</p>
-            <div class="flex items-center justify-center gap-2 mt-1">
-                <span class="text-3xl font-black text-[#861F41]/20">₹</span>
+        <!-- এমাউন্ট ইনপুট এরিয়া: Burgundy থিম -->
+        <div class="text-center mb-10">
+            <p id="drawerActionType" class="text-[11px] font-black text-[#861F41] uppercase tracking-[0.3em] opacity-80">Transaction Amount</p>
+            <div class="flex items-center justify-center gap-3 mt-4">
+                <span class="text-4xl font-black text-[#861F41] opacity-30">₹</span>
                 <input type="number" id="txAmt" placeholder="0.00" 
-                       class="text-5xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2 border-slate-50 focus:border-[#861F41] transition-all">
+                       class="text-6xl font-black text-[#861F41] bg-transparent outline-none w-3/4 text-center border-b-4 border-slate-50 focus:border-[#861F41] pb-4 transition-all">
             </div>
         </div>
 
-        <!-- ইনপুট গ্রিড: জায়গা বাঁচাতে প্যাডিং কমানো হয়েছে -->
-        <div class="space-y-3 mb-8">
-            <!-- নোটস -->
-            <div class="flex items-center bg-slate-50 p-3 rounded-2xl gap-3 border border-slate-100">
-                <i class="fas fa-file-lines text-[#861F41] opacity-50 text-sm"></i>
-                <input type="text" id="txNote" placeholder="Add Notes..." 
-                       class="bg-transparent outline-none flex-1 text-sm text-[#861F41] font-bold placeholder:text-[#861F41]/30">
+        <div class="space-y-4 mb-10">
+            <!-- নোট ইনপুট: আইকন ও টেক্সট Burgundy -->
+            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100 shadow-sm">
+                <i class="fas fa-file-lines text-[#861F41] text-xl opacity-70"></i>
+                <input type="text" id="txNote" placeholder="Notes (Bill No/Reference)" 
+                       class="bg-transparent outline-none flex-1 text-md text-[#861F41] font-bold placeholder:text-[#861F41]/30">
             </div>
 
-            <!-- ডেট সেকশন (এক লাইনে দুটি ডেট রাখার চেষ্টা) -->
-            <div class="grid grid-cols-2 gap-2">
-                <!-- নেক্সট কালেকশন ডেট -->
-                <div class="flex items-center bg-slate-50 p-3 rounded-2xl gap-2 border border-slate-100" onclick="document.getElementById('nextCollDate').showPicker()">
-                    <i class="fas fa-hand-holding-dollar text-[#861F41] opacity-50 text-sm"></i>
-                    <div class="flex-1 overflow-hidden">
-                        <p class="text-[7px] font-black text-[#861F41]/40 uppercase truncate">Next Date</p>
-                        <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-xs font-bold text-[#861F41]">
-                    </div>
+            <!-- নেক্সট কালেকশন ডেট: Burgundy কালার ফিক্স -->
+            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100 shadow-sm" 
+                 onclick="document.getElementById('nextCollDate').showPicker()">
+                <i class="fas fa-hand-holding-dollar text-[#861F41] text-xl opacity-70"></i>
+                <div class="flex-1">
+                    <p class="text-[8px] font-black text-[#861F41] uppercase tracking-widest opacity-60">Next Collection Date</p>
+                    <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-sm font-bold text-[#861F41]">
                 </div>
-
-                <!-- ট্রানজ্যাকশন ডেট -->
-                <div class="flex items-center bg-slate-50 p-3 rounded-2xl gap-2 border border-slate-100" onclick="document.getElementById('txDate').showPicker()">
-                    <i class="fas fa-calendar-day text-[#861F41] opacity-50 text-sm"></i>
-                    <div class="flex-1 overflow-hidden">
-                        <p class="text-[7px] font-black text-[#861F41]/40 uppercase truncate">Tx Date</p>
-                        <input type="date" id="txDate" class="bg-transparent outline-none w-full text-xs font-bold text-[#861F41]">
-                    </div>
-                </div>
+                <i class="fas fa-chevron-right text-[#861F41] text-xs opacity-20"></i>
             </div>
 
-            <!-- বিল ইমেজ: অনেক বেশি ছোট ও স্মার্ট করা হয়েছে -->
-            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-images text-[#861F41] opacity-50 text-sm"></i>
-                    <p class="text-[10px] font-black text-[#861F41]/60 uppercase">Bills</p>
+            <!-- ট্রানজ্যাকশন ডেট: Burgundy কালার ফিক্স -->
+            <div class="flex items-center bg-slate-50 p-5 rounded-3xl gap-4 border border-slate-100 shadow-sm" 
+                 onclick="document.getElementById('txDate').showPicker()">
+                <i class="fas fa-calendar-day text-[#861F41] text-xl opacity-70"></i>
+                <div class="flex-1">
+                    <p class="text-[8px] font-black text-[#861F41] uppercase tracking-widest opacity-60">Transaction Date</p>
+                    <input type="date" id="txDate" class="bg-transparent outline-none w-full text-sm font-bold text-[#861F41]">
                 </div>
-                <div class="flex items-center gap-2">
-                    <div id="multiImgPreviewContainer" class="flex gap-2"></div>
-                    <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed border-[#861F41]/20 rounded-xl flex items-center justify-center text-[#861F41] active:scale-90">
-                        <i class="fas fa-plus-circle text-lg opacity-60"></i>
+                <i class="fas fa-chevron-right text-[#861F41] text-xs opacity-20"></i>
+            </div>
+
+            <!-- ইমেজ সেকশন: Burgundy টেক্সট ও প্লাস বাটন -->
+            <div class="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <div class="flex justify-between items-center mb-4 px-1">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-images text-[#861F41] opacity-70"></i>
+                        <p class="text-sm font-black text-[#861F41] uppercase tracking-tighter opacity-80">Bill Attachment(s)</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div id="multiImgPreview" class="hidden flex gap-2 flex-wrap"></div>
+                    <!-- প্লাস বাটন Burgundy থিমে -->
+                    <button onclick="openMediaSelector()" 
+                            class="w-16 h-16 bg-white border-2 border-dashed border-[#861F41]/30 rounded-2xl flex items-center justify-center text-[#861F41] active:scale-90 transition-all shadow-sm">
+                        <i class="fas fa-plus-circle text-2xl opacity-70"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- কনফার্ম বাটন: আরও স্লিম করা হয়েছে -->
+        <!-- মেইন কনফার্ম বাটন -->
         <button id="mainConfirmBtn" 
-                class="w-full py-4 bg-[#10b981] text-white rounded-2xl font-black shadow-lg shadow-emerald-100 uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-3">
-            <i class="fas fa-check-circle text-lg"></i>
+                class="w-full py-6 bg-emerald-600 text-white rounded-[2rem] font-black shadow-2xl shadow-emerald-100 uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-4">
+            <i class="fas fa-check-circle text-xl"></i>
             Confirm Transaction
         </button>
     </div>
@@ -1254,6 +1250,7 @@ function handleImageFiles(f) {
 }
 
 // --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
+// --- ৫. ডাটা এন্ট্রি ফাংশন (V18.3: Micro-second Response / UI-First Logic) ---
 async function preSave(t) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value); 
@@ -1263,17 +1260,17 @@ async function preSave(t) {
     const noteVal = document.getElementById('txNote').value.trim();
     const dateVal = document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB');
 
-    // --- ১. এই ফাংশনটি বাটন চাপার সাথে সাথে রান হবে ---
+    // --- ১. ইন্সট্যান্ট সেভ প্রসেস (ব্যবহারকারীকে অপেক্ষা করতে হবে না) ---
     const instantSaveAction = async () => {
         const person = db.people.find(x => x.id === db.activeId);
         
-        // ছবি আপলোড হওয়ার আগে লোকাল প্রিভিউ লিঙ্ক তৈরি
+        // ছবি আপলোড হওয়ার আগে ফোনের গ্যালারি থেকে টেম্পোরারি লিঙ্ক তৈরি (ইন্সট্যান্ট ভিউয়ের জন্য)
         const localPreviews = capturedFiles.map(f => URL.createObjectURL(f));
         
         // আপলোডের জন্য ফাইলের একটি কপি রাখা (কারণ ড্রয়ার বন্ধ হলে এটি খালি হয়ে যাবে)
         const filesToSync = [...capturedFiles];
 
-        // নতুন ট্রানজ্যাকশন অবজেক্ট (ইন্সট্যান্ট কপি)
+        // নতুন ট্রানজ্যাকশন অবজেক্ট (লোকাল কপি)
         const newTx = { 
             id: Date.now(), 
             amount: amt, 
@@ -1282,25 +1279,26 @@ async function preSave(t) {
             date: dateVal, 
             note: noteVal, 
             nextCollDate: nextDateVal,
-            images: localPreviews, // লোকাল ছবি দেখাবে
+            images: localPreviews, // শুরুতে ফোনের লোকাল ছবি দেখাবে
             by: db.opName || 'Owner', 
             verified: false,
             status: 'active',
-            isSyncing: true
+            isSyncing: true // ব্যাকগ্রাউন্ডে কাজ চলছে বোঝাতে একটি ফ্ল্যাগ
         };
 
-        // ২. লোকাল ডাটাবেসে পুশ এবং সাথে সাথে স্ক্রিন ও ড্রয়ার আপডেট
+        // ২. লোকাল ডাটাবেসে পুশ এবং সাথে সাথে স্ক্রিন আপডেট
         person.transactions.push(newTx);
-        localStorage.setItem(DB_KEY, JSON.stringify(db)); // মুহূর্তের মধ্যে লোকাল সেভ
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); // দ্রুত লোকাল মেমোরিতে সেভ
         
-        renderLedger(); // লেনদেন লিস্টে চলে আসবে
-        closeDrawer();  // ড্রয়ার সাথে সাথে বন্ধ হবে (ব্ল্যাক স্ক্রিন ফিক্স)
+        renderLedger(); // মাইক্রো-সেকেন্ডে লেনদেনটি লিস্টে চলে আসবে
+        closeDrawer();  // সাথে সাথে ড্রয়ার বন্ধ হয়ে যাবে
 
-        // --- ৩. ব্যাকগ্রাউন্ড সিঙ্ক (পর্দার আড়ালে ইমেজ আপলোড ও ক্লাউড সেভ) ---
+        // --- ৩. ব্যাকগ্রাউন্ড সিঙ্ক (চুপিচুপি ক্লাউডে ডাটা পাঠানো) ---
         (async () => {
             try {
                 let uploadedUrls = [];
-                for(let file of filesToSync) {
+                // ব্যাকগ্রাউন্ডে ছবিগুলো ImgBB-তে আপলোড করা
+                for(let file of filesToUpload) {
                     const fd = new FormData();
                     fd.append('image', file);
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
@@ -1308,19 +1306,21 @@ async function preSave(t) {
                     if(dat.success) uploadedUrls.push(dat.data.url);
                 }
 
-                // আপলোড শেষ হলে অরিজিনাল লিঙ্ক দিয়ে আপডেট
+                // আপলোড শেষ হলে টেম্পোরারি লিঙ্ক বদলে অরিজিনাল লিঙ্ক বসানো
                 newTx.images = uploadedUrls;
-                newTx.isSyncing = false; 
+                newTx.isSyncing = false; // সিঙ্ক সফল
 
-                // ফাইনাল ক্লাউড সেভ এবং পার্টনার সিঙ্ক
+                // ফাইনাল গ্লোবাল সেভ এবং পার্টনার সিঙ্ক
                 await saveDB(); 
                 if (typeof syncToPartner === 'function') {
                     await syncToPartner(person.phone, newTx);
                 }
-                console.log("Background Cloud Sync: Done ✅");
-                renderLedger(); // অরিজিনাল ছবি লোড করার জন্য একবার রিফ্রেশ
+                
+                console.log("Background Cloud Sync: Success for ID " + newTx.id);
+                // অরিজিনাল ইমেজ লিঙ্কগুলো আপডেট করার জন্য একবার রি-রেন্ডার (ইউজার টের পাবে না)
+                renderLedger(); 
             } catch (error) {
-                console.error("Background sync failed, but data is safe locally.", error);
+                console.error("Background sync failed, but data is saved locally.", error);
             }
         })();
 
@@ -1724,29 +1724,15 @@ function initNavigation() {
     document.getElementById('addModal').classList.remove('hidden'); 
 }
         function closeDrawer() { 
-    const drawer = document.getElementById('entryDrawer');
-    if (drawer) {
-        drawer.classList.remove('open'); 
-        setTimeout(() => {
-            drawer.classList.add('hidden'); 
-            
-            // ইনপুট ফিল্ডগুলো বারগুন্ডি থিম অনুযায়ী ক্লিয়ার করা হচ্ছে
-            document.getElementById('txAmt').value = ""; 
-            document.getElementById('txNote').value = ""; 
-            if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
-            
-            // গ্লোবাল ইমেজ ভেরিয়েবল রিসেট
-            capturedFiles = []; 
-            
-            // প্রিভিউ কন্টেইনার খালি করা (আপনার মাল্টি-ইমেজ আইডিমতো)
-            const preview = document.getElementById('multiImgPreview') || document.getElementById('multiImgPreviewContainer');
-            if(preview) {
-                preview.innerHTML = "";
-            }
-            
-            console.log("Form Cleaned and Drawer Hidden.");
-        }, 400); 
-    }
+    document.getElementById('entryDrawer').classList.remove('open'); 
+    setTimeout(() => {
+        document.getElementById('entryDrawer').classList.add('hidden'); 
+        // ইনপুট এবং ছবি ক্লিয়ার করা হচ্ছে
+        document.getElementById('txAmt').value = ""; 
+        document.getElementById('txNote').value = ""; 
+        capturedFiles = []; 
+        document.getElementById('multiImgPreview').innerHTML = "";
+    }, 400); 
 }
         function renderHome() {
     const list = document.getElementById('contactList'); 
