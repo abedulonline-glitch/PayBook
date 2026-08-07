@@ -941,28 +941,39 @@ async function handleLogin() {
 
 // এই ফাংশনটি আপনার জন্য অন্য ফোনের ডাটা খুঁজে আনবে
 async function discoverMirrorUpdates(myPhone) {
-    const allDocs = await db_fs.collection(COLLECTION).get();
-    allDocs.forEach(doc => {
-        const otherData = doc.data();
-        if(otherData.admin.phone === myPhone) return;
+    try {
+        const querySnapshot = await db_fs.collection(COLLECTION).get();
+        querySnapshot.forEach(doc => {
+            const otherData = doc.data();
+            if(otherData.admin && otherData.admin.phone === myPhone) return;
 
-        // চেক করা: সে কি আমাকে তার লিস্টে রেখেছে?
-        const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
-        if(foundMe) {
-            const alreadyInMyList = db.people.find(p => p.phone === otherData.admin.phone);
-            if(!alreadyInMyList) {
-                db.people.unshift({
-                    id: Date.now() + Math.random(),
-                    name: otherData.admin.name,
-                    phone: otherData.admin.phone,
-                    type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
-                    transactions: foundMe.transactions.map(t => ({ ...t, type: (t.type==='GIVEN'?'RECEIVED':'GIVEN') }))
-                });
+            // চেক করা: অন্য কেউ কি আমাকে তার লিস্টে রেখেছে?
+            const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
+            
+            if(foundMe) {
+                const alreadyInMyList = db.people.find(p => p.phone === otherData.admin.phone);
+                
+                if(!alreadyInMyList) {
+                    // নতুন কন্টাক্ট হিসেবে এডমিনকে অ্যাড করা
+                    db.people.unshift({
+                        id: Date.now() + Math.random(),
+                        name: otherData.admin.name,
+                        phone: otherData.admin.phone,
+                        type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                        // --- ফিক্সড: এখানে 'secret' সহ সব প্রপার্টি নিখুঁতভাবে কপি করা হচ্ছে ---
+                        transactions: (foundMe.transactions || []).map(t => ({
+                            ...t,
+                            type: (t.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
+                            secret: !!t.secret, // এটি নিশ্চিত করবে কাঁচা এন্ট্রি কাঁচাতেই থাকবে
+                            verified: t.verified || false
+                        }))
+                    });
+                    console.log("Mirror Profile Auto-Discovered ✅");
+                }
             }
-        }
-    });
-}
-        
+        });
+    } catch (e) { console.error("Mirror Discovery Failed", e); }
+}        
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
 function enterApp() {
     document.getElementById('authScreen').classList.add('hidden');
@@ -984,40 +995,40 @@ async function syncToPartner(partnerPhone, txData) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
         const doc = await partnerRef.get();
-        if (!doc.exists) return; // পার্টনার রেজিস্টার্ড না থাকলে সিঙ্ক হবে না
+        if (!doc.exists) return; 
 
         let partnerDB = doc.data();
-        // পার্টনারের কন্টাক্ট লিস্টে আমার (এডমিনের) নম্বরটি খোঁজা
         let meInPartnerList = partnerDB.people.find(p => p.phone === db.admin.phone);
 
         if (meInPartnerList) {
-            // চেক করা হচ্ছে: এই আইডি'র ট্রানজ্যাকশন কি পার্টনারের ফোনে অলরেডি আছে?
             let existingTx = meInPartnerList.transactions.find(t => t.id === txData.id);
 
             if (existingTx) {
-                // --- এডিট মোড: বিদ্যমান লেনদেন আপডেট করা ---
+                // --- ফিক্সড: এডিট করার সময় secret স্ট্যাটাসও আপডেট করা হচ্ছে ---
                 existingTx.amount = txData.amount;
                 existingTx.note = txData.note;
-                existingTx.verified = txData.verified; // এটি false হয়ে যাবে
-                existingTx.by = db.admin.name + " (Edited)";
-                console.log("Partner's record updated successfully.");
+                existingTx.verified = txData.verified;
+                existingTx.secret = !!txData.secret; // এটিই আপনার আসল সমস্যা সমাধান করবে
+                existingTx.date = txData.date;
+                existingTx.images = txData.images || [];
+                existingTx.by = db.admin.name + " (Updated)";
             } else {
-                // --- নতুন এন্ট্রি মোড ---
+                // নতুন এন্ট্রি মোড (মিরর সিঙ্ক)
                 const mirrorTx = {
                     ...txData,
                     type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                    by: db.admin.name + " (Auto-Synced)",
-                    verified: false // নতুন এন্ট্রি সব সময় আন-ভেরিফাইড থাকবে
+                    secret: !!txData.secret, // নিশ্চিত করা হলো মোড ঠিক আছে
+                    by: db.admin.name + " (Synced)",
+                    verified: false 
                 };
                 meInPartnerList.transactions.push(mirrorTx);
             }
             
-            // ক্লাউডে সেভ করা (এটিই সুলতানের ফোন আপডেট করবে)
             await partnerRef.set(partnerDB);
+            console.log("Global Real-time Sync: Success ✅");
         }
-    } catch (e) { console.error("Mirror Sync Error:", e); }
-}
-         
+    } catch (e) { console.error("Mirror Sync Critical Error:", e); }
+}         
           function logout() {
     if(confirm("Are you sure you want to terminate this secure session?")) {
         // লগআউট করার সময় সিক্রেট মোড পার্মানেন্টলি অফ করে রিফ্রেশ করা
