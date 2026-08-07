@@ -808,172 +808,129 @@ async function handleRegistration() {
     const n = document.getElementById('regName').value.trim();
     const ph = document.getElementById('regPhone').value.trim();
     const p = document.getElementById('regPin').value.trim();
-    
-    // নতুন সিকিউরিটি ফিল্ডগুলো নেওয়া হচ্ছে
     const altPh = document.getElementById('regAltPhone').value.trim();
     const clue = document.getElementById('regClue').value.trim();
-    
     const accessKey = ph + p;
 
-    // ভ্যালিডেশন: সব তথ্য দেওয়া বাধ্যতামূলক
-    if(!n || ph.length !== 10 || p.length < 4 || altPh.length !== 10 || !clue) {
-        return alert("Error: Please provide Name, 10-digit Phone, 4-digit PIN, 10-digit Alternate Phone, and a Hint Clue!");
-    }
+    if(!n || ph.length !== 10 || !altPh || !clue) return alert("Fill all security fields!");
 
     try {
-        // ১. চেক করা হচ্ছে এই চাবি (ফোন+পিন) কি আগে কেউ নিয়েছে?
         const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
         const keyDoc = await keyRef.get();
-        if(keyDoc.exists) return alert("This PIN combination is already used for this number. Use another.");
+        if(keyDoc.exists) return alert("This PIN combo is already taken.");
 
-        // ২. মেইন ডাটাবেস চেক করা (অন্য কেউ আমাকে অ্যাড করে রেখেছে কি না)
         const docRef = db_fs.collection(COLLECTION).doc(ph);
         const doc = await docRef.get();
 
         if (doc.exists) {
-            // যদি সুলতান আপনাকে আগেই অ্যাড করে থাকে, তবে ওই ডাটা আপনার প্রোফাইল হবে
             db = doc.data();
-            // এডমিন ইনফো আপডেট (রিকভারি ইনফো সহ)
-            db.admin = { 
-                name: n, 
-                phone: ph, 
-                pin: p, 
-                altPhone: altPh, 
-                clue: clue 
-            }; 
+            db.admin = { name: n, phone: ph, pin: p, altPhone: altPh, clue: clue };
         } else {
-            // একদম নতুন একাউন্ট স্ট্রাকচার
             db = {
-                admin: { 
-                    name: n, 
-                    phone: ph, 
-                    pin: p, 
-                    altPhone: altPh, 
-                    clue: clue 
-                },
-                people: [],
-                managers: [],
-                secret: false,
-                tab: 'CUSTOMER',
-                activeId: null,
-                role: 'ADMIN',
-                opName: n,
-                ownerPhone: ph
+                admin: { name: n, phone: ph, pin: p, altPhone: altPh, clue: clue },
+                people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: n, ownerPhone: ph
             };
         }
 
-        // ৩. এক্সেস কি এবং মেইন ডাটা সেভ (Firestore এ রাইট করা)
-        await keyRef.set({ 
-            targetOwnerPhone: ph, 
-            role: 'ADMIN', 
-            name: n 
-        });
-        
-        await db_fs.collection(COLLECTION).doc(ph).set(db);
+        // --- রেজিস্ট্রেশনের সময়ই গ্লোবাল নেটওয়ার্ক স্ক্যান করা ---
+        await discoverMirrorUpdates(ph); 
 
-        // ৪. লোকাল স্টোরেজ আপডেট
+        await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
+        await docRef.set(db);
+
         localStorage.setItem(DB_KEY, JSON.stringify(db));
-
-        alert("Successfully Account Registered with Recovery Info!");
-        location.reload(); // রিফ্রেশ হয়ে লগইন ট্যাবে যাবে
-
-    } catch(error) {
-        console.error("Registration Error:", error);
-        alert("Registration Failed! Please check your internet connection.");
-    }
+        alert("Success! Global Account Registered.");
+        location.reload();
+    } catch(error) { alert("Registration Failed!"); }
 }
 // ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
 async function handleLogin() {
     const phInput = document.getElementById('loginPhone');
     const pinInput = document.getElementById('loginPin');
-    
-    if(!phInput || !pinInput) return alert("System Error: Login fields missing!");
+    if(!phInput || !pinInput) return alert("System Error!");
 
     const ph = phInput.value.trim();
     const pin = pinInput.value.trim();
 
-    if(ph.length !== 10 || pin.length < 4) {
-        return alert("Please enter a valid 10-digit Phone and 4-digit PIN!");
-    }
+    if(ph.length !== 10 || pin.length < 4) return alert("Enter valid Details!");
 
     try {
-        // ১. ফায়ারস্টোর থেকে সরাসরি ওই ফোন নম্বরের ডক চেক করা (পয়েন্ট ৪ ফিক্স)
         const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(ph + pin).get();
 
         if (keyDoc.exists) {
             const routing = keyDoc.data();
-            const targetPhone = routing.targetOwnerPhone;
-
-            // ২. মেইন ডাটাবেস ফেচ করা
-            const doc = await db_fs.collection(COLLECTION).doc(targetPhone).get();
+            const docRef = db_fs.collection(COLLECTION).doc(routing.targetOwnerPhone);
+            const doc = await docRef.get();
 
             if (doc.exists) {
-                // ডাটা সফলভাবে পাওয়া গেছে
                 db = JSON.parse(JSON.stringify(doc.data()));
                 db.role = routing.role;
                 db.opName = routing.name;
-                db.ownerPhone = targetPhone;
+                db.ownerPhone = routing.targetOwnerPhone;
                 db.secret = false;
 
-                // লোকাল মেমোরি আপডেট
-                localStorage.setItem(DB_KEY, JSON.stringify(db));
+                // --- এই লাইনটিই আপনার সমস্যা সমাধান করবে (ট্রিগার কল) ---
+                await discoverMirrorUpdates(ph); 
 
-                // ৩. সরাসরি অ্যাপে প্রবেশ (কোনো এরর মেসেজ ছাড়া)
+                localStorage.setItem(DB_KEY, JSON.stringify(db));
                 enterApp();
-                
-                // সফলতার মেসেজ (ঐচ্ছিক)
-                console.log("Login Successful as " + routing.role);
-                return; // ফাংশন এখানেই শেষ হবে, ক্যাচ ব্লকে যাবে না
-            } else {
-                alert("Error: Business data not found. Please contact the owner.");
             }
         } else {
-            // যদি পিন বা নম্বর না মেলে
-            alert("Login Failed: Incorrect Phone or PIN. Please try again.");
+            alert("Login Failed: Incorrect Phone or PIN.");
         }
-
     } catch (error) {
-        // শুধুমাত্র যদি ইন্টারনেট বা ডাটাবেসে সত্যিকারের সমস্যা হয় তবেই এটি দেখাবে
-        console.error("Critical Login Error:", error);
-        alert("Network Error: Could not connect to PayBook server. Please check your internet.");
+        alert("Sync Error! Check internet.");
     }
 }
 
 // এই ফাংশনটি আপনার জন্য অন্য ফোনের ডাটা খুঁজে আনবে
+// ১. গ্লোবাল মিরর ডিসকভারি ইঞ্জিন (Fixed V18.5)
 async function discoverMirrorUpdates(myPhone) {
     try {
+        console.log("Global Mirror: Scanning for your records...");
         const querySnapshot = await db_fs.collection(COLLECTION).get();
-        querySnapshot.forEach(doc => {
-            const otherData = doc.data();
-            if(otherData.admin && otherData.admin.phone === myPhone) return;
+        let foundNewSync = false;
 
-            // চেক করা: অন্য কেউ কি আমাকে তার লিস্টে রেখেছে?
-            const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
-            
-            if(foundMe) {
-                const alreadyInMyList = db.people.find(p => p.phone === otherData.admin.phone);
-                
-                if(!alreadyInMyList) {
-                    // নতুন কন্টাক্ট হিসেবে এডমিনকে অ্যাড করা
+        querySnapshot.forEach(doc => {
+            const otherAdminData = doc.data();
+            // নিজের ডাটা চেক করার দরকার নেই
+            if (otherAdminData.admin && otherAdminData.admin.phone === myPhone) return;
+
+            // চেক করা হচ্ছে অন্য কোনো এডমিনের লিস্টে আমি (myPhone) আছি কি না
+            const foundMeInHisList = (otherAdminData.people || []).find(p => p.phone === myPhone);
+
+            if (foundMeInHisList) {
+                // চেক করা হচ্ছে আসিমুদ্দিনের লিস্টে ওই এডমিন আগে থেকেই আছে কি না
+                const alreadyInMyList = db.people.find(p => p.phone === otherAdminData.admin.phone);
+
+                if (!alreadyInMyList) {
+                    // নতুন কন্টাক্ট হিসেবে ওই এডমিনকে অ্যাড করা (রোল উল্টে যাবে)
                     db.people.unshift({
                         id: Date.now() + Math.random(),
-                        name: otherData.admin.name,
-                        phone: otherData.admin.phone,
-                        type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
-                        // --- ফিক্সড: এখানে 'secret' সহ সব প্রপার্টি নিখুঁতভাবে কপি করা হচ্ছে ---
-                        transactions: (foundMe.transactions || []).map(t => ({
+                        name: otherAdminData.admin.name,
+                        phone: otherAdminData.admin.phone,
+                        type: (foundMeInHisList.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), 
+                        // লেনদেনের ধরন উল্টে দেওয়া (পয়েন্ট ৯ ফিক্স)
+                        transactions: (foundMeInHisList.transactions || []).map(t => ({
                             ...t,
                             type: (t.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                            secret: !!t.secret, // এটি নিশ্চিত করবে কাঁচা এন্ট্রি কাঁচাতেই থাকবে
-                            verified: t.verified || false
+                            by: otherAdminData.admin.name + " (Verified)"
                         }))
                     });
-                    console.log("Mirror Profile Auto-Discovered ✅");
+                    foundNewSync = true;
                 }
             }
         });
-    } catch (e) { console.error("Mirror Discovery Failed", e); }
-}        
+
+        if (foundNewSync) {
+            console.log("Global Mirror: New contacts found and synced!");
+            // ডাটা পাওয়া গেলে লোকাল এবং ক্লাউড—উভয় জায়গায় সেভ করা
+            await saveDB(); 
+        }
+    } catch (e) {
+        console.error("Mirror Discovery System Failed:", e);
+    }
+}
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
 function enterApp() {
     document.getElementById('authScreen').classList.add('hidden');
