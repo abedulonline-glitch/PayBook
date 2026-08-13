@@ -146,16 +146,10 @@ header {
 <div id="appBody" class="hidden min-h-screen">
     <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
         <div id="headerMain" class="flex justify-between items-center w-full">
-            <!-- হেডারের বাম পাশের ইউজার প্রোফাইল সেকশন -->
-      <div class="flex items-center gap-3">
-        <div id="adminProfileBtn" onclick="openAdminEditModal()" 
-         class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold border border-white/30 text-xs overflow-hidden cursor-pointer active:scale-90 transition-all">
-        <!-- যদি ছবি থাকে তবে ছবি দেখাবে, না থাকলে আদ্যক্ষর -->
-         <img id="ownerHeaderPic" class="hidden w-full h-full object-cover">
-         <span id="userInitials">KO</span>
-       </div>
-      <h1 class="text-xl font-black italic">PayBook</h1>
-    </div>
+            <div class="flex items-center gap-3">
+                <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">PB</div>
+                <h1 class="text-xl font-black italic">PayBook</h1>
+            </div>
             <div class="flex gap-5 items-center">
                 <!-- নতুন সার্চ আইকন -->
                 <i class="fas fa-search opacity-80 text-lg" onclick="toggleSearchBar()"></i>
@@ -165,35 +159,21 @@ header {
             </div>
         </div>
         
-        <!-- কাস্টমার লেজার হেডার: অদৃশ্য সিক্রেট ট্রিগার সহ (V18.2) -->
-<div id="headerLedger" class="hidden flex justify-between items-center w-full h-[65px] px-4 shadow-lg">
-    <div class="flex items-center gap-3 flex-1 overflow-hidden">
-        
-        <!-- ১. ব্যাক অ্যারো (রাউন্ড ছাড়া) -->
-        <i class="fas fa-arrow-left text-white text-lg p-1 active:scale-75 transition-all cursor-pointer" onclick="goHome()"></i>
-        
-        <!-- ২. কাস্টমার প্রোফাইল পিকচার -->
-        <div onclick="openEditPersonModal()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center border border-white/30 overflow-hidden flex-shrink-0 cursor-pointer active:scale-90 transition-all">
-            <img id="lHeaderPic" class="hidden w-full h-full object-cover">
-            <span id="lHeaderInitials" class="text-xs font-bold text-white uppercase"></span>
-        </div>
-
-        <!-- ৩. নাম এবং ফোন (১০০% এক লাইনে) -->
-        <div onclick="openEditPersonModal()" class="flex flex-col flex-1 overflow-hidden cursor-pointer active:opacity-60 transition-all">
-            <h2 id="lName" class="text-sm font-black text-white truncate leading-tight">Name</h2>
-            <p id="lPhone" class="text-[10px] text-white/80 font-bold tracking-widest whitespace-nowrap leading-none mt-1"></p>
+        <!-- কাস্টমার লেজার হেডার (ব্যাক বাটন সহ) -->
+        <!-- লেজার হেডার আপডেট: নামের অংশটি ক্লিকযোগ্য করা হলো -->
+<div id="headerLedger" class="hidden flex justify-between items-center w-full">
+    <div class="flex items-center gap-4">
+        <i class="fas fa-arrow-left" onclick="goHome()"></i>
+        <!-- এখানে onclick যোগ করা হয়েছে -->
+        <div onclick="openEditPersonModal()" class="cursor-pointer active:opacity-50">
+            <h2 id="lName" class="text-sm font-bold leading-none">Client</h2>
+            <p id="lPhone" class="text-[9px] text-white/70 mt-1 font-bold tracking-widest"></p>
         </div>
     </div>
-
-    <!-- ৪. ডান পাশের পিডিএফ এবং ব্যালেন্স (সিক্রেট ট্রিগার সহ) -->
     <div class="flex items-center gap-3">
-        <i class="fas fa-file-pdf opacity-80 text-white text-lg active:scale-75" onclick="askPin(handleSmartPdfDownload)"></i>
-        
-        <!-- ব্যালেন্স এরিয়া: ₹ সিম্বলটিই এখন সিক্রেট বাটন -->
-        <div class="flex items-center font-black text-lg tracking-tighter text-white">
-            <span id="secretTrigger" class="cursor-pointer select-none transition-all active:scale-75 mr-1">₹</span>
-            <span id="mainTotal">0.00</span>
-        </div>
+        <i class="fas fa-file-pdf opacity-80 mr-2" onclick="askPin(handleSmartPdfDownload)"></i>
+        <span id="mainTotal" class="font-black text-lg tracking-tighter">0.00</span>
+        <span id="secretTrigger" class="text-2xl font-black opacity-30 select-none">₹</span>
     </div>
 </div>
 
@@ -233,74 +213,41 @@ header {
         </div>
     </div>
 
-    <!-- ৩. ডাটা এন্ট্রি ড্রয়ার (Axis Burgundy UI Update) -->
-<!-- ৩. স্লিম ডাটা এন্ট্রি ড্রয়ার (Compact Burgundy UI) -->
-<div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
-    <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-6 shadow-2xl animate-fade-up max-h-[95vh] overflow-y-auto">
-        <!-- টপ হ্যান্ডেল: এটি এখন সব সময় দৃশ্যমান থাকবে -->
-        <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6" onclick="closeDrawer()"></div>
-        
-        <!-- এমাউন্ট এরিয়া: একটু ছোট এবং স্পষ্ট -->
-        <div class="text-center mb-6">
-            <p id="drawerActionType" class="text-[9px] font-black text-[#861F41] uppercase tracking-[0.2em] opacity-70">Entry Amount</p>
-            <div class="flex items-center justify-center gap-2 mt-2">
-                <span class="text-3xl font-black text-[#861F41] opacity-30">₹</span>
-                <input type="number" id="txAmt" placeholder="0.00" 
-                       class="text-4xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2 border-slate-50 focus:border-[#861F41] pb-2 transition-all">
-            </div>
-        </div>
-
-        <div class="space-y-3 mb-8">
-            <!-- নোট ইনপুট -->
-            <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-3 border border-slate-100">
-                <i class="fas fa-file-lines text-[#861F41] opacity-60 text-sm"></i>
-                <input type="text" id="txNote" placeholder="Add Notes (Bill/Ref)" 
-                       class="bg-transparent outline-none flex-1 text-sm text-[#861F41] font-bold">
-            </div>
-
-            <!-- নেক্সট কালেকশন ডেট -->
-            <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-3 border border-slate-100" onclick="document.getElementById('nextCollDate').showPicker()">
-                <i class="fas fa-hand-holding-dollar text-[#861F41] opacity-60 text-sm"></i>
-                <div class="flex-1">
-                    <p class="text-[7px] font-black text-[#861F41] uppercase tracking-widest opacity-60">Next Collection Date</p>
-                    <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-xs font-bold text-[#861F41]">
+    <!-- ৩. স্মার্ট ডাটা এন্ট্রি ড্রয়ার (Point 3a, 3b, 3e, 3f) -->
+    <div id="entryDrawer" class="fixed inset-0 bg-black/60 hidden">
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[3rem] p-8 shadow-2xl">
+            <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-10" onclick="closeDrawer()"></div>
+            <div class="text-center mb-8">
+                <p id="drawerActionType" class="text-[10px] font-black text-slate-400 uppercase">Input Amount</p>
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <span class="text-4xl font-black text-slate-300">₹</span>
+                    <input type="number" id="txAmt" placeholder="0.00" class="text-6xl font-black text-[#861F41] bg-transparent outline-none w-2/3 text-center border-b-2">
                 </div>
             </div>
-
-            <!-- ট্রানজ্যাকশন ডেট -->
-            <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-3 border border-slate-100" onclick="document.getElementById('txDate').showPicker()">
-                <i class="fas fa-calendar-day text-[#861F41] opacity-60 text-sm"></i>
-                <div class="flex-1">
-                    <p class="text-[7px] font-black text-[#861F41] uppercase tracking-widest opacity-60">Transaction Date</p>
-                    <input type="date" id="txDate" class="bg-transparent outline-none w-full text-xs font-bold text-[#861F41]">
-                </div>
-            </div>
-
-            <!-- ইমেজ সেকশন: ক্রস বাটন এবং কাউন্টার সহ (Point Update) -->
-            <div class="bg-slate-50 p-4 rounded-[2rem] border border-slate-100">
-                <div class="flex justify-between items-center mb-3">
-                    <p class="text-[10px] font-black text-[#861F41] uppercase tracking-tighter opacity-70">Attachments</p>
-                    <!-- ইমেজ কাউন্টার -->
-                    <span id="imgCounter" class="text-[9px] font-bold text-white bg-[#861F41] px-2 py-0.5 rounded-full">0 Files</span>
-                </div>
-                
-                <div id="multiImgPreviewContainer" class="flex gap-3 flex-wrap items-center">
-                    <!-- থাম্বনেইলগুলো এখানে আসবে -->
-                    <button onclick="openMediaSelector()" 
-                            class="w-12 h-12 bg-white border-2 border-dashed border-[#861F41]/20 rounded-xl flex items-center justify-center text-[#861F41] active:scale-90 transition-all">
-                        <i class="fas fa-plus text-lg opacity-50"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- মেইন বাটন: একটু ছোট এবং স্লিম -->
-        <button id="mainConfirmBtn" 
-                class="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 uppercase tracking-widest active:scale-95 transition-all text-sm">
-            Confirm Transaction
-        </button>
+            <div class="space-y-4 mb-10">
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4"><i class="fas fa-file-lines text-slate-300"></i><input type="text" id="txNote" placeholder="Notes (Bill No/Ref)" class="bg-transparent outline-none flex-1 text-sm text-slate-700"></div>
+                <!-- Next Collection Date Input -->
+<div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4 mt-3 border border-slate-100" 
+     onclick="document.getElementById('nextCollDate').showPicker()">
+    <i class="fas fa-hand-holding-dollar text-slate-300 text-lg"></i>
+    <div class="flex-1">
+        <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Next Collection Date</p>
+        <input type="date" id="nextCollDate" class="bg-transparent outline-none w-full text-sm font-bold text-[#861F41]">
     </div>
+    <i class="fas fa-chevron-right text-slate-200 text-xs"></i>
 </div>
+                <div class="flex items-center bg-slate-50 p-4 rounded-2xl gap-4" onclick="document.getElementById('txDate').showPicker()"><i class="fas fa-calendar-alt text-slate-300"></i><input type="date" id="txDate" class="bg-transparent outline-none flex-1 text-sm font-bold text-slate-600"></div>
+                <div class="bg-slate-50 p-4 rounded-xl flex items-center justify-between border">
+                    <p class="text-sm font-bold text-slate-500">Bill Image(s)</p>
+                    <div class="flex gap-2">
+                        <div id="multiImgPreview" class="hidden flex gap-1"></div>
+                        <button onclick="openMediaSelector()" class="w-10 h-10 bg-white border-2 border-dashed rounded-lg flex items-center justify-center text-slate-300 transition-all active:bg-[#861F41] active:text-white"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+            <button id="mainConfirmBtn" class="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black shadow-xl uppercase tracking-widest">Confirm Transaction</button>
+        </div>
+    </div>
 
     <!-- ৪. মিডিয়া, পিন এবং সেটিংস মোডাল (Point 1b, 1c, 1d, 7, 11) -->
     <div id="mediaSheet" class="fixed inset-0 bg-black/60 hidden z-[3000]">
@@ -347,97 +294,35 @@ header {
         </div>
     </div>
 
-<!-- ৩.৫. নতুন একাউন্ট খোলার মোডাল (Burgundy & Profile Image Update) -->
-<div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-    <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
-        <!-- টপ হ্যান্ডেল -->
-        <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8"></div>
-        
-        <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">New Account</h3>
-
-        <!-- প্রোফাইল ইমেজ সিলেক্টর -->
-        <div class="flex flex-col items-center mb-8">
-            <div class="relative group">
-                <label for="pImgInput" class="w-24 h-24 bg-slate-50 rounded-full border-2 border-dashed border-[#861F41]/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner transition-all hover:border-[#861F41]">
-                    <i id="pImgPlaceholder" class="fas fa-camera text-[#861F41]/40 text-2xl"></i>
-                    <img id="pImgPreview" class="hidden w-full h-full object-cover">
-                </label>
-                <input type="file" id="pImgInput" accept="image/*" class="hidden">
-                <div class="absolute -bottom-1 -right-1 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                    <i class="fas fa-plus text-[10px]"></i>
-                </div>
+    <div id="addModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
+        <div class="flex justify-between items-center mb-6">
+    <i class="fas fa-chevron-left text-slate-300" onclick="handleGlobalBack()"></i>
+    <h3 class="text-xl font-bold uppercase">Title Here</h3>
+    <span></span>
+</div>
+        <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
+            <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">New Account</h3>
+            <input id="newPName" type="text" placeholder="Contact Full Name" class="axis-input mb-4">
+            <input id="newPPhone" type="number" placeholder="Mobile (Unique)" class="axis-input mb-10">
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('addModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Exit</button>
+                <button onclick="confirmAdd()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">SAVE</button>
             </div>
-            <p class="text-[9px] font-black text-[#861F41]/50 uppercase mt-3 tracking-widest">Add Profile Picture</p>
-        </div>
-
-        <!-- ইনপুট ফিল্ডস: Burgundy থিম -->
-        <div class="space-y-4">
-            <div class="relative">
-                <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-[#861F41]/30 text-sm"></i>
-                <input id="newPName" type="text" placeholder="Contact Full Name" 
-                       class="axis-input !pl-12 !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold placeholder:text-[#861F41]/30">
-            </div>
-            <div class="relative">
-                <i class="fas fa-phone-alt absolute left-4 top-1/2 -translate-y-1/2 text-[#861F41]/30 text-sm"></i>
-                <input id="newPPhone" type="number" placeholder="Mobile Number (Unique)" 
-                       class="axis-input !pl-12 !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold placeholder:text-[#861F41]/30">
-            </div>
-        </div>
-
-        <!-- একশন বাটন -->
-        <div class="flex gap-4 mt-10">
-            <button onclick="document.getElementById('addModal').classList.add('hidden')" 
-                    class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest active:scale-95 transition-all">
-                Exit
-            </button>
-            <button onclick="confirmAdd()" 
-                    class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl shadow-[#861F41]/20 uppercase tracking-widest active:scale-95 transition-all">
-                Save Account
-            </button>
         </div>
     </div>
-</div>
     <!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল -->
-<!-- কাস্টমার/সাপ্লায়ার এডিট মোডাল (Stylish Burgundy Update) -->
 <div id="editPersonModal" class="hidden fixed inset-0 bg-black/60 z-[1500] flex items-end">
-    <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
-        <!-- টপ হ্যান্ডেল -->
-        <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8"></div>
-        
-        <h3 class="text-2xl font-black text-[#861F41] mb-8 text-center uppercase tracking-tighter">Update Account</h3>
-
-        <!-- প্রোফাইল ইমেজ এডিটর -->
-        <div class="flex flex-col items-center mb-8">
-            <div class="relative group">
-                <label for="editPImgInput" class="w-24 h-24 bg-slate-50 rounded-full border-2 border-dashed border-[#861F41]/30 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner transition-all hover:border-[#861F41]">
-                    <i id="editPImgPlaceholder" class="fas fa-camera text-[#861F41]/40 text-2xl hidden"></i>
-                    <img id="editPImgPreview" class="w-full h-full object-cover">
-                </label>
-                <input type="file" id="editPImgInput" accept="image/*" class="hidden">
-                <div class="absolute -bottom-1 -right-1 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                    <i class="fas fa-edit text-[10px]"></i>
-                </div>
-            </div>
-            <p class="text-[9px] font-black text-[#861F41]/50 uppercase mt-3 tracking-widest">Change Photo</p>
-        </div>
-
-        <!-- ইনপুট ফিল্ডস: Burgundy থিম -->
-        <div class="space-y-4 text-left">
-            <input id="editPName" type="text" placeholder="Update Name" class="axis-input !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold">
-            <input id="editPPhone" type="number" placeholder="Update Mobile" class="axis-input !border-[#861F41]/10 focus:!border-[#861F41] !text-[#861F41] font-bold">
-        </div>
-
-        <!-- একশন বাটন -->
-        <div class="flex gap-4 mt-10">
-            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 py-4 font-black text-[#861F41]/50 uppercase text-xs tracking-widest">
-                Cancel
-            </button>
-            <button onclick="confirmEditPerson()" class="flex-1 py-5 bg-[#861F41] text-white rounded-2xl font-black shadow-xl uppercase tracking-widest active:scale-95 transition-all">
-                Save Changes
-            </button>
+    <div class="bg-white w-full rounded-t-[3.5rem] p-12 shadow-2xl">
+        <h3 class="text-xl font-black text-[#861F41] mb-10 text-center uppercase tracking-tighter">Update Account</h3>
+        <input id="editPName" type="text" placeholder="Edit Full Name" class="axis-input mb-4">
+        <input id="editPPhone" type="number" placeholder="Edit Mobile Number" class="axis-input mb-10">
+        <div class="flex gap-4">
+            <button onclick="document.getElementById('editPersonModal').classList.add('hidden')" class="flex-1 font-bold text-slate-400 uppercase text-xs">Cancel</button>
+            <button onclick="confirmEditPerson()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg uppercase">Save Changes</button>
         </div>
     </div>
 </div>
+
 <!-- স্মার্ট ৩-ধাপের পিন রিকভারি মোডাল -->
 <div id="recoveryModal" class="hidden fixed inset-0 bg-black/80 z-[6000] flex items-center justify-center p-6">
     <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 shadow-2xl text-center animate-fade">
@@ -475,39 +360,6 @@ header {
     </div>
   </div> 
  </div>
-</div>
-
-    <!-- এডমিন নিজের প্রোফাইল এডিট করার মোডাল -->
-<div id="adminEditModal" class="hidden fixed inset-0 bg-black/60 z-[7000] flex items-end">
-    <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
-        <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8" onclick="closeAdminEdit()"></div>
-        <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">My Account Center</h3>
-
-        <!-- ছবি বদলানোর অংশ -->
-        <div class="flex flex-col items-center mb-8">
-            <label for="newAdminImg" class="relative cursor-pointer">
-                <div class="w-24 h-24 rounded-full border-2 border-[#861F41] flex items-center justify-center overflow-hidden bg-slate-50 shadow-inner">
-                    <img id="editAdminPreview" class="w-full h-full object-cover">
-                </div>
-                <div class="absolute bottom-0 right-0 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                    <i class="fas fa-camera text-[10px]"></i>
-                </div>
-            </label>
-            <input type="file" id="newAdminImg" accept="image/*" class="hidden">
-        </div>
-
-        <div class="space-y-4">
-            <input type="text" id="editAdminName" placeholder="Update Business Name" class="axis-input font-bold">
-            <!-- নম্বর বদলালে ট্রান্সফার লজিক কল হবে -->
-            <input type="number" id="editAdminPhone" placeholder="Update Registered Number" class="axis-input font-bold opacity-70">
-            <p class="text-[9px] text-rose-400 font-bold px-2 uppercase tracking-tighter">* Changing number will transfer all your data.</p>
-        </div>
-
-        <div class="flex gap-4 mt-10">
-            <button onclick="closeAdminEdit()" class="flex-1 font-bold text-slate-400">Cancel</button>
-            <button onclick="saveAdminProfileChanges()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg">Save Profile</button>
-        </div>
-    </div>
 </div>
     
 <!-- স্মার্ট ইমেজ জুম মোডাল -->
@@ -566,33 +418,37 @@ let capturedFiles = [];
         window.onload = async () => {
     // --- ১. দর্শক মোড ডিটেক্টর (URL Params Check) ---
     const urlParams = new URLSearchParams(window.location.search);
-    const viewCustPh = urlParams.get('v');
-    const adminPh = urlParams.get('admin');
-    const shareMode = urlParams.get('m');
+    const viewCustPh = urlParams.get('v');    // কাস্টমার ফোন
+    const adminPh = urlParams.get('admin');   // এডমিন ফোন
+    const shareMode = urlParams.get('m');     // 'p' (Pakka) বা 's' (Secret)
 
     if (viewCustPh && adminPh) {
+        // দর্শক মোড অ্যাক্টিভ হলে সরাসরি স্টেটমেন্ট দেখাবে
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('appBody').classList.remove('hidden');
+        
         try {
             const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
             if (doc.exists) {
                 const adminData = doc.data();
                 const person = adminData.people.find(p => p.phone === viewCustPh);
                 if (person) {
+                    // পাবলিক ভিউ রেন্ডার করা (শর্ত অনুযায়ী p বা s মোডে)
                     renderPublicStatement(person, adminData.admin.name, shareMode);
-                    return; 
+                    return; // সাধারণ লগইন কোড আর রান হবে না
                 }
             }
             alert("This secure link has expired or is invalid.");
         } catch (e) { console.error("Sync Error", e); }
     }
 
-    // --- ২. সাধারণ এডমিন লগইন লজিক ---
+    // --- ২. সাধারণ এডমিন লগইন লজিক (LocalStorage Fix সহ) ---
     const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
-        db.secret = false; 
+        db.secret = false; // নিরাপত্তাজনিত কারণে শুরুতে সর্বদা পাকা মোড
         localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+        
         if(db.admin && db.admin.phone) { 
             toggleAuth('LOGIN'); 
             syncCloud(); 
@@ -607,6 +463,7 @@ let capturedFiles = [];
     let lastScrollTop = 0;
     const viewport = document.getElementById('mainViewport');
     const footer = document.getElementById('ledgerFooter');
+
     if(viewport && footer) {
         viewport.addEventListener('scroll', function() {
             let scrollTop = viewport.scrollTop;
@@ -622,16 +479,16 @@ let capturedFiles = [];
     // --- ৪. UI এবং নেভিগেশন রিসেট ---
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+
     initSecretGesture();
     setupHistoryBack();
-
-    // --- ৫. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার ---
+    
+    // --- ৫. ট্রানজ্যাকশন ও প্রোফাইল ইমেজ হ্যান্ডলার ---
     const camInp = document.getElementById('camInp');
     const galInp = document.getElementById('galInp');
     if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
-    // --- ৬. রেজিস্ট্রেশন স্ক্রিনের প্রোফাইল ইমেজ হ্যান্ডলার ---
     const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
@@ -640,7 +497,9 @@ let capturedFiles = [];
                 const preview = document.getElementById('adminImgPrev');
                 if(preview) { preview.src = URL.createObjectURL(file); preview.classList.remove('hidden'); }
                 document.getElementById('camIcon')?.classList.add('hidden');
-                const fd = new FormData(); fd.append('image', file);
+
+                const fd = new FormData();
+                fd.append('image', file);
                 try {
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                     const dat = await res.json();
@@ -652,125 +511,8 @@ let capturedFiles = [];
             }
         };
     }
-
-    // --- ৬.১ এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার (নতুন যোগ করা) ---
-    const newAdminImg = document.getElementById('newAdminImg');
-    if(newAdminImg) {
-        newAdminImg.onchange = (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                const editPreview = document.getElementById('editAdminPreview');
-                // ফাইল সিলেক্ট করার সাথে সাথে গোল বৃত্তের ভেতর প্রিভিউ দেখাবে
-                if(editPreview) {
-                    editPreview.src = URL.createObjectURL(file);
-                    console.log("Account Center: Image Preview Updated ✅");
-                }
-            }
-        };
-    }
 };
 
-
-        let selectedProfileFile = null;
-
-// ১. প্রোফাইল ইমেজ প্রিভিউ হ্যান্ডলার
-document.getElementById('pImgInput').onchange = e => {
-    const file = e.target.files[0];
-    if (file) {
-        selectedProfileFile = file;
-        const reader = new FileReader();
-        reader.onload = ev => {
-            document.getElementById('pImgPreview').src = ev.target.result;
-            document.getElementById('pImgPreview').classList.remove('hidden');
-            document.getElementById('pImgPlaceholder').classList.add('hidden');
-        };
-        reader.readAsDataURL(file);
-    }
-};
-
-// ২. কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (Profile Image & Global Check সহ)
-async function confirmAdd() { 
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const pImgInp = document.getElementById('pImgInput'); // প্রোফাইল ইমেজ ইনপুট
-    
-    const n = nInput.value.trim(); 
-    const ph = phInput.value.trim(); 
-    
-    if(n && ph.length === 10) { 
-        const saveBtn = document.querySelector('#addModal button:last-child');
-        const originalText = saveBtn.innerText;
-        saveBtn.innerText = "PROCESSING..."; // লোডিং টেক্সট
-        saveBtn.disabled = true;
-
-        try {
-            // ১. গ্লোবাল ডাটাবেস চেক (কালেকশন নাম: global_defaulters)
-            const globalDoc = await db_fs.collection("global_defaulters").doc(ph).get();
-            let isGlobalBad = false;
-            let reporter = "";
-
-            if (globalDoc.exists) {
-                const info = globalDoc.data();
-                if(info.status === "DEFAULTER") {
-                    isGlobalBad = true;
-                    reporter = info.reportedBy;
-                    const warning = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\nThis number was reported by: ${reporter}\n\nDo you still want to add this person?`;
-                    if (!confirm(warning)) {
-                        saveBtn.innerText = originalText;
-                        saveBtn.disabled = false;
-                        return;
-                    }
-                }
-            }
-
-            // ২. প্রোফাইল ইমেজ আপলোড লজিক (ImgBB তে যাবে)
-            let profilePicUrl = "";
-            const file = pImgInp.files[0];
-            if (file) {
-                saveBtn.innerText = "UPLOADING IMAGE...";
-                const fd = new FormData();
-                fd.append('image', file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                const dat = await res.json();
-                if(dat.success) profilePicUrl = dat.data.url;
-            }
-
-            // ৩. নতুন কন্টাক্ট অবজেক্ট তৈরি
-            db.people.unshift({
-                id: Date.now(), 
-                name: n, 
-                phone: ph, 
-                type: db.tab, 
-                profilePic: profilePicUrl, // এখানে ইমেজের লিঙ্ক সেভ হলো
-                isDefaulter: isGlobalBad, 
-                missedDates: isGlobalBad ? 3 : 0,
-                transactions: []
-            }); 
-
-            // ৪. ক্লাউডে এবং লোকাল স্টোরেজে সেভ
-            await saveDB(); 
-            
-            // ৫. ফর্ম ক্লিন এবং মোডাল বন্ধ
-            nInput.value = ""; phInput.value = ""; pImgInp.value = "";
-            document.getElementById('pImgPreview').classList.add('hidden');
-            document.getElementById('pImgPlaceholder').classList.remove('hidden');
-            
-            saveBtn.innerText = originalText; 
-            saveBtn.disabled = false;
-            document.getElementById('addModal').classList.add('hidden'); 
-            
-            renderHome(); // হোম স্ক্রিন রিফ্রেশ
-            alert(isGlobalBad ? "Account created with DEFAULTER status." : "Account Created Successfully!");
-
-        } catch (err) {
-            console.error("Sync Error:", err);
-            alert("Connection Error! Please check internet.");
-            saveBtn.innerText = originalText; saveBtn.disabled = false;
-        }
-    } else {
-        alert("Invalid Name or 10-digit Phone Number!"); 
-    }
-}
         async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
         // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
@@ -808,54 +550,90 @@ async function handleRegistration() {
     const n = document.getElementById('regName').value.trim();
     const ph = document.getElementById('regPhone').value.trim();
     const p = document.getElementById('regPin').value.trim();
+    
+    // নতুন সিকিউরিটি ফিল্ডগুলো নেওয়া হচ্ছে
     const altPh = document.getElementById('regAltPhone').value.trim();
     const clue = document.getElementById('regClue').value.trim();
+    
     const accessKey = ph + p;
 
-    if(!n || ph.length !== 10 || !altPh || !clue) return alert("Fill all security fields!");
+    // ভ্যালিডেশন: সব তথ্য দেওয়া বাধ্যতামূলক
+    if(!n || ph.length !== 10 || p.length < 4 || altPh.length !== 10 || !clue) {
+        return alert("Error: Please provide Name, 10-digit Phone, 4-digit PIN, 10-digit Alternate Phone, and a Hint Clue!");
+    }
 
     try {
+        // ১. চেক করা হচ্ছে এই চাবি (ফোন+পিন) কি আগে কেউ নিয়েছে?
         const keyRef = db_fs.collection(ACCESS_KEYS).doc(accessKey);
         const keyDoc = await keyRef.get();
-        if(keyDoc.exists) return alert("This PIN combo is already taken.");
+        if(keyDoc.exists) return alert("This PIN combination is already used for this number. Use another.");
 
+        // ২. মেইন ডাটাবেস চেক করা (অন্য কেউ আমাকে অ্যাড করে রেখেছে কি না)
         const docRef = db_fs.collection(COLLECTION).doc(ph);
         const doc = await docRef.get();
 
         if (doc.exists) {
+            // যদি সুলতান আপনাকে আগেই অ্যাড করে থাকে, তবে ওই ডাটা আপনার প্রোফাইল হবে
             db = doc.data();
-            db.admin = { name: n, phone: ph, pin: p, altPhone: altPh, clue: clue };
+            // এডমিন ইনফো আপডেট (রিকভারি ইনফো সহ)
+            db.admin = { 
+                name: n, 
+                phone: ph, 
+                pin: p, 
+                altPhone: altPh, 
+                clue: clue 
+            }; 
         } else {
+            // একদম নতুন একাউন্ট স্ট্রাকচার
             db = {
-                admin: { name: n, phone: ph, pin: p, altPhone: altPh, clue: clue },
-                people: [], managers: [], secret: false, tab: 'CUSTOMER', activeId: null, role: 'ADMIN', opName: n, ownerPhone: ph
+                admin: { 
+                    name: n, 
+                    phone: ph, 
+                    pin: p, 
+                    altPhone: altPh, 
+                    clue: clue 
+                },
+                people: [],
+                managers: [],
+                secret: false,
+                tab: 'CUSTOMER',
+                activeId: null,
+                role: 'ADMIN',
+                opName: n,
+                ownerPhone: ph
             };
         }
 
-        // --- রেজিস্ট্রেশনের সময়ই গ্লোবাল নেটওয়ার্ক স্ক্যান করা ---
-        await discoverMirrorUpdates(ph); 
+        // ৩. এক্সেস কি এবং মেইন ডাটা সেভ (Firestore এ রাইট করা)
+        await keyRef.set({ 
+            targetOwnerPhone: ph, 
+            role: 'ADMIN', 
+            name: n 
+        });
+        
+        await db_fs.collection(COLLECTION).doc(ph).set(db);
 
-        await keyRef.set({ targetOwnerPhone: ph, role: 'ADMIN', name: n });
-        await docRef.set(db);
-
+        // ৪. লোকাল স্টোরেজ আপডেট
         localStorage.setItem(DB_KEY, JSON.stringify(db));
-        alert("Success! Global Account Registered.");
-        location.reload();
-    } catch(error) { alert("Registration Failed!"); }
+
+        alert("Successfully Account Registered with Recovery Info!");
+        location.reload(); // রিফ্রেশ হয়ে লগইন ট্যাবে যাবে
+
+    } catch(error) {
+        console.error("Registration Error:", error);
+        alert("Registration Failed! Please check your internet connection.");
+    }
 }
 // ৪. লগইন ফাংশন সংশোধন (Point 4: পিন-বেসড ডাইরেক্ট রাউটিং লজিক)
 async function handleLogin() {
-    const phInput = document.getElementById('loginPhone');
-    const pinInput = document.getElementById('loginPin');
-    if(!phInput || !pinInput) return alert("System Error!");
+    const ph = document.getElementById('loginPhone').value.trim();
+    const pin = document.getElementById('loginPin').value.trim();
+    const accessKey = ph + pin;
 
-    const ph = phInput.value.trim();
-    const pin = pinInput.value.trim();
-
-    if(ph.length !== 10 || pin.length < 4) return alert("Enter valid Details!");
+    if(ph.length !== 10 || pin.length < 4) return alert("Enter correct Details!");
 
     try {
-        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(ph + pin).get();
+        const keyDoc = await db_fs.collection(ACCESS_KEYS).doc(accessKey).get();
 
         if (keyDoc.exists) {
             const routing = keyDoc.data();
@@ -863,75 +641,49 @@ async function handleLogin() {
             const doc = await docRef.get();
 
             if (doc.exists) {
-                db = JSON.parse(JSON.stringify(doc.data()));
+                db = JSON.parse(JSON.stringify(doc.data())); 
                 db.role = routing.role;
                 db.opName = routing.name;
                 db.ownerPhone = routing.targetOwnerPhone;
                 db.secret = false;
 
-                // --- এই লাইনটিই আপনার সমস্যা সমাধান করবে (ট্রিগার কল) ---
-                await discoverMirrorUpdates(ph); 
+                // --- পয়েন্ট ৯: মিরর কন্টাক্ট ডিসকভারি (নতুন কেউ আমাকে অ্যাড করেছে কি না) ---
+                await discoverMirrorUpdates(ph);
 
-                localStorage.setItem(DB_KEY, JSON.stringify(db));
+                localStorage.setItem(DB_KEY, JSON.stringify(db)); 
                 enterApp();
+                alert(`Welcome ${routing.name}! Sync Complete.`);
             }
         } else {
-            alert("Login Failed: Incorrect Phone or PIN.");
+            alert("No access found! Please check Phone/PIN or Register.");
         }
-    } catch (error) {
-        alert("Sync Error! Check internet.");
-    }
+    } catch (e) { alert("Login failed! Check internet."); }
 }
 
-// ৯. গ্লোবাল মিরর ডিসকভারি: নিখুঁত সিঙ্কিং এবং মার্জ লজিক সহ (V19.0)
-// ৯. গ্লোবাল মিরর ডিসকভারি: আসিমুদ্দিনের জন্য ডাটা খুঁজে আনা (V18.6)
+// এই ফাংশনটি আপনার জন্য অন্য ফোনের ডাটা খুঁজে আনবে
 async function discoverMirrorUpdates(myPhone) {
-    try {
-        console.log("Syncing: Discovering mirror records...");
-        const querySnapshot = await db_fs.collection(COLLECTION).get();
-        let foundNewData = false;
+    const allDocs = await db_fs.collection(COLLECTION).get();
+    allDocs.forEach(doc => {
+        const otherData = doc.data();
+        if(otherData.admin.phone === myPhone) return;
 
-        querySnapshot.forEach(doc => {
-            const otherData = doc.data();
-            // নিজের ডাটা বাদ দিয়ে অন্যদের চেক করা
-            if(otherData.admin && otherData.admin.phone === myPhone) return;
-
-            // অন্য এডমিনের লিস্টে আমাকে খোঁজা
-            const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
-
-            if(foundMe) {
-                // চেক করা: আমি কি তাকে অলরেডি অ্যাড করেছি?
-                const alreadyExists = db.people.find(p => p.phone === otherData.admin.phone);
-
-                if(!alreadyExists) {
-                    // নতুন কন্টাক্ট হিসেবে অ্যাড করা (সব ডাটা সহ)
-                    db.people.unshift({
-                        id: Date.now() + Math.random(),
-                        name: otherData.admin.name,
-                        phone: otherData.admin.phone,
-                        type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), // রোল উল্টে যাবে
-                        // ট্রানজ্যাকশন এবং ইমেজ মিররিং (টাইপ উল্টে যাবে)
-                        transactions: (foundMe.transactions || []).map(t => ({
-                            ...t, // সব প্রপার্টি (images, note, date, verified) কপি হবে
-                            type: (t.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                            by: otherData.admin.name + " (Auto-Synced)"
-                        }))
-                    });
-                    foundNewData = true;
-                }
+        // চেক করা: সে কি আমাকে তার লিস্টে রেখেছে?
+        const foundMe = (otherData.people || []).find(p => p.phone === myPhone);
+        if(foundMe) {
+            const alreadyInMyList = db.people.find(p => p.phone === otherData.admin.phone);
+            if(!alreadyInMyList) {
+                db.people.unshift({
+                    id: Date.now() + Math.random(),
+                    name: otherData.admin.name,
+                    phone: otherData.admin.phone,
+                    type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                    transactions: foundMe.transactions.map(t => ({ ...t, type: (t.type==='GIVEN'?'RECEIVED':'GIVEN') }))
+                });
             }
-        });
-
-        if(foundNewData) {
-            // ডাটা পাওয়া গেলে লোকাল এবং ক্লাউডে সাথে সাথে সেভ করা
-            localStorage.setItem(DB_KEY, JSON.stringify(db));
-            await saveDB(); 
-            console.log("Success: Global records mirrored ✅");
         }
-    } catch (e) {
-        console.error("Mirror Discovery Error:", e);
-    }
+    });
 }
+        
 // --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
 function enterApp() {
     document.getElementById('authScreen').classList.add('hidden');
@@ -948,75 +700,56 @@ function enterApp() {
     switchTab(db.tab); 
 }
 
-// ৯. গ্লোবাল রিয়েল-টাইম মিরর সিঙ্ক (V19.0: ডুপ্লিকেট প্রোটেকশন সহ)
+// --- মিরর সিঙ্ক লজিক (Point 9: অটোমেটিক পার্টনার আপডেট) ---
 async function syncToPartner(partnerPhone, txData) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
         const doc = await partnerRef.get();
+        if (!doc.exists) return; // পার্টনার রেজিস্টার্ড না থাকলে সিঙ্ক হবে না
 
-        let partnerDB;
-        if (doc.exists) {
-            partnerDB = doc.data();
-        } else {
-            // যদি পার্টনার রেজিস্টার্ড না থাকে, তবে একটি প্লেসহোল্ডার তৈরি হবে
-            partnerDB = { admin: { phone: partnerPhone }, people: [], managers: [] };
-        }
-
-        // পার্টনারের লিস্টে আমাকে (এডমিনকে) খোঁজা
+        let partnerDB = doc.data();
+        // পার্টনারের কন্টাক্ট লিস্টে আমার (এডমিনের) নম্বরটি খোঁজা
         let meInPartnerList = partnerDB.people.find(p => p.phone === db.admin.phone);
 
-        if (!meInPartnerList) {
-            // যদি আমি তার লিস্টে না থাকি, তবে অ্যাড করে নেবে (রোল উল্টে যাবে)
-            meInHisList = {
-                id: Date.now(),
-                name: db.admin.name,
-                phone: db.admin.phone,
-                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
-                transactions: []
-            };
-            partnerDB.people.unshift(meInHisList);
-            meInPartnerList = meInHisList; // রেফারেন্স ঠিক করা হলো
+        if (meInPartnerList) {
+            // চেক করা হচ্ছে: এই আইডি'র ট্রানজ্যাকশন কি পার্টনারের ফোনে অলরেডি আছে?
+            let existingTx = meInPartnerList.transactions.find(t => t.id === txData.id);
+
+            if (existingTx) {
+                // --- এডিট মোড: বিদ্যমান লেনদেন আপডেট করা ---
+                existingTx.amount = txData.amount;
+                existingTx.note = txData.note;
+                existingTx.verified = txData.verified; // এটি false হয়ে যাবে
+                existingTx.by = db.admin.name + " (Edited)";
+                console.log("Partner's record updated successfully.");
+            } else {
+                // --- নতুন এন্ট্রি মোড ---
+                const mirrorTx = {
+                    ...txData,
+                    type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
+                    by: db.admin.name + " (Auto-Synced)",
+                    verified: false // নতুন এন্ট্রি সব সময় আন-ভেরিফাইড থাকবে
+                };
+                meInPartnerList.transactions.push(mirrorTx);
+            }
+            
+            // ক্লাউডে সেভ করা (এটিই সুলতানের ফোন আপডেট করবে)
+            await partnerRef.set(partnerDB);
         }
-
-        // চেক করা: এই ট্রানজ্যাকশন আইডি কি আগে থেকেই আছে? (ডুপ্লিকেট প্রোটেকশন)
-        let existingTx = meInPartnerList.transactions.find(t => t.id === txData.id);
-
-        if (existingTx) {
-            // যদি থাকে (যেমন এডিট করা হয়েছে), তবে আগেরটি আপডেট হবে
-            Object.assign(existingTx, txData);
-            existingTx.type = (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN');
-        } else {
-            // যদি নতুন হয়, তবে মিরর করে পুশ হবে
-            const mirrorTx = {
-                ...txData,
-                type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-                by: db.admin.name + " (Verified Sync)"
-            };
-            meInPartnerList.transactions.push(mirrorTx);
-        }
-
-        // পার্টনারের ফাইলে রাইট করা
-        await partnerRef.set(partnerDB);
-        console.log("Partner Sync Complete ✅");
-
-    } catch (e) {
-        console.error("Mirror Sync Logic Error:", e);
-    }
+    } catch (e) { console.error("Mirror Sync Error:", e); }
 }
+         
           function logout() {
-    if(confirm("Confirm: Are you sure you want to terminate this secure session?")) {
-        // নিরাপত্তাজনিত কারণে সিক্রেট মোড আগে অফ করা
+    if(confirm("Are you sure you want to terminate this secure session?")) {
+        // লগআউট করার সময় সিক্রেট মোড পার্মানেন্টলি অফ করে রিফ্রেশ করা
         if(db) db.secret = false;
+        saveDB(); 
         
-        // বর্তমান অবস্থা লোকালি সেভ রাখা (যাতে পরের বার ডাটা না হারায়)
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-        
-        // ইনপুট ক্লিন করা
+        // পিন এবং ফোন ইনপুট ক্লিয়ার করা
         document.getElementById('loginPhone').value = "";
         document.getElementById('loginPin').value = "";
         
-        // পুরো অ্যাপ রিফ্রেশ করে লগইন স্ক্রিনে নিয়ে আসা
-        location.reload(); 
+        location.reload(); // এটি পুরো অ্যাপকে ক্লিন স্টেটে নিয়ে যাবে
     }
 }
         // --- ৩. ক্যালকুলেশন এবং সিক্রেট লজিক (Point 2, 4, 6, 7, 8) ---
@@ -1030,166 +763,95 @@ async function syncToPartner(partnerPhone, txData) {
         }
 
         function initSecretGesture() {
-    const el = document.getElementById('secretTrigger');
-    if(!el) return;
-
-    // ১. কুইক এক্সিট: সিক্রেট মোডে থাকা অবস্থায় জাস্ট টাচ করলেই পাক্কা মোডে ফিরবে
-    el.onclick = () => {
-        if (db.secret) {
-            exitSecret(); // সাথে সাথে ভ্যানিশ
+            const el = document.getElementById('secretTrigger');
+            el.onclick = () => { if(db.secret) exitSecret(); };
+            el.onpointerdown = () => { if(!db.secret) holdTimer = setTimeout(() => { askPin(() => { db.secret=true; el.classList.add('blink-secret'); renderAll(); startTimer(); }); }, 2500); };
+            el.onpointerup = () => clearTimeout(holdTimer);
         }
-    };
-
-    // ২. এন্টার সিক্রেট: ২.৫ সেকেন্ড চেপে ধরলে পিন চাইবে
-    el.onpointerdown = (e) => {
-        if (!db.secret) {
-            holdTimer = setTimeout(() => {
-                askPin(() => { 
-                    db.secret = true; 
-                    // সিক্রেট মোড চালু হলে সিম্বলটি লাল হবে এবং ব্লিঙ্ক করবে
-                    el.classList.add('blink-secret'); 
-                    renderAll(); 
-                    startTimer(); // আপনার ১ মিনিটের টাইমার শুরু হবে
-                });
-            }, 2500);
-        }
-    };
-
-    // মাউস বা টাচ ছেড়ে দিলে টাইমার ক্লিয়ার হবে
-    el.onpointerup = () => clearTimeout(holdTimer);
-    el.onpointerleave = () => clearTimeout(holdTimer);
-}
-
-// ৩. এক্সিট ফাংশন (যা সিম্বলকে আগের অবস্থায় ফিরিয়ে আনবে)
-function exitSecret() {
-    db.secret = false;
-    clearTimeout(autoExitTimer); 
-    
-    // সিম্বল থেকে ব্লিঙ্কিং এবং লাল কালার সরিয়ে দেওয়া
-    const el = document.getElementById('secretTrigger');
-    if(el) el.classList.remove('blink-secret');
-    
-    renderAll(); // সাথে সাথে পাক্কা মোড রেন্ডার হবে
-    console.log("Returned to Pakka Mode (Secure Exit)");
-}
         function startTimer() { clearTimeout(autoExitTimer); autoExitTimer = setTimeout(exitSecret, 60000); } 
         function exitSecret() { db.secret = false; document.getElementById('secretTrigger').classList.remove('blink-secret'); renderAll(); }
 
         // --- ৪. লেজার এবং ভিউ (পয়েন্ট ২, ৫, ৯, ১০, ১১) ---
-        // --- কাস্টমার/সাপ্লায়ার অ্যাড ফাংশন (V18.4: গ্লোবাল প্রোফাইল ফ্যাচিং সহ) ---
-async function confirmAdd() {
-    const nInput = document.getElementById('newPName');
-    const phInput = document.getElementById('newPPhone');
-    const n = nInput.value.trim();
-    const ph = phInput.value.trim();
+        async function confirmAdd() {
+    const n = document.getElementById('newPName').value.trim();
+    const ph = document.getElementById('newPPhone').value.trim();
     
     if(!n || ph.length !== 10) return alert("Enter Name & 10-digit Phone!");
 
-    // ১. ডুপ্লিকেট চেক (আপনার লিস্টে অলরেডি আছে কি না)
+    // ১. চেক করা: এই নম্বরটি কি আপনার লিস্টে অলরেডি আছে? (ডুপ্লিকেট প্রোটেকশন)
     if(db.people.some(x => x.phone === ph)) {
         return alert("Error: This number is already in your contact list!");
     }
 
     const saveBtn = document.querySelector('#addModal button:last-child');
     const originalBtnText = saveBtn.innerText;
-    saveBtn.innerText = "GLOBAL SYNCING..."; // প্রফেশনাল লোডিং
+    saveBtn.innerText = "SECURITY VERIFYING...";
     saveBtn.disabled = true;
 
     try {
-        // ২. গ্লোবাল ডাটাবেস থেকে তথ্য অনুসন্ধান (Defaulter Check & Profile Check)
-        // ২.১ ডিফোল্টার চেক
+        // ২. গ্লোবাল ব্ল্যাকলিস্ট থেকে প্রমাণসহ ডাটা চেক করা
         const blackListDoc = await db_fs.collection("global_defaulters").doc(ph).get();
+        
         let initialDefaulterStatus = false;
-        let evidenceMsg = "";
-
+        
         if(blackListDoc.exists) {
             const info = blackListDoc.data();
-            evidenceMsg = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
+            
+            // --- প্রমাণসহ বিস্তারিত মেসেজ (পয়েন্ট অনুযায়ী) ---
+            const evidenceMsg = `🚨 SECURITY ALERT: DEFAULTER DETECTED!\n\n` +
+                `This person is a REPORTED DEFAULTER in PayBook network.\n\n` +
                 `• Reported By: ${info.reportedBy}\n` +
-                `• Amount Due: Rs. ${info.totalOutstanding.toLocaleString()}\n` +
-                `📝 Evidence: "${info.evidence}"\n\n` +
-                `Do you still want to risk adding this person?`;
+                `• Contact Admin: +91 ${info.adminPhone}\n` +
+                `• Amount Due: Rs. ${info.totalOutstanding.toLocaleString()}\n\n` +
+                `📝 Evidence Notes:\n"${info.evidence || 'No specific notes provided.'}"\n\n` +
+                `Do you still want to risk adding this person to your ledger?`;
 
             if(!confirm(evidenceMsg)) {
-                saveBtn.innerText = originalBtnText; saveBtn.disabled = false;
-                return;
+                saveBtn.innerText = originalBtnText; 
+                saveBtn.disabled = false;
+                return; // ইউজার বাতিল করলে কন্টাক্ট অ্যাড হবে না
             }
-            initialDefaulterStatus = true;
+            initialDefaulterStatus = true; // ইউজার রাজি হলে ডিফোল্টার ব্যাজ সহ অ্যাড হবে
         }
 
-        // ২.২ গ্লোবাল প্রোফাইল চেক (পয়েন্ট অনুযায়ী অটো-পিকচার ফ্যাচিং)
-        const globalProfileDoc = await db_fs.collection(COLLECTION).doc(ph).get();
-        let globalPic = null;
-        if(globalProfileDoc.exists) {
-            const partnerData = globalProfileDoc.data();
-            globalPic = partnerData.admin.profilePic || null;
-            console.log("Global Profile Found: Syncing Picture...");
-        }
-
-        // ৩. নতুন কন্টাক্ট লিস্টে অ্যাড করা (ফ্যাচ করা ছবি সহ)
+        // ৩. কন্টাক্ট লিস্টে অ্যাড করা
         db.people.unshift({
             id: Date.now(),
             name: n,
             phone: ph,
-            type: db.tab, // Customer বা Supplier
-            profilePic: globalPic, // গ্লোবাল থেকে অটোমেটিক ছবি চলে আসলো
+            type: db.tab, // Customer বা Supplier যা সিলেক্ট করা আছে
             isDefaulter: initialDefaulterStatus,
             transactions: []
         });
 
-        // ৪. ডাটা সেভ এবং মেমোরি আপডেট
+        // ৪. ডাটা সেভ করা
         await saveDB(); 
         
-        // ৫. ফর্ম ক্লিন এবং ক্লোজ
-        nInput.value = "";
-        phInput.value = "";
+        // ৫. ফর্ম ক্লিন এবং ক্লোজ করা
+        document.getElementById('newPName').value = "";
+        document.getElementById('newPPhone').value = "";
         document.getElementById('addModal').classList.add('hidden');
         
-        renderHome(); // ড্যাশবোর্ড রিফ্রেশ
-        alert(globalPic ? "Account created! Profile picture synced from Global Database." : "Account Created Successfully.");
+        renderHome(); // হোম স্ক্রিন আপডেট
+        alert("Account Created with Global Reputation Check.");
 
     } catch(e) {
-        console.error("Critical Sync Error:", e);
-        alert("Network Error! Please try again.");
+        console.error("Global Sync Error:", e);
+        alert("Network Error! Please check your internet connection.");
     } finally {
         saveBtn.innerText = originalBtnText;
         saveBtn.disabled = false;
     }
 }
+
         function openLedger(id) {
-    history.pushState(null, null, window.location.pathname);
-    db.activeId = id; 
-    
-    // ডাটাবেস থেকে ওই ব্যক্তিকে খুঁজে বের করা (আইডি ম্যাচিং)
-    const p = db.people.find(x => x.id == id);
-    if(!p) return;
-
-    // ১. নাম এবং ফোন সেট করা
-    document.getElementById('lName').innerText = p.name;
-    document.getElementById('lPhone').innerText = "+91 " + p.phone;
-
-    // ২. হেডার ইমেজ কন্ট্রোল করা
-    const headerPic = document.getElementById('lHeaderPic');
-    const headerInit = document.getElementById('lHeaderInitials');
-    
-    if (p.profilePic) {
-        headerPic.src = p.profilePic;
-        headerPic.classList.remove('hidden');
-        headerInit.classList.add('hidden');
-    } else {
-        headerPic.classList.add('hidden');
-        headerInit.innerText = p.name.substring(0,1).toUpperCase();
-        headerInit.classList.remove('hidden');
-    }
-
-    // ৩. স্ক্রিন সুইচ করা
-    document.getElementById('headerMain').classList.add('hidden'); 
-    document.getElementById('headerLedger').classList.remove('hidden');
-    document.getElementById('pageHome').classList.add('hidden'); 
-    document.getElementById('pageLedger').classList.remove('hidden');
-    
-    renderLedger();
-}
+            history.pushState(null, null, window.location.pathname);
+            db.activeId = id; const p = db.people.find(x => x.id === id);
+            document.getElementById('lName').innerText = p.name;
+            document.getElementById('headerMain').classList.add('hidden'); document.getElementById('headerLedger').classList.remove('hidden');
+            document.getElementById('pageHome').classList.add('hidden'); document.getElementById('pageLedger').classList.remove('hidden');
+            renderLedger();
+        }
 
         
 
@@ -1232,88 +894,79 @@ function handleImageFiles(f) {
 }
 
 // --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
-// --- ৫. ডাটা এন্ট্রি ফাংশন (V18.3: Micro-second Response / UI-First Logic) ---
 async function preSave(t) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value); 
     if(!amt || amt <= 0) return alert("Please enter amount!");
 
     const nextDateVal = document.getElementById('nextCollDate')?.value || null;
-    const noteVal = document.getElementById('txNote').value.trim();
-    const dateVal = document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB');
 
-    // --- ১. ইন্সট্যান্ট সেভ প্রসেস (ব্যবহারকারীকে অপেক্ষা করতে হবে না) ---
-    const instantSaveAction = async () => {
-        const person = db.people.find(x => x.id === db.activeId);
-        
-        // ছবি আপলোড হওয়ার আগে ফোনের গ্যালারি থেকে টেম্পোরারি লিঙ্ক তৈরি (ইন্সট্যান্ট ভিউয়ের জন্য)
-        const localPreviews = capturedFiles.map(f => URL.createObjectURL(f));
-        
-        // আপলোডের জন্য ফাইলের একটি কপি রাখা (কারণ ড্রয়ার বন্ধ হলে এটি খালি হয়ে যাবে)
-        const filesToSync = [...capturedFiles];
+    const act = async () => {
+        const confirmBtn = document.getElementById('mainConfirmBtn');
+        confirmBtn.innerText = "SYNCHING CLOUD...";
+        confirmBtn.disabled = true;
 
-        // নতুন ট্রানজ্যাকশন অবজেক্ট (লোকাল কপি)
-        const newTx = { 
-            id: Date.now(), 
-            amount: amt, 
-            type: t, 
-            secret: !!db.secret, 
-            date: dateVal, 
-            note: noteVal, 
-            nextCollDate: nextDateVal,
-            images: localPreviews, // শুরুতে ফোনের লোকাল ছবি দেখাবে
-            by: db.opName || 'Owner', 
-            verified: false,
-            status: 'active',
-            isSyncing: true // ব্যাকগ্রাউন্ডে কাজ চলছে বোঝাতে একটি ফ্ল্যাগ
-        };
-
-        // ২. লোকাল ডাটাবেসে পুশ এবং সাথে সাথে স্ক্রিন আপডেট
-        person.transactions.push(newTx);
-        localStorage.setItem(DB_KEY, JSON.stringify(db)); // দ্রুত লোকাল মেমোরিতে সেভ
-        
-        renderLedger(); // মাইক্রো-সেকেন্ডে লেনদেনটি লিস্টে চলে আসবে
-        closeDrawer();  // সাথে সাথে ড্রয়ার বন্ধ হয়ে যাবে
-
-        // --- ৩. ব্যাকগ্রাউন্ড সিঙ্ক (চুপিচুপি ক্লাউডে ডাটা পাঠানো) ---
-        (async () => {
-            try {
-                let uploadedUrls = [];
-                // ব্যাকগ্রাউন্ডে ছবিগুলো ImgBB-তে আপলোড করা
-                for(let file of filesToUpload) {
-                    const fd = new FormData();
-                    fd.append('image', file);
+        try {
+            let uploadedImgs = [];
+            const filesToUpload = (typeof capturedFiles !== 'undefined') ? capturedFiles : [];
+            for(let file of filesToUpload) {
+                const fd = new FormData();
+                fd.append('image', file);
+                try {
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                     const dat = await res.json();
-                    if(dat.success) uploadedUrls.push(dat.data.url);
-                }
-
-                // আপলোড শেষ হলে টেম্পোরারি লিঙ্ক বদলে অরিজিনাল লিঙ্ক বসানো
-                newTx.images = uploadedUrls;
-                newTx.isSyncing = false; // সিঙ্ক সফল
-
-                // ফাইনাল গ্লোবাল সেভ এবং পার্টনার সিঙ্ক
-                await saveDB(); 
-                if (typeof syncToPartner === 'function') {
-                    await syncToPartner(person.phone, newTx);
-                }
-                
-                console.log("Background Cloud Sync: Success for ID " + newTx.id);
-                // অরিজিনাল ইমেজ লিঙ্কগুলো আপডেট করার জন্য একবার রি-রেন্ডার (ইউজার টের পাবে না)
-                renderLedger(); 
-            } catch (error) {
-                console.error("Background sync failed, but data is saved locally.", error);
+                    if(dat.success) uploadedImgs.push(dat.data.url);
+                } catch(imgErr) { console.error("Img Upload Fail"); }
             }
-        })();
 
-        if(db.secret) startTimer(); // ১ মিনিটের সিক্রেট টাইমার
+            const person = db.people.find(x => x.id === db.activeId);
+            
+            // নতুন ট্রানজ্যাকশন অবজেক্ট (Verified: false যোগ করা হয়েছে)
+            const newTx = { 
+                id: Date.now(), 
+                amount: amt, 
+                type: t, 
+                secret: !!db.secret, 
+                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
+                note: document.getElementById('txNote').value.trim(), 
+                nextCollDate: nextDateVal, 
+                images: uploadedImgs, 
+                by: db.opName || 'Owner', 
+                verified: false, // ডিফল্টভাবে আন-ভেরিফাইড থাকবে
+                status: 'active' 
+            };
+
+            person.transactions.push(newTx);
+            await saveDB(); 
+            
+            if (typeof syncToPartner === 'function') {
+                await syncToPartner(person.phone, newTx);
+            }
+
+            renderLedger(); 
+            
+            if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
+            if(document.getElementById('txNote')) document.getElementById('txNote').value = "";
+            if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
+            amtInput.value = "";
+            capturedFiles = []; 
+            
+            closeDrawer(); 
+            alert("Transaction saved and waiting for verification.");
+
+        } catch(error) {
+            console.error("Critical Sync Error:", error);
+            alert("Failed to sync. Please check internet connection.");
+        } finally {
+            confirmBtn.innerText = "Confirm Transaction";
+            confirmBtn.disabled = false;
+        }
     };
 
-    // সিক্রেট পিন চেক (শুধুমাত্র কাস্টমার থেকে টাকা পাওয়ার সময়)
     if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') {
-        askPin(instantSaveAction); 
+        askPin(act); 
     } else {
-        instantSaveAction();
+        act();
     }
 }
 
@@ -1532,86 +1185,39 @@ function handleSmartPdfDownload() {
     renderHome();
 }
         // ১. এডিট মোডাল খোলার ফাংশন (বর্তমান ডাটা সহ)
-function openEditPersonModal(id = null) {
-    // যদি আইডি দেওয়া থাকে (হোম থেকে), তবে সেটি সেট হবে। না থাকলে বর্তমান উইন্ডোর আইডি থাকবে।
-    if (id) db.activeId = id; 
-
-    const person = db.people.find(p => p.id == db.activeId);
-    
+function openEditPersonModal() {
+    const person = db.people.find(p => p.id === db.activeId);
     if(person) {
         document.getElementById('editPName').value = person.name;
         document.getElementById('editPPhone').value = person.phone;
-        
-        // ইমেজ প্রিভিউ ফিক্স
-        const editImgPrev = document.getElementById('editPImgPreview');
-        const editPlaceholder = document.getElementById('editPImgPlaceholder');
-        
-        if (person.profilePic) {
-            editImgPrev.src = person.profilePic;
-            editImgPrev.classList.remove('hidden');
-            editPlaceholder?.classList.add('hidden');
-        } else {
-            editImgPrev.classList.add('hidden');
-            editPlaceholder?.classList.remove('hidden');
-        }
-        
-        // মোডাল শো করা
         document.getElementById('editPersonModal').classList.remove('hidden');
-        console.log("Edit Panel Opened for: " + person.name);
-    } else {
-        console.error("No account data found to edit!");
     }
 }
 
-// ৩. এডিট সেভ করার ফাংশন (ইমেজ আপলোড সহ)
-async function confirmEditPerson() {
-    const nameInp = document.getElementById('editPName');
-    const phInp = document.getElementById('editPPhone');
-    const fileInp = document.getElementById('editPImgInput');
+// ২. ডাটা সেভ করার ফাংশন
+function confirmEditPerson() {
+    const newName = document.getElementById('editPName').value.trim();
+    const newPhone = document.getElementById('editPPhone').value.trim();
 
-    if(!nameInp.value || phInp.value.length !== 10) return alert("Valid Name & 10-digit Phone Required!");
-
-    const person = db.people.find(p => p.id == db.activeId);
-    if(!person) return;
-
-    // --- ১. ইন্সট্যান্ট আপডেট (Optimistic UI) ---
-    const newName = nameInp.value.trim();
-    const newPhone = phInp.value.trim();
-
-    if(fileInp.files[0]) {
-        // ফোনের গ্যালারি থেকে টেম্পোরারি লিঙ্ক নিয়ে সাথে সাথে ছবি দেখানো
-        const localPreviewUrl = URL.createObjectURL(fileInp.files[0]);
-        person.profilePic = localPreviewUrl;
+    if(!newName || newPhone.length !== 10) {
+        return alert("Please enter a valid Name and 10-digit Phone Number!");
     }
-    
-    person.name = newName;
-    person.phone = newPhone;
 
-    // সাথে সাথে লিস্ট এবং হেডার আপডেট
-    renderHome(); 
-    openLedger(db.activeId); // বর্তমানে থাকা হেডারকেও সাথে সাথে নতুন ডাটা দিয়ে রিফ্রেশ করা
-    
-    // মোডাল বন্ধ করা
-    document.getElementById('editPersonModal').classList.add('hidden');
+    // ডাটাবেসে আপডেট করা
+    const personIndex = db.people.findIndex(p => p.id === db.activeId);
+    if(personIndex !== -1) {
+        db.people[personIndex].name = newName;
+        db.people[personIndex].phone = newPhone;
 
-    // --- ২. ব্যাকগ্রাউন্ড প্রসেসিং (ক্লাউড সিঙ্ক এবং ইমেজ আপলোড) ---
-    (async () => {
-        try {
-            if (fileInp.files[0]) {
-                const fd = new FormData();
-                fd.append('image', fileInp.files[0]);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                const dat = await res.json();
-                if(dat.success) person.profilePic = dat.data.url; // আসল অনলাইন লিঙ্ক সেভ হলো
-            }
-            await saveDB(); // ব্যাকগ্রাউন্ডে ক্লাউড সিঙ্ক
-            console.log("Global sync completed in background.");
-        } catch (e) {
-            console.error("Background sync failed, but local data is safe.", e);
-        }
-    })();
+        // সাথে সাথে স্ক্রিনের হেডার আপডেট করা
+        document.getElementById('lName').innerText = newName;
+        document.getElementById('lPhone').innerText = "+91 " + newPhone;
 
-    alert("Profile updated successfully!");
+        saveDB(); // ক্লাউড এবং লোকাল মেমোরিতে সেভ
+        document.getElementById('editPersonModal').classList.add('hidden');
+        alert("Account Information Updated Successfully!");
+        renderHome(); // পেছনের হোম লিস্টও আপডেট করে রাখা
+    }
 }
         // ৩. ম্যানেজার নিয়োগ ফাংশন সংশোধন (Point 3: গ্লোবাল পিন রাউটিং লজিক সহ)
 async function hireManager() {
@@ -1719,7 +1325,6 @@ function initNavigation() {
         function renderHome() {
     const list = document.getElementById('contactList'); 
     const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
-    if(!list) return;
     list.innerHTML = "";
     
     document.getElementById('headerMain').classList.remove('hidden'); 
@@ -1736,6 +1341,7 @@ function initNavigation() {
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
+        // --- ১. ওভারডিউ এবং ডিফোল্টার লজিক ---
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1745,30 +1351,31 @@ function initNavigation() {
             }
         });
 
+        // ২. ডিফোল্টার শর্ত চেক করা
         const isDef = p.isDefaulter === true || missedCount >= 3;
 
+        // --- ৩. এই অংশটিই আপনার কালেকশন তৈরি করবে (অটো-রিপোর্ট) ---
         if (isDef && !p.reportedToGlobal) {
-            p.isDefaulter = true; p.reportedToGlobal = true; 
-            saveDB(); pushDefaulterToGlobal(p); 
+            p.isDefaulter = true; 
+            p.reportedToGlobal = true; // যাতে একবারই রিপোর্ট হয়
+            saveDB(); 
+            // আপনার লেখা সেই ফাংশনটি এখানে কল করা হলো
+            pushDefaulterToGlobal(p); 
         }
 
-        // --- এভারটার লজিক: ছবিতে টাচ করলে এডিট মোডাল খুলবে ---
-        const userAvatarHTML = p.profilePic ? 
-            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-pointer active:scale-90 transition-all" 
-                  onclick="event.stopPropagation(); openEditPersonModal(${p.id})">` : 
-            `<div onclick="event.stopPropagation(); openEditPersonModal(${p.id})" 
-                  class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer active:scale-90 transition-all">
-                ${(p.name || 'U')[0]}
-            </div>`;
+        const defBadge = isDef ? 
+            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+        const odBadge = (missedCount > 0) ? 
+            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 
-        const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[8px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
-        const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
-
+        // ৪. রেন্ডারিং কন্টাক্ট কার্ড
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div class="flex items-center gap-4 flex-1">
-                    ${userAvatarHTML}
-                    <div onclick="openLedger(${p.id})" class="flex flex-col flex-1 cursor-pointer">
+                <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
+                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl border border-white/20">
+                        ${(p.name || 'U')[0]}
+                    </div>
+                    <div class="flex flex-col">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
                             ${odBadge}
@@ -1791,7 +1398,6 @@ function initNavigation() {
             </div>`;
     });
 }
-        
         function renderLedger() {
     const p = db.people.find(x => x.id === db.activeId);
     const list = document.getElementById('ledgerList'); 
@@ -1803,7 +1409,7 @@ function initNavigation() {
     // ২. হেডার ব্যালেন্স আপডেট (১০০ দিয়ে ভাগ লজিক সহ)
     const displayHeaderTotal = db.secret ? (Math.abs(net) / 100).toFixed(2) : Math.abs(net).toLocaleString('en-IN');
     const balEl = document.getElementById('mainTotal');
-    balEl.innerText = displayHeaderTotal;
+    balEl.innerText = "₹ " + displayHeaderTotal;
     balEl.style.color = net > 0 ? '#f43f5e' : '#10b981';
 
     // ৩. ট্রানজ্যাকশন ফিল্টারিং ও রেন্ডারিং
@@ -1901,8 +1507,7 @@ function removeImage(index) {
     renderThumbnails();
 }
         function renderThumbnails() {
-    const container = document.getElementById('multiImgPreviewContainer');
-    const counter = document.getElementById('imgCounter');
+    const container = document.getElementById('multiImgPreview');
     if(!container) return;
     
     container.innerHTML = ""; // আগের প্রিভিউ ক্লিয়ার করা
@@ -1910,32 +1515,25 @@ function removeImage(index) {
     capturedFiles.forEach((file, index) => {
         const url = URL.createObjectURL(file);
         
+        // প্রতিটি ইমেজের জন্য একটি কন্টেইনার এবং ক্রস বাটন তৈরি
         container.innerHTML += `
-            <div class="relative w-14 h-14 animate-fade">
-                <img src="${url}" class="w-full h-full object-cover rounded-xl border border-slate-200 shadow-sm">
-                <!-- লাল ক্রস বাটন (❌) -->
+            <div class="relative w-14 h-14 mr-1 mb-1">
+                <img src="${url}" class="w-full h-full object-cover rounded-lg border shadow-sm">
+                <!-- লাল ক্রস বাটন -->
                 <div onclick="removeImage(${index})" 
-                     class="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full w-5 h-5 flex items-center justify-center shadow-md border border-slate-100 cursor-pointer active:scale-90">
+                     class="absolute -top-2 -right-2 bg-white text-rose-500 rounded-full w-5 h-5 flex items-center justify-center shadow-md border border-slate-100 cursor-pointer active:scale-90 transition-transform">
                     <i class="fas fa-times-circle text-[12px]"></i>
                 </div>
             </div>
         `;
     });
     
-    // প্লাস বাটনটি সব সময় শেষে থাকবে
-    container.innerHTML += `
-        <button onclick="openMediaSelector()" class="w-12 h-12 bg-white border-2 border-dashed border-[#861F41]/20 rounded-xl flex items-center justify-center text-[#861F41]">
-            <i class="fas fa-plus text-lg opacity-50"></i>
-        </button>`;
-
-    // কাউন্টার আপডেট (যেমন: 5 Files)
-    if(counter) counter.innerText = capturedFiles.length + " Files";
-}
-
-// নির্দিষ্ট ইমেজ ডিলিট করার ফাংশন
-function removeImage(index) {
-    capturedFiles.splice(index, 1);
-    renderThumbnails();
+    // যদি কোনো ছবি না থাকে তবে কন্টেইনার হাইড রাখা
+    if(capturedFiles.length > 0) {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
 }
         function handleImageFiles(f) { 
     if(!f) return; 
@@ -2311,129 +1909,6 @@ function renderPublicStatement(person, ownerName, mode) {
         } catch(e) { alert("Failed to update PIN!"); }
     } else {
         alert("Invalid PIN! Must be 4 digits.");
-    }
-}
-
-        // ১. এডমিন এডিট মোডাল ওপেন
-function openAdminEditModal() {
-    if(db.role !== 'ADMIN') return alert("Only Owner can edit this profile!");
-    
-    document.getElementById('editAdminName').value = db.admin.name;
-    document.getElementById('editAdminPhone').value = db.admin.phone;
-    document.getElementById('editAdminPreview').src = db.admin.profilePic || "";
-    document.getElementById('adminEditModal').classList.remove('hidden');
-}
-
-// ২. প্রোফাইল আপডেট এবং ডাটা ট্রান্সফার লজিক
-async function saveAdminProfileChanges() {
-    const nameInp = document.getElementById('editAdminName');
-    const phInp = document.getElementById('editAdminPhone');
-    const fileInp = document.getElementById('newAdminImg');
-    const saveBtn = document.querySelector('#adminEditModal button:last-child');
-
-    const newName = nameInp.value.trim();
-    const newPhone = phInp.value.trim();
-    const oldPhone = db.admin.phone;
-    const file = fileInp.files[0];
-
-    if(!newName || newPhone.length !== 10) return alert("Valid data required!");
-
-    // --- ১. ইন্সট্যান্ট ইউআই আপডেট (Optimistic UI) ---
-    const updateLocally = () => {
-        // যদি নতুন ফাইল থাকে, তবে আপলোড হওয়ার আগেই ফোনের লোকাল লিঙ্ক দিয়ে ছবি দেখাবে
-        if (file) {
-            const localUrl = URL.createObjectURL(file);
-            db.admin.profilePic = localUrl; 
-        }
-        
-        db.admin.name = newName;
-        db.opName = newName;
-        
-        // লোকাল মেমোরিতে সেভ
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-        
-        // হেডার এবং অ্যাপের নাম সাথে সাথে আপডেট
-        updateUIAfterProfileChange(); 
-        document.getElementById('adminEditModal').classList.add('hidden');
-        alert("Profile Updated Instantly! 🌍 (Syncing in background)");
-    };
-
-    // --- ২. ব্যাকগ্রাউন্ড সিঙ্ক লজিক (ইন্টারনেট এরর দিলেও অ্যাপ আটকাবে না) ---
-    (async () => {
-        try {
-            let onlineImgUrl = db.admin.profilePic;
-
-            // ব্যাকগ্রাউন্ডে ImgBB তে আপলোড
-            if (file) {
-                const fd = new FormData();
-                fd.append('image', file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                const dat = await res.json();
-                if(dat.success) onlineImgUrl = dat.data.url;
-            }
-
-            // যদি নম্বর বদলানো হয় (Transfer Logic)
-            if (newPhone !== oldPhone) {
-                // এটি ব্যাকগ্রাউন্ডে ডাটাবেস মাইগ্রেশন করবে
-                await db_fs.collection(ACCESS_KEYS).doc(newPhone + db.admin.pin).set({
-                    targetOwnerPhone: newPhone, role: 'ADMIN', name: newName
-                });
-                db.admin.phone = newPhone;
-                db.admin.profilePic = onlineImgUrl;
-                await db_fs.collection(COLLECTION).doc(newPhone).set(db);
-                await db_fs.collection(COLLECTION).doc(oldPhone).delete();
-                await db_fs.collection(ACCESS_KEYS).doc(oldPhone + db.admin.pin).delete();
-                location.reload(); // নম্বর বদলালে শুধু একবার রিফ্রেশ হবে
-            } else {
-                // নম্বর না বদলালে শুধু ক্লাউড সিঙ্ক
-                db.admin.profilePic = onlineImgUrl;
-                await saveDB(); 
-                console.log("Profile Cloud Sync Done ✅");
-            }
-        } catch (e) {
-            console.error("Background Profile Sync Failed, but local is saved.", e);
-        }
-    })();
-
-    // ৩. কল করুন
-    updateLocally();
-}
-
-// ২. হেডারের ছবি আপডেট করার ফাংশন (অবশ্যই এটি ফাইলে রাখুন)
-function updateUIAfterProfileChange() {
-    const headerImg = document.getElementById('ownerHeaderPic');
-    const initials = document.getElementById('userInitials');
-    
-    if (db.admin.profilePic && headerImg) {
-        headerImg.src = db.admin.profilePic;
-        headerImg.classList.remove('hidden');
-        initials?.classList.add('hidden');
-    }
-    if(document.getElementById('ownerName')) {
-        document.getElementById('ownerName').innerText = db.admin.name;
-    }
-}
-
-
-
-// renderHome লুপের ভেতর যেখানে ইউজার এভারটার দেখান, সেখানে এটি ব্যবহার করুন:
-function getUserAvatar(person) {
-    // যদি ওই কাস্টমারের নিজস্ব ছবি থাকে, তবে তা দেখাবে
-    if(person.profilePic) {
-        return `<img src="${person.profilePic}" class="w-10 h-10 rounded-full object-cover">`;
-    }
-    // না থাকলে নামের আদ্যক্ষর
-    return `<div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${person.name[0]}</div>`;
-}
-        // এডমিন এডিট মোডাল বন্ধ করার ফাংশন
-function closeAdminEdit() {
-    const modal = document.getElementById('adminEditModal');
-    if (modal) {
-        modal.classList.add('hidden');
-        
-        // মোডাল বন্ধ করার সময় সিলেক্ট করা ইমেজ ক্লিয়ার করা (যাতে পরে ফ্রেশ দেখায়)
-        document.getElementById('newAdminImg').value = ""; 
-        console.log("Account Center Closed");
     }
 }
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
