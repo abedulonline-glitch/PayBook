@@ -883,66 +883,83 @@ async function handleLogin() {
     }
 }
 
-// ৯. গ্লোবাল মিরর ডিসকভারি ইঞ্জিন (V19.5: ছবি এবং নিখুঁত সিঙ্ক ফিক্স)
+// ৯. গ্লোবাল মিরর ডিসকভারি: নিখুঁত সিঙ্কিং এবং মার্জ লজিক সহ (V19.0)
 async function discoverMirrorUpdates(myPhone) {
     try {
-        console.log("PayBook Global: Scanning for mutual records...");
-        // ১. ফায়ারস্টোরের সমস্ত এডমিন ডক্যুমেন্ট ফেচ করা
+        console.log("PayBook Global: Syncing your mirror accounts...");
         const querySnapshot = await db_fs.collection(COLLECTION).get();
-        let syncCount = 0;
+        let changeDetected = false;
 
         querySnapshot.forEach(doc => {
-            const remoteDB = doc.data();
-            // নিজের ডাটাবেস বাদ দেওয়া
-            if (remoteDB.admin && remoteDB.admin.phone === myPhone) return;
+            const remoteAdmin = doc.data();
+            // নিজের ডাটা বাদ দিয়ে অন্যদের চেক
+            if (remoteAdmin.admin && remoteAdmin.admin.phone === myPhone) return;
 
-            // ২. চেক: এই এডমিনের লিস্টে কি আমি (myPhone) আছি?
-            const foundMe = (remoteDB.people || []).find(p => p.phone === myPhone);
+            // চেক: এই এডমিনের লিস্টে আমি (myPhone) আছি কি না?
+            const foundMe = (remoteAdmin.people || []).find(p => p.phone === myPhone);
 
             if (foundMe) {
-                // ৩. চেক: আমার লিস্টে কি এই এডমিন অলরেডি আছে?
-                let localContact = db.people.find(p => p.phone === remoteDB.admin.phone);
+                // আমার নিজের লিস্টে এই এডমিনকে খুঁজে দেখা
+                let localCopy = db.people.find(p => p.phone === remoteAdmin.admin.phone);
 
-                if (!localContact) {
-                    // যদি না থাকে, তবে নতুন কন্টাক্ট হিসেবে ওই এডমিনকে অ্যাড করা
-                    localContact = {
+                if (!localCopy) {
+                    // কন্টাক্টটি আমার কাছে নেই, তাই নতুন করে অ্যাড করা (রোল উল্টে দিয়ে)
+                    localCopy = {
                         id: Date.now() + Math.random(),
-                        name: remoteDB.admin.name,
-                        phone: remoteDB.admin.phone,
-                        profilePic: remoteDB.admin.profilePic || null, // এডমিনের ছবি সিঙ্ক হবে
-                        type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), // রোল উল্টে যাবে
+                        name: remoteAdmin.admin.name,
+                        phone: remoteAdmin.admin.phone,
+                        type: (foundMe.type === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
                         transactions: []
                     };
-                    db.people.unshift(localContact);
+                    db.people.unshift(localCopy);
                 }
 
-                // ৪. ট্রানজ্যাকশন এবং ছবি নিখুঁতভাবে কপি করা (Deep Sync)
+                // --- ট্রানজ্যাকশন মার্জিং লজিক (যাতে ডাটা ০ না দেখায়) ---
                 (foundMe.transactions || []).forEach(remoteTx => {
-                    const alreadyExists = localContact.transactions.some(t => t.id === remoteTx.id);
+                    // চেক করা হচ্ছে এই লেনদেনটি আমার ফোনে অলরেডি আছে কি না
+                    const alreadyExists = localCopy.transactions.some(t => t.id === remoteTx.id);
+                    
                     if (!alreadyExists) {
-                        localContact.transactions.push({
+                        // লেনদেনের ধরন উল্টে দিয়ে এবং সব ডাটা (Images, Notes) সহ কপি করা
+                        localCopy.transactions.push({
                             ...remoteTx,
-                            type: (remoteTx.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'), // টাইপ উল্টে দেওয়া
-                            images: remoteTx.images || [], // মাল্টিপল ইমেজ সিঙ্ক
-                            by: remoteDB.admin.name + " (Verified)",
-                            verified: remoteTx.verified || false
+                            type: (remoteTx.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
+                            by: remoteAdmin.admin.name + " (Verified Sync)",
+                            verified: remoteTx.verified || false,
+                            images: remoteTx.images || [] // এটি নিশ্চিত করবে ছবি দেখা যাওয়া
                         });
-                        syncCount++;
+                        changeDetected = true;
                     }
                 });
             }
         });
 
-        if (syncCount > 0) {
-            await saveDB(); // সব ডাটা লোকালে এবং ক্লাউডে সেভ
+        if (changeDetected) {
+            await saveDB(); // সব পরিবর্তন ক্লাউডে এবং লোকালে সেভ
             renderHome();
-            console.log(`Success: ${syncCount} transactions synced with images! ✅`);
+            console.log("Global Mirror: History successfully synced with images! ✅");
         }
     } catch (e) {
-        console.error("Discovery Sync Error:", e);
+        console.error("Mirror Discovery Critical Error:", e);
     }
 }
-// ৯. গ্লোবাল রিয়েল-টাইম সিঙ্ক (V19.5: ডুপ্লিকেট এবং ইমেজ প্রোটেকশন সহ)
+// --- অতিরিক্ত সুরক্ষা: এন্টার অ্যাপ ফাংশন ---
+function enterApp() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
+
+    // রোল অনুযায়ী সেটিংস এবং ইউজার নেম সেট করা
+    if(db.admin) {
+        document.getElementById('userInitials').innerText = db.opName.substring(0,2).toUpperCase();
+        document.getElementById('balTypeLabel').innerText = (db.role === 'ADMIN') ? "Owner's Dashboard" : "Managed for: " + db.admin.name;
+    }
+
+    // ডিফল্ট ট্যাব সেট করে ডাটা লোড
+    db.tab = 'CUSTOMER';
+    switchTab(db.tab); 
+}
+
+// ৯. গ্লোবাল রিয়েল-টাইম মিরর সিঙ্ক (V19.0: ডুপ্লিকেট প্রোটেকশন সহ)
 async function syncToPartner(partnerPhone, txData) {
     try {
         const partnerRef = db_fs.collection(COLLECTION).doc(partnerPhone);
@@ -952,52 +969,56 @@ async function syncToPartner(partnerPhone, txData) {
         if (doc.exists) {
             partnerDB = doc.data();
         } else {
-            // যদি পার্টনার এখনো অ্যাপ না খুলে থাকে, তার জন্য একটি ফোল্ডার তৈরি রাখা
+            // আসিমুদ্দিন যদি নতুন হয়, তবে তার জন্য একটি নতুন ঘর তৈরি করা হচ্ছে
             partnerDB = { 
-                admin: { phone: partnerPhone, name: "New User" }, 
+                admin: { phone: partnerPhone, name: "Pending User" }, 
                 people: [], 
                 managers: [],
-                secret: false 
+                secret: false
             };
+            console.log("Global Mirror: Creating placeholder for new user...");
         }
 
-        // পার্টনারের লিস্টে আপনাকে খুঁজে বের করা
-        let meInPartnerList = partnerDB.people.find(p => p.phone === db.admin.phone);
+        // আসিমুদ্দিনের লিস্টে আমাকে (এডমিন) খুঁজে বের করা
+        let meInHisList = partnerDB.people.find(p => p.phone === db.admin.phone);
 
         if (!meInHisList) {
             meInHisList = {
                 id: Date.now(),
                 name: db.admin.name,
                 phone: db.admin.phone,
-                profilePic: db.admin.profilePic || null,
-                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'),
+                type: (db.tab === 'CUSTOMER' ? 'SUPPLIER' : 'CUSTOMER'), 
                 transactions: []
             };
             partnerDB.people.unshift(meInHisList);
         }
 
-        // এডিট নাকি নতুন ট্রানজ্যাকশন তা চেক করা
-        let txIndex = meInHisList.transactions.findIndex(t => t.id === txData.id);
+        // --- এডিট এবং ডুপ্লিকেট চেক লজিক ---
+        let existingTxIndex = meInHisList.transactions.findIndex(t => t.id === txData.id);
 
         const mirrorTx = {
             ...txData,
             type: (txData.type === 'GIVEN' ? 'RECEIVED' : 'GIVEN'),
-            images: txData.images || [], // ছবি সিঙ্ক নিশ্চিত করা
-            by: db.admin.name + " (Auto-Synced)"
+            by: db.admin.name + " (Auto-Synced)",
+            images: txData.images || [] // মাল্টি-ইমেজ সাপোর্ট
         };
 
-        if (txIndex !== -1) {
-            meInHisList.transactions[txIndex] = mirrorTx; // এডিট আপডেট
+        if (existingTxIndex !== -1) {
+            // যদি লেনদেন আগে থেকেই থাকে (এডিট মোড), তবে সেটি আপডেট হবে
+            meInHisList.transactions[existingTxIndex] = mirrorTx;
+            console.log("Global Mirror: Transaction updated on partner side.");
         } else {
-            meInHisList.transactions.push(mirrorTx); // নতুন এন্ট্রি পুশ
+            // নতুন লেনদেন হলে পুশ হবে
+            meInHisList.transactions.push(mirrorTx);
+            console.log("Global Mirror: New entry pushed to partner.");
         }
 
-        // ফাইনাল ক্লাউড রাইট
+        // ক্লাউডে ফাইনাল সেভ
         await partnerRef.set(partnerDB);
-        console.log("Global Push Sync: Done! ✅");
+        console.log("Global Real-time Sync: Successfully Completed ✅");
 
     } catch (e) {
-        console.error("Partner Push Failed:", e);
+        console.error("Mirror Sync Engine Failure:", e);
     }
 }
           function logout() {
