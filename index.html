@@ -1456,8 +1456,56 @@ function initNavigation() {
             `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
         const odBadge = (missedCount > 0) ? 
             `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
+function renderHome() {
+    const list = document.getElementById('contactList'); 
+    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    list.innerHTML = "";
+    
+    document.getElementById('headerMain').classList.remove('hidden'); 
+    document.getElementById('headerLedger').classList.add('hidden');
+    
+    const filteredPeople = db.people.filter(p => {
+        const matchesTab = p.type === db.tab;
+        const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
+        const phoneMatch = (p.phone || "").includes(searchVal);
+        return matchesTab && (nameMatch || phoneMatch);
+    });
 
-        // ৪. রেন্ডারিং কন্টাক্ট কার্ড
+    filteredPeople.forEach(p => {
+        const bal = calcBal(p.transactions, db.secret, p.type);
+        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
+        
+        // --- ওভারডিউ ক্যালকুলেশন ---
+        let missedCount = 0;
+        const today = new Date().setHours(0,0,0,0);
+        (p.transactions || []).forEach(tx => {
+            if (tx.status === 'active' && tx.nextCollDate) {
+                const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
+                if (today > promised) missedCount++;
+            }
+        });
+
+        // --- ৩. অটো-রিমুভ লজিক: টাকা শোধ হলে ডিফোল্টার ট্যাগ কেটে যাবে ---
+        if (bal <= 0 && p.isDefaulter) {
+            p.isDefaulter = false;
+            p.reportedToGlobal = false;
+            pushDefaulterToGlobal(p, false); // গ্লোবাল লিস্ট থেকে ডিলিট
+            saveDB();
+        }
+
+        // ৪. অটো-অ্যাড লজিক: ৩ বার ফেল করলে
+        const isAutoDef = missedCount >= 3;
+        if (isAutoDef && !p.reportedToGlobal) {
+            p.isDefaulter = true;
+            p.reportedToGlobal = true;
+            pushDefaulterToGlobal(p, true);
+            saveDB();
+        }
+
+        const isDef = p.isDefaulter === true;
+        const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
+        const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
+
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
@@ -1475,16 +1523,40 @@ function initNavigation() {
                         </div>
                     </div>
                 </div>
-                <div class="text-right flex items-center gap-5">
+                <div class="text-right flex items-center gap-4">
                     <div onclick="openLedger(${p.id})" class="cursor-pointer">
                         <h5 class="font-black text-sm ${bal > 0 ? 'text-rose-600' : 'text-emerald-600'}">₹${dAmt}</h5>
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
-                    <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
-                        <i class="fas fa-trash-alt text-xs"></i>
-                    </button>
+                    
+                    <!-- ম্যানুয়াল ডিফোল্টার টগল বাটন (Shield Icon) -->
+                    <div class="flex flex-col gap-2 border-l pl-3">
+                        <i onclick="event.stopPropagation(); toggleDefaulter(${p.id})" 
+                           class="fas fa-shield-alt text-sm ${isDef ? 'text-rose-500' : 'text-slate-200'} hover:text-[#861F41] cursor-pointer"></i>
+                        <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-6 h-6 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </div>
                 </div>
             </div>`;
+    });
+}
+
+// ৩. ম্যানুয়াল ডিফোল্টার টগল ফাংশন (অবশ্যই এটি যোগ করবেন)
+function toggleDefaulter(id) {
+    const person = db.people.find(p => p.id === id);
+    if(!person) return;
+
+    askPin(() => {
+        const currentState = person.isDefaulter || false;
+        person.isDefaulter = !currentState;
+        person.reportedToGlobal = person.isDefaulter; // ফ্ল্যাগ আপডেট
+
+        saveDB();
+        pushDefaulterToGlobal(person, person.isDefaulter);
+        renderHome();
+        
+        alert(person.isDefaulter ? `${person.name} marked as Defaulter.` : `${person.name} removed from Defaulter list.`);
     });
 }
         function renderLedger() {
@@ -1701,29 +1773,35 @@ function closeZoom() {
     }
 }
         // ২. গ্লোবাল ডিফোল্টার রিপোর্ট ইঞ্জিন
-async function pushDefaulterToGlobal(person) {
+async function pushDefaulterToGlobal(person, isBad = true) {
     try {
-        const pBal = calcBal(person.transactions, false, person.type);
-        const kBal = calcBal(person.transactions, true, person.type);
-        const totalDue = pBal + kBal; // আসল বকেয়া টাকা
+        const docRef = db_fs.collection("global_defaulters").doc(person.phone);
 
-        // প্রমাণ হিসেবে শেষ ৩টি ট্রানজ্যাকশন নোট
-        const proof = person.transactions
-            .filter(t => t.status === 'active')
-            .slice(-3).map(t => `${t.date}: ${t.note || 'No Note'}`).join(" | ");
+        if (isBad) {
+            // ১. ডিফোল্টার হিসেবে গ্লোবাল লিস্টে নাম তোলা
+            const pBal = calcBal(person.transactions, false, person.type);
+            const kBal = calcBal(person.transactions, true, person.type);
+            const totalDue = pBal + kBal;
+            const proof = person.transactions.filter(t => t.status === 'active').slice(-3).map(t => `${t.date}: ${t.note || 'No Note'}`).join(" | ");
 
-        await db_fs.collection("global_defaulters").doc(person.phone).set({
-            phone: person.phone,
-            status: "DEFAULTER",
-            totalOutstanding: totalDue,
-            reportedBy: db.admin.name,
-            adminPhone: db.admin.phone,
-            evidence: proof,
-            updatedAt: new Date().toISOString()
-        });
-        console.log("Global Defaulter Entry Updated ✅");
+            await docRef.set({
+                phone: person.phone,
+                name: person.name,
+                status: "DEFAULTER",
+                totalOutstanding: totalDue,
+                reportedBy: db.admin.name,
+                adminPhone: db.admin.phone,
+                evidence: proof,
+                updatedAt: new Date().toISOString()
+            });
+            console.log("Global Defaulter Tag Added ✅");
+        } else {
+            // ২. লিস্ট থেকে নাম সরিয়ে ফেলা (টাকা শোধ হলে বা ম্যানুয়ালি সরালে)
+            await docRef.delete();
+            console.log("Global Defaulter Tag Removed ❌");
+        }
     } catch (e) {
-        console.warn("Global report delayed due to connection.");
+        console.error("Global Sync Error:", e);
     }
 }
         function editTx(pid, tid) {
