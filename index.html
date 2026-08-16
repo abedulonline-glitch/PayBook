@@ -2135,6 +2135,17 @@ function getUserAvatar(person) {
             </div>`;
     });
 }
+        // এডমিন এডিট মোডাল বন্ধ করার ফাংশন
+function closeAdminEdit() {
+    const modal = document.getElementById('adminEditModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        
+        // মোডাল বন্ধ করার সময় সিলেক্ট করা ইমেজ ক্লিয়ার করা (যাতে পরে ফ্রেশ দেখায়)
+        document.getElementById('newAdminImg').value = ""; 
+        console.log("Account Center Closed");
+    }
+}
         
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
