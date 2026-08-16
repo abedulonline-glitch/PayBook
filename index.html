@@ -453,40 +453,34 @@ let db = {
 
 let holdTimer, autoExitTimer;
 let capturedFiles = [];
-        // --- ২. স্টার্টআপ এবং অথ লজিক (পয়েন্ট ১এ, ৯, ১২, ১৪) ---
-        // --- স্মার্ট উইন্ডো লোড লজিক (V18.5 - ভিউয়ার মোড ফিক্স) ---
+    // --- স্মার্ট উইন্ডো লোড লজিক (V18.5 - ভিউয়ার মোড ফিক্স) ---
 window.onload = async () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const viewCustPh = urlParams.get('v');    // কাস্টমার ফোন নম্বর
-    const adminPh = urlParams.get('admin');   // এডমিন ফোন নম্বর
-    const shareMode = urlParams.get('m');     // 'p' (পাক্কা) অথবা 's' (সিক্রেট)
+    const viewCustPh = urlParams.get('v');
+    const adminPh = urlParams.get('admin');
+    const shareMode = urlParams.get('m');
 
-    // ১. দর্শক মোড ডিটেক্টর (যদি লিঙ্ক দিয়ে কেউ ঢোকে)
+    // ১. দর্শক মোড ডিটেক্টর: যদি লিঙ্ক দিয়ে কাস্টমার ঢোকে
     if (viewCustPh && adminPh) {
-        document.getElementById('authScreen').classList.add('hidden');
-        document.getElementById('appBody').classList.remove('hidden');
-        
         try {
-            // এডমিনের ডাটাবেস থেকে তথ্য আনা
             const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
             if (doc.exists) {
                 const adminData = doc.data();
                 const person = adminData.people.find(p => p.phone === viewCustPh);
                 if (person) {
-                    // পাবলিক ভিউয়ার রেন্ডার করা (নিচে আলাদা ফাংশন হিসেবে দেওয়া আছে)
                     renderPublicStatement(person, adminData.admin.name, shareMode);
-                    return; // সাধারণ লগইন কোড আর রান হবে না
+                    return; // এখানে কোড শেষ হবে, এডমিন প্যানেল লোড হবে না
                 }
             }
-            alert("This secure link has expired or is invalid.");
+            alert("This secure statement link is no longer valid.");
         } catch (e) { console.error("Viewer Sync Error", e); }
     }
 
-    // ২. সাধারণ এডমিন লগইন লজিক (LocalStorage ফিক্স সহ)
+    // ২. সাধারণ এডমিন লগইন লজিক (নিরাপদ শুরু)
     const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
-        db.secret = false; // নিরাপত্তাজনিত কারণে শুরুতে সর্বদা পাকা মোড
+        db.secret = false; // সর্বদা পাক্কা মোড নিশ্চিত করা
         localStorage.setItem(DB_KEY, JSON.stringify(db)); 
         
         if(db.admin && db.admin.phone) { 
@@ -516,20 +510,15 @@ window.onload = async () => {
         }, { passive: true });
     }
             
-    // ৪. UI এবং নেভিগেশন রিসেট
-    const trigger = document.getElementById('secretTrigger');
-    if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
-
+    // ৪. নেভিগেশন এবং ইভেন্ট হ্যান্ডলার সেটআপ
     initSecretGesture();
     setupHistoryBack();
     
-    // ৫. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার (ক্যামেরা ও গ্যালারি)
     const camInp = document.getElementById('camInp');
     const galInp = document.getElementById('galInp');
     if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
-    // ৬. রেজিস্ট্রেশন স্ক্রিনের প্রোফাইল ইমেজ হ্যান্ডলার
     const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
@@ -537,34 +526,22 @@ window.onload = async () => {
             if(file) {
                 const preview = document.getElementById('adminImgPrev');
                 if(preview) { preview.src = URL.createObjectURL(file); preview.classList.remove('hidden'); }
-                document.getElementById('camIcon')?.classList.add('hidden');
-
-                const fd = new FormData();
-                fd.append('image', file);
-                try {
-                    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
-                    const dat = await res.json();
-                    if(dat.success) {
-                        if(db.admin) { db.admin.profilePic = dat.data.url; saveDB(); }
-                        else { window.tempProfilePic = dat.data.url; }
-                        console.log("Admin Profile Image Uploaded!");
-                    }
-                } catch(err) { console.error("Upload Error", err); }
+                const fd = new FormData(); fd.append('image', file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+                const dat = await res.json();
+                if(dat.success && db.admin) { db.admin.profilePic = dat.data.url; saveDB(); }
             }
         };
     }
 
-    // ৭. এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার
+    // এডমিন এডিট মোডাল প্রিভিউ
     const newAdminImg = document.getElementById('newAdminImg');
     if(newAdminImg) {
         newAdminImg.onchange = (e) => {
             const file = e.target.files[0];
             if(file) {
                 const editPreview = document.getElementById('editAdminPreview');
-                if(editPreview) {
-                    editPreview.src = URL.createObjectURL(file);
-                    console.log("Account Center Preview Updated ✅");
-                }
+                if(editPreview) editPreview.src = URL.createObjectURL(file);
             }
         };
     }
@@ -1996,32 +1973,64 @@ function shareWA(amt, type, name, custPhone) {
 
 // ২. পাবলিক স্টেটমেন্ট রেন্ডারার
 function renderPublicStatement(person, ownerName, mode) {
+    // ১. ইউআই এলিমেন্টগুলো কন্ট্রোল করা
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('appBody').classList.remove('hidden');
     document.getElementById('headerMain').classList.add('hidden');
     document.getElementById('headerLedger').classList.remove('hidden');
+
+    // ২. হেডারের সব এডমিন বাটন এবং আইকন লুকিয়ে ফেলা
+    const header = document.getElementById('headerLedger');
+    const backBtn = header.querySelector('.fa-arrow-left');
+    const pdfIcon = header.querySelector('.fa-file-pdf');
+    const secretBtn = document.getElementById('secretTrigger');
+
+    if(backBtn) backBtn.style.display = 'none'; // ব্যাক বাটন বন্ধ
+    if(pdfIcon) pdfIcon.style.display = 'none'; // পিডিএফ বন্ধ
+    if(secretBtn) secretBtn.style.display = 'none'; // সিক্রেট বাটন বন্ধ
+
     document.getElementById('lName').innerText = person.name;
-    document.getElementById('lPhone').innerText = "Account with: " + ownerName;
-    document.getElementById('ledgerFooter')?.classList.add('hidden'); // এন্ট্রি বাটন বন্ধ
+    document.getElementById('lPhone').innerText = "Statement with: " + ownerName;
+
+    // ৩. ফুটার এবং প্লাস বাটন বন্ধ করা
+    document.getElementById('ledgerFooter')?.classList.add('hidden');
+    const floatingBtn = document.querySelector('.fixed.bottom-10');
+    if(floatingBtn) floatingBtn.classList.add('hidden');
 
     const list = document.getElementById('ledgerList');
     list.innerHTML = "";
     
-    // ফিল্টার: মোড যদি 'p' হয় তবে শুধু পাকা, 's' হলে পাকা+কাঁচা দুটোই (সবই অরিজিনাল এমাউন্টে)
+    // ৪. ফিল্টার লজিক: p হলে শুধু পাকা, s হলে পাকা+কাঁচা (সবই অরিজিনাল এমাউন্টে)
     const txs = person.transactions.filter(t => t.status === 'active' && (mode === 's' || !t.secret));
 
     txs.forEach(t => {
         const isR = t.type === 'RECEIVED';
-        const imgs = (t.images || []).map(i => `<img src="${i}" class="w-full h-auto rounded-xl mb-3 shadow-sm" onclick="openZoom(this.src)">`).join("");
-        
+        const imgsHTML = (t.images || []).map(i => `
+            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="openZoom(this.src)">
+        `).join("");
+
+        // ৫. শুধুমাত্র এমাউন্ট এবং ইমেজ রেন্ডার করা (কোনো বাটন ছাড়া)
         list.innerHTML += `
-            <div class="flex flex-col ${isR ? 'items-end' : 'items-start'} w-full mb-10 px-2 animate-fade">
-                <div class="text-[8px] font-black text-slate-400 uppercase mb-2">${t.date}</div>
-                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !border-slate-100">
-                    ${imgs}
+            <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 px-2 animate-fade">
+                <div class="text-[8px] font-black text-slate-400 uppercase mb-2 tracking-widest">${t.date}</div>
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !border-slate-100 !shadow-lg">
+                    <!-- ইমেজ সেকশন -->
+                    ${imgsHTML ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgsHTML}</div>` : ''}
+                    
                     <div class="flex justify-between items-center gap-10">
-                        <h3 class="text-xl font-black ${t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600'}">₹${t.amount.toLocaleString()}</h3>
+                        <!-- এমাউন্ট এবং টাইপ -->
+                        <h3 class="text-xl font-black ${t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600'}">
+                            ₹${t.amount.toLocaleString('en-IN')}
+                        </h3>
                         <p class="text-[9px] font-bold text-slate-400 uppercase">${t.type}</p>
                     </div>
-                    <p class="text-[10px] text-slate-500 mt-2">${t.note || ''}</p>
+
+                    <!-- নোট সেকশন -->
+                    <p class="text-[10px] text-slate-500 mt-2 italic leading-tight">${t.note || ''}</p>
+                    
+                    <div class="mt-4 pt-2 border-t border-slate-50 text-center">
+                        <p class="text-[7px] text-slate-300 font-bold uppercase tracking-widest leading-none">Security Verified by PayBook Pro</p>
+                    </div>
                 </div>
             </div>`;
     });
