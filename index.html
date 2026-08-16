@@ -570,7 +570,19 @@ window.onload = async () => {
     }
 };
 
-        async function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); if(db.admin) await db_fs.collection(COLLECTION).doc(db.admin.phone).set(db); }
+        // ১. ডাটাবেস সেভ ফাংশন (V18.6 - Background Sync Fix)
+function saveDB() {
+    // ফোনের লোকাল মেমোরিতে সাথে সাথে সেভ
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    
+    // ক্লাউড সিঙ্ক ব্যাকগ্রাউন্ডে হবে (User কে ওয়েট করতে হবে না)
+    const targetDocId = db.ownerPhone || (db.admin ? db.admin.phone : null);
+    if(targetDocId) {
+        db_fs.collection(COLLECTION).doc(targetDocId).set(db)
+            .then(() => console.log("Cloud Updated ✅"))
+            .catch(e => console.error("Cloud Error ❌", e));
+    }
+}
         // --- লাইভ ক্লাউড সিঙ্ক (যাতে অন্য কেউ এন্ট্রি দিলে সাথে সাথে স্ক্রিনে ভেসে ওঠে) ---
 function syncCloud() {
     if(db.admin && db.admin.phone) {
@@ -950,80 +962,80 @@ function handleImageFiles(f) {
     }
 }
 
-// --- ৫. ডাটা এন্ট্রি এবং সেভ (Next Collection Date যুক্ত করা হলো) ---
+// ৩. ডাটা এন্ট্রি এবং অটো-সিঙ্ক লজিক
 async function preSave(t) {
     const amtInput = document.getElementById('txAmt');
     const amt = parseFloat(amtInput.value); 
     if(!amt || amt <= 0) return alert("Please enter amount!");
 
     const nextDateVal = document.getElementById('nextCollDate')?.value || null;
+    const noteVal = document.getElementById('txNote').value.trim();
+    const dateVal = document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB');
 
-    const act = async () => {
-        const confirmBtn = document.getElementById('mainConfirmBtn');
-        confirmBtn.innerText = "SYNCHING CLOUD...";
-        confirmBtn.disabled = true;
+    // --- এই অংশটি ইন্সট্যান্ট কাজ করবে ---
+    const instantSaveAction = () => {
+        const person = db.people.find(x => x.id === db.activeId);
+        
+        // ছবি আপলোড হওয়ার আগে লোকাল প্রিভিউ লিঙ্ক তৈরি
+        const localPreviews = capturedFiles.map(f => URL.createObjectURL(f));
+        const filesToSync = [...capturedFiles]; // আপলোডের জন্য ফাইলের কপি রাখা
 
-        try {
-            let uploadedImgs = [];
-            const filesToUpload = (typeof capturedFiles !== 'undefined') ? capturedFiles : [];
-            for(let file of filesToUpload) {
-                const fd = new FormData();
-                fd.append('image', file);
-                try {
+        const newTx = { 
+            id: Date.now(), 
+            amount: amt, 
+            type: t, 
+            secret: !!db.secret, 
+            date: dateVal, 
+            note: noteVal, 
+            nextCollDate: nextDateVal,
+            images: localPreviews, 
+            by: db.opName || 'Owner', 
+            verified: false,
+            status: 'active' 
+        };
+
+        // ১. লোকাল ফোনে সাথে সাথে পুশ
+        person.transactions.push(newTx);
+        saveDB(); 
+
+        // ২. ইউআই সাথে সাথে আপডেট (মিলি-সেকেন্ডে)
+        renderLedger(); 
+        closeDrawer(); 
+
+        // --- ৩. ব্যাকগ্রাউন্ড প্রসেসিং শুরু (এটি ইউজারকে আটকাবে না) ---
+        (async () => {
+            try {
+                let uploadedImgs = [];
+                for(let file of filesToSync) {
+                    const fd = new FormData();
+                    fd.append('image', file);
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                     const dat = await res.json();
                     if(dat.success) uploadedImgs.push(dat.data.url);
-                } catch(imgErr) { console.error("Img Upload Fail"); }
+                }
+
+                // আপলোড শেষ হলে আসল লিঙ্ক দিয়ে আপডেট করা
+                newTx.images = uploadedImgs;
+                
+                // ক্লাউড সিঙ্ক এবং মিরর সিঙ্ক (Point 9)
+                await saveDB(); 
+                if (typeof syncToPartner === 'function') {
+                    await syncToPartner(person.phone, newTx);
+                }
+                
+                console.log("Background Cloud Sync Complete for " + newTx.id);
+                renderLedger(); // অরিজিনাল ছবির জন্য একবার রি-রেন্ডার
+            } catch (e) {
+                console.error("Background processing error, but data is safe locally.");
             }
-
-            const person = db.people.find(x => x.id === db.activeId);
-            
-            // নতুন ট্রানজ্যাকশন অবজেক্ট (Verified: false যোগ করা হয়েছে)
-            const newTx = { 
-                id: Date.now(), 
-                amount: amt, 
-                type: t, 
-                secret: !!db.secret, 
-                date: document.getElementById('txDate').value || new Date().toLocaleDateString('en-GB'), 
-                note: document.getElementById('txNote').value.trim(), 
-                nextCollDate: nextDateVal, 
-                images: uploadedImgs, 
-                by: db.opName || 'Owner', 
-                verified: false, // ডিফল্টভাবে আন-ভেরিফাইড থাকবে
-                status: 'active' 
-            };
-
-            person.transactions.push(newTx);
-            await saveDB(); 
-            
-            if (typeof syncToPartner === 'function') {
-                await syncToPartner(person.phone, newTx);
-            }
-
-            renderLedger(); 
-            
-            if(document.getElementById('nextCollDate')) document.getElementById('nextCollDate').value = "";
-            if(document.getElementById('txNote')) document.getElementById('txNote').value = "";
-            if(document.getElementById('multiImgPreview')) document.getElementById('multiImgPreview').innerHTML = "";
-            amtInput.value = "";
-            capturedFiles = []; 
-            
-            closeDrawer(); 
-            alert("Transaction saved and waiting for verification.");
-
-        } catch(error) {
-            console.error("Critical Sync Error:", error);
-            alert("Failed to sync. Please check internet connection.");
-        } finally {
-            confirmBtn.innerText = "Confirm Transaction";
-            confirmBtn.disabled = false;
-        }
+        })();
     };
 
+    // পিন ভেরিফিকেশন চেক
     if(db.secret && db.tab === 'CUSTOMER' && t === 'RECEIVED') {
-        askPin(act); 
+        askPin(instantSaveAction); 
     } else {
-        act();
+        instantSaveAction();
     }
 }
 
@@ -1688,30 +1700,31 @@ function closeZoom() {
         console.log("Global Blacklist Updated: " + person.phone);
     }
 }
-        async function pushDefaulterToGlobal(person) {
-    const pBal = calcBal(person.transactions, false, person.type);
-    const kBal = calcBal(person.transactions, true, person.type);
-    const totalDue = pBal + kBal; // মোট বকেয়া (পাক্কা + কাঁচা আসল টাকা)
-
-    // সর্বশেষ ৩টি লেনদেনের নোট সংগ্রহ করা (প্রমাণ হিসেবে)
-    const proofNotes = person.transactions
-        .filter(t => t.status === 'active')
-        .slice(0, 3)
-        .map(t => `${t.date}: ${t.note || 'No Note'}`)
-        .join(" | ");
-
+        // ২. গ্লোবাল ডিফোল্টার রিপোর্ট ইঞ্জিন
+async function pushDefaulterToGlobal(person) {
     try {
+        const pBal = calcBal(person.transactions, false, person.type);
+        const kBal = calcBal(person.transactions, true, person.type);
+        const totalDue = pBal + kBal; // আসল বকেয়া টাকা
+
+        // প্রমাণ হিসেবে শেষ ৩টি ট্রানজ্যাকশন নোট
+        const proof = person.transactions
+            .filter(t => t.status === 'active')
+            .slice(-3).map(t => `${t.date}: ${t.note || 'No Note'}`).join(" | ");
+
         await db_fs.collection("global_defaulters").doc(person.phone).set({
             phone: person.phone,
             status: "DEFAULTER",
             totalOutstanding: totalDue,
             reportedBy: db.admin.name,
             adminPhone: db.admin.phone,
-            evidence: proofNotes, // এটিই প্রমাণ হিসেবে কাজ করবে
+            evidence: proof,
             updatedAt: new Date().toISOString()
         });
-        console.log("Defaulter reported with evidence successfully.");
-    } catch (e) { console.error("Global Reporting Error:", e); }
+        console.log("Global Defaulter Entry Updated ✅");
+    } catch (e) {
+        console.warn("Global report delayed due to connection.");
+    }
 }
         function editTx(pid, tid) {
     const p = db.people.find(x => x.id === pid);
