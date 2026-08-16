@@ -1411,51 +1411,7 @@ function initNavigation() {
         document.getElementById('multiImgPreview').innerHTML = "";
     }, 400); 
 }
-        function renderHome() {
-    const list = document.getElementById('contactList'); 
-    const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
-    list.innerHTML = "";
-    
-    document.getElementById('headerMain').classList.remove('hidden'); 
-    document.getElementById('headerLedger').classList.add('hidden');
-    
-    const filteredPeople = db.people.filter(p => {
-        const matchesTab = p.type === db.tab;
-        const nameMatch = (p.name || "").toLowerCase().includes(searchVal);
-        const phoneMatch = (p.phone || "").includes(searchVal);
-        return matchesTab && (nameMatch || phoneMatch);
-    });
-
-    filteredPeople.forEach(p => {
-        const bal = calcBal(p.transactions, db.secret, p.type);
-        const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ১. ওভারডিউ এবং ডিফোল্টার লজিক ---
-        let missedCount = 0;
-        const today = new Date().setHours(0,0,0,0);
-        (p.transactions || []).forEach(tx => {
-            if (tx.status === 'active' && tx.nextCollDate) {
-                const promised = new Date(tx.nextCollDate).setHours(0,0,0,0);
-                if (today > promised) missedCount++;
-            }
-        });
-
-        // ২. ডিফোল্টার শর্ত চেক করা
-        const isDef = p.isDefaulter === true || missedCount >= 3;
-
-        // --- ৩. এই অংশটিই আপনার কালেকশন তৈরি করবে (অটো-রিপোর্ট) ---
-        if (isDef && !p.reportedToGlobal) {
-            p.isDefaulter = true; 
-            p.reportedToGlobal = true; // যাতে একবারই রিপোর্ট হয়
-            saveDB(); 
-            // আপনার লেখা সেই ফাংশনটি এখানে কল করা হলো
-            pushDefaulterToGlobal(p); 
-        }
-
-        const defBadge = isDef ? 
-            `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
-        const odBadge = (missedCount > 0) ? 
-            `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase">OD-${missedCount}</span>` : "";
 function renderHome() {
     const list = document.getElementById('contactList'); 
     const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
