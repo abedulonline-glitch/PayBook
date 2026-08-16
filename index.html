@@ -1615,8 +1615,8 @@ function toggleDefaulter(id) {
                     <div class="flex gap-6 mt-4 pt-3 border-t border-slate-50 items-center">
                         <i class="fas fa-edit text-indigo-400 text-sm active:text-indigo-700" onclick="editTx(${p.id}, ${t.id})"></i>
                         <i class="fas fa-trash-alt text-rose-300 text-sm active:text-rose-600" onclick="deleteTx(${t.id})"></i>
-                    <i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto active:text-emerald-700" 
-   on।                   click="shareWA(${t.amount}, '${t.type}', '${p.name}', '${p.phone}')"></i>
+<i class="fab fa-whatsapp text-emerald-400 text-sm ml-auto active:text-emerald-700 cursor-pointer" 
+   onclick="shareWA(${t.amount}, '${t.type}', '${p.name}', '${p.phone}')"></i>
                         ${t.history ? `<i class="fas fa-history text-slate-400 text-xs" onclick="showHistory(${p.id}, ${t.id})"></i>` : ''}
                     </div>
                     ` : ''}
@@ -1975,17 +1975,20 @@ async function verifyAndReset() {
     }
 }
         // হোয়াটসঅ্যাপে স্মার্ট স্টেটমেন্ট লিঙ্ক পাঠানোর ফাংশন
+// হোয়াটসঅ্যাপে স্মার্ট স্টেটমেন্ট লিঙ্ক পাঠানোর মাস্টার ফাংশন
 function shareWA(amt, type, name, custPhone) {
-    // আপনার অ্যাপের অরিজিনাল লিঙ্ক (যেমন: https://paybook-cc6be.web.app/)
+    if(!custPhone) return alert("Error: Customer phone number missing!");
+
+    // আপনার অ্যাপের অরিজিনাল লিঙ্ক (Firebase Hosting URL)
     const appUrl = window.location.origin + window.location.pathname;
     
-    // মোড ফ্ল্যাগ: 'p' মানে শুধু পাক্কা, 's' মানে পাক্কা+কাঁচা দুটোই (পয়েন্ট অনুযায়ী)
+    // মোড ফ্ল্যাগ: 'p' মানে পাক্কা, 's' মানে সিক্রেট (আপনার শর্ত অনুযায়ী)
     const modeFlag = db.secret ? 's' : 'p'; 
     
-    // স্মার্ট লিঙ্ক জেনারেশন
-    const viewLink = `${appUrl}?view=true&owner=${db.admin.phone}&contact=${custPhone}&mode=${modeFlag}`;
+    // স্মার্ট লিঙ্ক তৈরি (কাস্টমার নম্বর + এডমিন নম্বর + মোড)
+    const viewLink = `${appUrl}?v=${custPhone}&admin=${db.admin.phone}&m=${modeFlag}`;
     
-    const msg = `Dear ${name},\n\nYour transaction of Rs. ${amt.toLocaleString()} (${type}) has been updated. \n\nYou can view your full LIVE statement with images here (No App Required):\n🔗 ${viewLink}\n\nPayBook Pro Security Verified`;
+    const msg = `Dear ${name},\n\nYour transaction of Rs. ${amt.toLocaleString()} (${type}) has been updated in PayBook.\n\nYou can view your full LIVE statement with images here (No App Required):\n🔗 ${viewLink}\n\nThank you, ${db.admin.name}`;
     
     // ৯১ কোড সহ হোয়াটসঅ্যাপ ওপেন করা
     window.open(`https://wa.me/91${custPhone}?text=${encodeURIComponent(msg)}`, '_blank');
