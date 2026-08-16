@@ -1415,6 +1415,7 @@ function initNavigation() {
 function renderHome() {
     const list = document.getElementById('contactList'); 
     const searchVal = document.getElementById('searchInput')?.value.toLowerCase() || "";
+    if(!list) return;
     list.innerHTML = "";
     
     document.getElementById('headerMain').classList.remove('hidden'); 
@@ -1428,10 +1429,11 @@ function renderHome() {
     });
 
     filteredPeople.forEach(p => {
+        // ১. ব্যালেন্স ক্যালকুলেশন
         const bal = calcBal(p.transactions, db.secret, p.type);
         const dAmt = db.secret ? (Math.abs(bal)/100).toFixed(2) : Math.abs(bal).toLocaleString('en-IN');
         
-        // --- ওভারডিউ ক্যালকুলেশন ---
+        // ২. ওভারডিউ ক্যালকুলেশন
         let missedCount = 0;
         const today = new Date().setHours(0,0,0,0);
         (p.transactions || []).forEach(tx => {
@@ -1441,12 +1443,12 @@ function renderHome() {
             }
         });
 
-        // --- ৩. অটো-রিমুভ লজিক: টাকা শোধ হলে ডিফোল্টার ট্যাগ কেটে যাবে ---
+        // ৩. অটো-রিমুভ লজিক: টাকা শোধ হলে (bal <= 0) ডিফোল্টার ট্যাগ অটো কেটে যাবে
         if (bal <= 0 && p.isDefaulter) {
             p.isDefaulter = false;
             p.reportedToGlobal = false;
-            pushDefaulterToGlobal(p, false); // গ্লোবাল লিস্ট থেকে ডিলিট
             saveDB();
+            pushDefaulterToGlobal(p, false); 
         }
 
         // ৪. অটো-অ্যাড লজিক: ৩ বার ফেল করলে
@@ -1454,20 +1456,28 @@ function renderHome() {
         if (isAutoDef && !p.reportedToGlobal) {
             p.isDefaulter = true;
             p.reportedToGlobal = true;
-            pushDefaulterToGlobal(p, true);
             saveDB();
+            pushDefaulterToGlobal(p, true);
         }
 
         const isDef = p.isDefaulter === true;
         const defBadge = isDef ? `<span class="blink-secret ml-2 px-2 py-0.5 bg-white text-[#dc2626] border-2 border-[#dc2626] text-[9px] font-black rounded uppercase shadow-sm">DEFAULTER</span>` : "";
         const odBadge = (missedCount > 0) ? `<span class="ml-2 px-1.5 py-0.5 bg-white text-[#f59e0b] border border-[#f59e0b] text-[8px] font-black rounded uppercase shadow-sm">OD-${missedCount}</span>` : "";
 
+        // --- ৫. সংশোধিত পারমিশন লজিক: শুধুমাত্র পাওনাদার (Bal > 0) হলে শিল্ড বাটন দেখাবে ---
+        const shieldBtn = (bal > 0) ? 
+            `<i onclick="event.stopPropagation(); toggleDefaulter(${p.id})" 
+               class="fas fa-shield-alt text-sm ${isDef ? 'text-rose-500' : 'text-slate-200'} hover:text-[#861F41] cursor-pointer"></i>` : "";
+
+        // ৬. এভারটার লজিক
+        const userAvatarHTML = p.profilePic ? 
+            `<img src="${p.profilePic}" class="w-12 h-12 rounded-2xl object-cover shadow-lg border border-white cursor-pointer" onclick="event.stopPropagation(); openEditPersonModal(${p.id})">` : 
+            `<div onclick="event.stopPropagation(); openEditPersonModal(${p.id})" class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 cursor-pointer">${(p.name || 'U')[0]}</div>`;
+
         list.innerHTML += `
             <div class="axis-card p-5 flex justify-between items-center active:scale-95 transition-all mb-3 border border-slate-100 shadow-sm relative overflow-hidden">
                 <div onclick="openLedger(${p.id})" class="flex items-center gap-4 flex-1 cursor-pointer">
-                    <div class="w-12 h-12 axis-gradient text-white rounded-2xl flex items-center justify-center font-black text-xl border border-white/20">
-                        ${(p.name || 'U')[0]}
-                    </div>
+                    ${userAvatarHTML}
                     <div class="flex flex-col">
                         <div class="flex items-center">
                             <h4 class="font-bold text-sm text-slate-800 tracking-tight">${p.name}</h4>
@@ -1485,10 +1495,8 @@ function renderHome() {
                         <p class="text-[7px] font-bold text-slate-300 uppercase tracking-tighter">${bal > 0 ? 'DUE' : 'CLEAR'}</p>
                     </div>
                     
-                    <!-- ম্যানুয়াল ডিফোল্টার টগল বাটন (Shield Icon) -->
-                    <div class="flex flex-col gap-2 border-l pl-3">
-                        <i onclick="event.stopPropagation(); toggleDefaulter(${p.id})" 
-                           class="fas fa-shield-alt text-sm ${isDef ? 'text-rose-500' : 'text-slate-200'} hover:text-[#861F41] cursor-pointer"></i>
+                    <div class="flex flex-col gap-2 border-l border-slate-50 pl-3">
+                        ${shieldBtn}
                         <button onclick="event.stopPropagation(); deletePerson(${p.id})" class="w-6 h-6 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-all">
                             <i class="fas fa-trash-alt text-xs"></i>
                         </button>
@@ -1496,8 +1504,11 @@ function renderHome() {
                 </div>
             </div>`;
     });
-}
 
+    if(filteredPeople.length === 0) {
+        list.innerHTML = `<div class="text-center py-24 opacity-30 uppercase font-black text-[10px] tracking-[0.2em] text-slate-400">No Profile Found</div>`;
+    }
+}
 // ৩. ম্যানুয়াল ডিফোল্টার টগল ফাংশন (অবশ্যই এটি যোগ করবেন)
 function toggleDefaulter(id) {
     const person = db.people.find(p => p.id === id);
