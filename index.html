@@ -146,10 +146,16 @@ header {
 <div id="appBody" class="hidden min-h-screen">
     <header class="axis-gradient text-white sticky top-0 z-[100] h-[65px] px-5 flex items-center justify-between shadow-lg">
         <div id="headerMain" class="flex justify-between items-center w-full">
-            <div class="flex items-center gap-3">
-                <div id="userInitials" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold border border-white/20">PB</div>
-                <h1 class="text-xl font-black italic">PayBook</h1>
-            </div>
+            <!-- হেডারের বাম পাশের ইউজার প্রোফাইল সেকশন -->
+      <div class="flex items-center gap-3">
+        <div id="adminProfileBtn" onclick="openAdminEditModal()" 
+         class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold border border-white/30 text-xs overflow-hidden cursor-pointer active:scale-90 transition-all">
+        <!-- যদি ছবি থাকে তবে ছবি দেখাবে, না থাকলে আদ্যক্ষর -->
+         <img id="ownerHeaderPic" class="hidden w-full h-full object-cover">
+         <span id="userInitials">KO</span>
+       </div>
+      <h1 class="text-xl font-black italic">PayBook</h1>
+    </div>
             <div class="flex gap-5 items-center">
                 <!-- নতুন সার্চ আইকন -->
                 <i class="fas fa-search opacity-80 text-lg" onclick="toggleSearchBar()"></i>
@@ -361,6 +367,39 @@ header {
   </div> 
  </div>
 </div>
+
+    <!-- এডমিন নিজের প্রোফাইল এডিট করার মোডাল -->
+<div id="adminEditModal" class="hidden fixed inset-0 bg-black/60 z-[7000] flex items-end">
+    <div class="bg-white w-full rounded-t-[3.5rem] p-10 shadow-2xl animate-fade-up">
+        <div class="w-12 h-1 bg-slate-100 rounded-full mx-auto mb-8" onclick="closeAdminEdit()"></div>
+        <h3 class="text-xl font-black text-[#861F41] mb-8 text-center uppercase">My Account Center</h3>
+
+        <!-- ছবি বদলানোর অংশ -->
+        <div class="flex flex-col items-center mb-8">
+            <label for="newAdminImg" class="relative cursor-pointer">
+                <div class="w-24 h-24 rounded-full border-2 border-[#861F41] flex items-center justify-center overflow-hidden bg-slate-50 shadow-inner">
+                    <img id="editAdminPreview" class="w-full h-full object-cover">
+                </div>
+                <div class="absolute bottom-0 right-0 bg-[#861F41] text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                    <i class="fas fa-camera text-[10px]"></i>
+                </div>
+            </label>
+            <input type="file" id="newAdminImg" accept="image/*" class="hidden">
+        </div>
+
+        <div class="space-y-4">
+            <input type="text" id="editAdminName" placeholder="Update Business Name" class="axis-input font-bold">
+            <!-- নম্বর বদলালে ট্রান্সফার লজিক কল হবে -->
+            <input type="number" id="editAdminPhone" placeholder="Update Registered Number" class="axis-input font-bold opacity-70">
+            <p class="text-[9px] text-rose-400 font-bold px-2 uppercase tracking-tighter">* Changing number will transfer all your data.</p>
+        </div>
+
+        <div class="flex gap-4 mt-10">
+            <button onclick="closeAdminEdit()" class="flex-1 font-bold text-slate-400">Cancel</button>
+            <button onclick="saveAdminProfileChanges()" class="flex-1 py-4 bg-[#861F41] text-white rounded-xl font-bold shadow-lg">Save Profile</button>
+        </div>
+    </div>
+</div>
     
 <!-- স্মার্ট ইমেজ জুম মোডাল -->
 <div id="imageZoomModal" 
@@ -418,37 +457,33 @@ let capturedFiles = [];
         window.onload = async () => {
     // --- ১. দর্শক মোড ডিটেক্টর (URL Params Check) ---
     const urlParams = new URLSearchParams(window.location.search);
-    const viewCustPh = urlParams.get('v');    // কাস্টমার ফোন
-    const adminPh = urlParams.get('admin');   // এডমিন ফোন
-    const shareMode = urlParams.get('m');     // 'p' (Pakka) বা 's' (Secret)
+    const viewCustPh = urlParams.get('v');
+    const adminPh = urlParams.get('admin');
+    const shareMode = urlParams.get('m');
 
     if (viewCustPh && adminPh) {
-        // দর্শক মোড অ্যাক্টিভ হলে সরাসরি স্টেটমেন্ট দেখাবে
         document.getElementById('authScreen').classList.add('hidden');
         document.getElementById('appBody').classList.remove('hidden');
-        
         try {
             const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
             if (doc.exists) {
                 const adminData = doc.data();
                 const person = adminData.people.find(p => p.phone === viewCustPh);
                 if (person) {
-                    // পাবলিক ভিউ রেন্ডার করা (শর্ত অনুযায়ী p বা s মোডে)
                     renderPublicStatement(person, adminData.admin.name, shareMode);
-                    return; // সাধারণ লগইন কোড আর রান হবে না
+                    return; 
                 }
             }
             alert("This secure link has expired or is invalid.");
         } catch (e) { console.error("Sync Error", e); }
     }
 
-    // --- ২. সাধারণ এডমিন লগইন লজিক (LocalStorage Fix সহ) ---
+    // --- ২. সাধারণ এডমিন লগইন লজিক ---
     const data = localStorage.getItem(DB_KEY);
     if(data) {
         db = JSON.parse(data);
-        db.secret = false; // নিরাপত্তাজনিত কারণে শুরুতে সর্বদা পাকা মোড
+        db.secret = false; 
         localStorage.setItem(DB_KEY, JSON.stringify(db)); 
-        
         if(db.admin && db.admin.phone) { 
             toggleAuth('LOGIN'); 
             syncCloud(); 
@@ -463,7 +498,6 @@ let capturedFiles = [];
     let lastScrollTop = 0;
     const viewport = document.getElementById('mainViewport');
     const footer = document.getElementById('ledgerFooter');
-
     if(viewport && footer) {
         viewport.addEventListener('scroll', function() {
             let scrollTop = viewport.scrollTop;
@@ -479,16 +513,16 @@ let capturedFiles = [];
     // --- ৪. UI এবং নেভিগেশন রিসেট ---
     const trigger = document.getElementById('secretTrigger');
     if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
-
     initSecretGesture();
     setupHistoryBack();
-    
-    // --- ৫. ট্রানজ্যাকশন ও প্রোফাইল ইমেজ হ্যান্ডলার ---
+
+    // --- ৫. ট্রানজ্যাকশন ইমেজ হ্যান্ডলার ---
     const camInp = document.getElementById('camInp');
     const galInp = document.getElementById('galInp');
     if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
+    // --- ৬. রেজিস্ট্রেশন স্ক্রিনের প্রোফাইল ইমেজ হ্যান্ডলার ---
     const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
@@ -497,9 +531,7 @@ let capturedFiles = [];
                 const preview = document.getElementById('adminImgPrev');
                 if(preview) { preview.src = URL.createObjectURL(file); preview.classList.remove('hidden'); }
                 document.getElementById('camIcon')?.classList.add('hidden');
-
-                const fd = new FormData();
-                fd.append('image', file);
+                const fd = new FormData(); fd.append('image', file);
                 try {
                     const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                     const dat = await res.json();
@@ -508,6 +540,22 @@ let capturedFiles = [];
                         else { window.tempProfilePic = dat.data.url; }
                     }
                 } catch(err) { console.error("Upload Error", err); }
+            }
+        };
+    }
+
+    // --- ৬.১ এডমিন এডিট মোডাল (My Account Center) এর ইমেজ হ্যান্ডলার (নতুন যোগ করা) ---
+    const newAdminImg = document.getElementById('newAdminImg');
+    if(newAdminImg) {
+        newAdminImg.onchange = (e) => {
+            const file = e.target.files[0];
+            if(file) {
+                const editPreview = document.getElementById('editAdminPreview');
+                // ফাইল সিলেক্ট করার সাথে সাথে গোল বৃত্তের ভেতর প্রিভিউ দেখাবে
+                if(editPreview) {
+                    editPreview.src = URL.createObjectURL(file);
+                    console.log("Account Center: Image Preview Updated ✅");
+                }
             }
         };
     }
@@ -1911,6 +1959,96 @@ function renderPublicStatement(person, ownerName, mode) {
         alert("Invalid PIN! Must be 4 digits.");
     }
 }
+
+        // ১. এডমিন এডিট মোডাল ওপেন
+function openAdminEditModal() {
+    if(db.role !== 'ADMIN') return alert("Only Owner can edit this profile!");
+    
+    document.getElementById('editAdminName').value = db.admin.name;
+    document.getElementById('editAdminPhone').value = db.admin.phone;
+    document.getElementById('editAdminPreview').src = db.admin.profilePic || "";
+    document.getElementById('adminEditModal').classList.remove('hidden');
+}
+
+// ২. প্রোফাইল আপডেট এবং ডাটা ট্রান্সফার লজিক
+async function saveAdminProfileChanges() {
+    const nameInp = document.getElementById('editAdminName');
+    const phInp = document.getElementById('editAdminPhone');
+    const saveBtn = document.querySelector('#adminEditModal button:last-child');
+    
+    const newName = nameInp.value.trim();
+    const newPhone = phInp.value.trim();
+    const oldPhone = db.admin.phone;
+    const file = document.getElementById('newAdminImg').files[0];
+
+    if(!newName || newPhone.length !== 10) return alert("Enter valid details!");
+
+    saveBtn.innerText = "UPDATING...";
+    saveBtn.disabled = true;
+
+    try {
+        // ১. ইমেজ আপলোড
+        if(file) {
+            const fd = new FormData();
+            fd.append('image', file);
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
+            const dat = await res.json();
+            if(dat.success) {
+                db.admin.profilePic = dat.data.url; // ডাটাবেসে সেভ হলো
+            }
+        }
+
+        db.admin.name = newName;
+        db.opName = newName;
+
+        // ২. যদি ফোন নম্বর পরিবর্তন হয় তবেই রিফ্রেশ লাগবে (ট্রান্সফার লজিক)
+        if(newPhone !== oldPhone) {
+            await transferAccountLogic(oldPhone, newPhone, newName);
+            location.reload(); // নম্বর বদলালে রিফ্রেশ অনিবার্য
+            return;
+        }
+
+        // ৩. লোকাল এবং ক্লাউড সেভ
+        await saveDB(); 
+
+        // ৪. পেজ রিফ্রেশ না করে সরাসরি UI আপডেট করা (যাতে লগআউট না হয়)
+        updateUIAfterProfileChange();
+        
+        document.getElementById('adminEditModal').classList.add('hidden');
+        alert("Profile Updated Successfully! 🌍");
+
+    } catch(err) {
+        alert("Update failed. Try again.");
+    } finally {
+        saveBtn.innerText = "Save Profile";
+        saveBtn.disabled = false;
+    }
+}
+
+// UI আপডেট করার হেল্পার ফাংশন
+function updateUIAfterProfileChange() {
+    const headerImg = document.getElementById('ownerHeaderPic');
+    const userInitials = document.getElementById('userInitials');
+    const ownerNameDisplay = document.getElementById('ownerName');
+
+    if (db.admin.profilePic) {
+        headerImg.src = db.admin.profilePic;
+        headerImg.classList.remove('hidden');
+        userInitials?.classList.add('hidden');
+    }
+    if (ownerNameDisplay) ownerNameDisplay.innerText = db.admin.name;
+}
+
+// renderHome লুপের ভেতর যেখানে ইউজার এভারটার দেখান, সেখানে এটি ব্যবহার করুন:
+function getUserAvatar(person) {
+    // যদি ওই কাস্টমারের নিজস্ব ছবি থাকে, তবে তা দেখাবে
+    if(person.profilePic) {
+        return `<img src="${person.profilePic}" class="w-10 h-10 rounded-full object-cover">`;
+    }
+    // না থাকলে নামের আদ্যক্ষর
+    return `<div class="w-10 h-10 axis-gradient text-white rounded-full flex items-center justify-center font-bold text-xs">${person.name[0]}</div>`;
+}
+        
         function askPin(cb) { document.getElementById('pinModal').classList.remove('hidden'); document.getElementById('confirmPinInput').value = ""; document.getElementById('pinSubmitBtn').onclick = () => { const v = document.getElementById('confirmPinInput').value; if(v === db.admin.pin || v === MASTER_PIN || (db.role==='MANAGER' && v===db.managers.find(m=>m.name===db.opName).pin)) { document.getElementById('pinModal').classList.add('hidden'); cb(); } else alert("PIN Error!"); }; }
         function closePinModal() { document.getElementById('pinModal').classList.add('hidden'); }
         function goHome() { document.getElementById('pageLedger').classList.add('hidden'); document.getElementById('pageHome').classList.remove('hidden'); document.getElementById('headerMain').classList.remove('hidden'); document.getElementById('headerLedger').classList.add('hidden'); renderHome(); }
