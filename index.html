@@ -1034,7 +1034,7 @@ function toggleSearchBar() {
 }
 
 
-       // --- ৬. স্মার্ট পিডিএফ এবং গ্লোবাল স্টেটমেন্ট জেনারেশন (V17.4 - Footer Total Added) ---
+       // --- ৬. স্মার্ট পিডিএফ জেনারেশন (V17.6 - Final Verified Fix) ---
 function handleSmartPdfDownload() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('l', 'mm', 'a4'); // Landscape মোড
@@ -1070,31 +1070,44 @@ function handleSmartPdfDownload() {
             if (!isSec && t.secret) return; 
 
             const amt = t.amount;
+            
+            // --- কালার লজিক (নিখুঁত ফিক্স) ---
+            let rowColor;
+            if (p.type === 'CUSTOMER') {
+                // কাস্টমার: Given=বকেয়া(লাল), Received=জমা(সবুজ)
+                rowColor = (t.type === 'GIVEN') ? RED : GREEN;
+            } else {
+                // সাপ্লায়ার: Received=দেনা(লাল), Given=শোধ(সবুজ)
+                rowColor = (t.type === 'RECEIVED') ? RED : GREEN;
+            }
+
             if (isSec) {
                 let pG="-", pR="-", kG="-", kR="-";
                 if(!t.secret) {
-                    if(t.type==='GIVEN') { pG = amt.toLocaleString('en-IN'); tP_G+=amt; } else { pR = amt.toLocaleString('en-IN'); tP_R+=amt; }
+                    if(t.type==='GIVEN') { pG = amt.toLocaleString('en-IN'); tP_G += amt; } 
+                    else { pR = amt.toLocaleString('en-IN'); tP_R += amt; }
                 } else {
-                    if(t.type==='GIVEN') { kG = amt.toLocaleString('en-IN'); tK_G+=amt; } else { kR = amt.toLocaleString('en-IN'); tK_R+=amt; }
+                    if(t.type==='GIVEN') { kG = amt.toLocaleString('en-IN'); tK_G += amt; } 
+                    else { kR = amt.toLocaleString('en-IN'); tK_R += amt; }
                 }
                 rows.push([
                     t.date, p.phone, p.type, 
-                    {content: pG, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN' && pG!=='-'?RED:GREEN}},
-                    {content: pR, styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED' && pR!=='-'?GREEN:RED}},
-                    {content: kG, styles: {textColor: RED}},
-                    {content: kR, styles: {textColor: GREEN}}
+                    {content: pG, styles: {textColor: (t.type==='GIVEN' && !t.secret) ? rowColor : [0,0,0]}},
+                    {content: pR, styles: {textColor: (t.type==='RECEIVED' && !t.secret) ? rowColor : [0,0,0]}},
+                    {content: kG, styles: {textColor: (t.type==='GIVEN' && t.secret) ? rowColor : [0,0,0]}},
+                    {content: kR, styles: {textColor: (t.type==='RECEIVED' && t.secret) ? rowColor : [0,0,0]}}
                 ]);
             } else {
-                if(t.type==='GIVEN') tP_G+=amt; else tP_R+=amt;
+                if(t.type==='GIVEN') tP_G += amt; else tP_R += amt;
                 rows.push([
                     t.date, p.phone, p.type,
-                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='GIVEN'?RED:GREEN}},
-                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: (p.type==='CUSTOMER'?'GIVEN':'RECEIVED')==='RECEIVED'?GREEN:RED}}
+                    {content: t.type==='GIVEN' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: t.type==='GIVEN' ? rowColor : [0,0,0]}},
+                    {content: t.type==='RECEIVED' ? amt.toLocaleString('en-IN') : "-", styles: {textColor: t.type==='RECEIVED' ? rowColor : [0,0,0]}}
                 ]);
             }
         });
 
-        // কলাম অনুযায়ী ফুটার তৈরি (পয়েন্ট অনুযায়ী টোটাল রো)
+        // কলাম অনুযায়ী ফুটার টোটাল
         let footer = isSec 
             ? [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN'), tK_G.toLocaleString('en-IN'), tK_R.toLocaleString('en-IN')]]
             : [['TOTAL', '', '', tP_G.toLocaleString('en-IN'), tP_R.toLocaleString('en-IN')]];
@@ -1106,19 +1119,26 @@ function handleSmartPdfDownload() {
             styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' }
         });
 
+        // --- ম্যাথ ফিক্স: সামারি সেকশন ---
         let finalY = doc.lastAutoTable.finalY + 15;
-        let netBalance = isSec ? ((tP_G - tP_R) + (tK_G - tK_R)) : (tP_G - tP_R);
+        const finalGiven = isSec ? (tP_G + tK_G) : tP_G;
+        const finalRec = isSec ? (tP_R + tK_R) : tP_R;
+        let netBalance = finalGiven - finalRec;
 
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
         doc.text("FINAL SUMMARY:", 14, finalY);
+        doc.setFontSize(10);
+        doc.text(`Total Given (Debit): Rs. ${finalGiven.toLocaleString('en-IN')}`, 14, finalY + 8);
+        doc.text(`Total Received (Credit): Rs. ${finalRec.toLocaleString('en-IN')}`, 14, finalY + 15);
+        
         doc.setFontSize(14);
         if (netBalance > 0) {
             doc.setTextColor(RED[0], RED[1], RED[2]);
-            doc.text(`NET BALANCE DUE (OUTSTANDING): Rs. ${netBalance.toLocaleString('en-IN')}`, 14, finalY + 12);
+            doc.text(`NET BALANCE DUE (OUTSTANDING): Rs. ${netBalance.toLocaleString('en-IN')}`, 14, finalY + 28);
         } else {
             doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
-            doc.text(`NET BALANCE CLEAR (ADVANCE/SETTLED): Rs. ${Math.abs(netBalance).toLocaleString('en-IN')}`, 14, finalY + 12);
+            doc.text(`NET BALANCE CLEAR (ADVANCE/SETTLED): Rs. ${Math.abs(netBalance).toLocaleString('en-IN')}`, 14, finalY + 28);
         }
 
         doc.save(`${p.name}_Statement.pdf`);
@@ -1160,7 +1180,7 @@ function handleSmartPdfDownload() {
         doc.autoTable({ 
             startY: 35, head: head, body: rows, foot: gFooter,
             headStyles: {fillColor: BURGUNDY}, 
-            footStyles: {fillColor: [240, 240, 240], textColor: [0,0,0], fontStyle: 'bold'},
+            footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
             theme: 'striped', styles: { font: 'helvetica' } 
         });
         doc.save("Full_Business_Summary.pdf");
