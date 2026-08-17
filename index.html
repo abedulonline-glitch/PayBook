@@ -520,6 +520,70 @@ window.onload = async () => {
     if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
 
     const adminImgInp = document.getElementById('adminImgInp');
+// --- স্মার্ট উইন্ডো লোড লজিক (V18.6 - ভিউয়ার মোড এবং সিঙ্ক ফিক্স) ---
+window.onload = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewCustPh = urlParams.get('v');    // কাস্টমার ফোন
+    const adminPh = urlParams.get('admin');   // এডমিন ফোন
+    const shareMode = urlParams.get('m');     // মোড (p/s)
+
+    // ১. দর্শক মোড ডিটেক্টর: যদি হোয়াটসঅ্যাপ লিঙ্ক দিয়ে কেউ ঢোকে
+    if (viewCustPh && adminPh) {
+        // শুরুতে সব অথ স্ক্রিন হাইড করা
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appBody').classList.remove('hidden');
+        
+        // মেইন ভিউপোর্টে একটি লোডিং মেসেজ দেওয়া
+        document.getElementById('mainViewport').innerHTML = `<div class="py-20 text-center font-bold text-slate-400 animate-pulse uppercase text-[10px] tracking-widest">Loading Your Statement...</div>`;
+
+        try {
+            // ফায়ারস্টোর থেকে সরাসরি এডমিনের ডাটা আনা
+            const doc = await db_fs.collection(COLLECTION).doc(adminPh).get();
+            if (doc.exists) {
+                const adminData = doc.data();
+                const person = (adminData.people || []).find(p => p.phone === viewCustPh);
+                if (person) {
+                    // পাবলিক ভিউ রেন্ডার করা
+                    renderPublicStatement(person, adminData.admin.name, shareMode);
+                    return; // আর কোনো কোড রান হবে না
+                }
+            }
+            alert("This secure statement link is no longer valid.");
+        } catch (e) { console.error("Sync Error", e); }
+    }
+
+    // ২. সাধারণ এডমিন লগইন লজিক (রিস্টোর পাক্কা মোড)
+    const data = localStorage.getItem(DB_KEY);
+    if(data) {
+        db = JSON.parse(data);
+        db.secret = false; // সর্বদা পাকা মোডে শুরু হবে
+        localStorage.setItem(DB_KEY, JSON.stringify(db)); 
+        
+        if(db.admin && db.admin.phone) { 
+            toggleAuth('LOGIN'); 
+            syncCloud(); 
+        } else {
+            toggleAuth('REG');
+        }
+    } else {
+        toggleAuth('REG');
+    }
+
+    // ৩. ইউজার ইন্টারফেস সেটআপ
+    const trigger = document.getElementById('secretTrigger');
+    if(trigger) trigger.classList.remove('blink-secret', 'text-rose-500');
+
+    initSecretGesture();
+    setupHistoryBack();
+    
+    // ৪. ইনপুট হ্যান্ডলার
+    const camInp = document.getElementById('camInp');
+    const galInp = document.getElementById('galInp');
+    if(camInp) camInp.onchange = e => handleImageFiles(e.target.files[0]);
+    if(galInp) galInp.onchange = e => handleImageFiles(e.target.files[0]);
+
+    // ৫. প্রোফাইল এবং এডিট ইমেজ প্রিভিউ
+    const adminImgInp = document.getElementById('adminImgInp');
     if(adminImgInp) {
         adminImgInp.onchange = async (e) => {
             const file = e.target.files[0];
@@ -530,18 +594,6 @@ window.onload = async () => {
                 const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method:'POST', body:fd });
                 const dat = await res.json();
                 if(dat.success && db.admin) { db.admin.profilePic = dat.data.url; saveDB(); }
-            }
-        };
-    }
-
-    // এডমিন এডিট মোডাল প্রিভিউ
-    const newAdminImg = document.getElementById('newAdminImg');
-    if(newAdminImg) {
-        newAdminImg.onchange = (e) => {
-            const file = e.target.files[0];
-            if(file) {
-                const editPreview = document.getElementById('editAdminPreview');
-                if(editPreview) editPreview.src = URL.createObjectURL(file);
             }
         };
     }
@@ -1973,63 +2025,67 @@ function shareWA(amt, type, name, custPhone) {
 
 // ২. পাবলিক স্টেটমেন্ট রেন্ডারার
 function renderPublicStatement(person, ownerName, mode) {
-    // ১. ইউআই এলিমেন্টগুলো কন্ট্রোল করা
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('appBody').classList.remove('hidden');
+    // ১. মেইন উইন্ডো সেটআপ
+    const viewport = document.getElementById('mainViewport');
+    viewport.innerHTML = `<div id="pageLedger" class="flex flex-col p-4"><div id="ledgerList" class="flex flex-col pb-20"></div></div>`;
+    
+    document.getElementById('pageHome').classList.add('hidden');
     document.getElementById('headerMain').classList.add('hidden');
     document.getElementById('headerLedger').classList.remove('hidden');
 
-    // ২. হেডারের সব এডমিন বাটন এবং আইকন লুকিয়ে ফেলা
+    // ২. হেডারের সব এডমিন বাটন হাইড করা (Security Fix)
     const header = document.getElementById('headerLedger');
-    const backBtn = header.querySelector('.fa-arrow-left');
-    const pdfIcon = header.querySelector('.fa-file-pdf');
-    const secretBtn = document.getElementById('secretTrigger');
-
-    if(backBtn) backBtn.style.display = 'none'; // ব্যাক বাটন বন্ধ
-    if(pdfIcon) pdfIcon.style.display = 'none'; // পিডিএফ বন্ধ
-    if(secretBtn) secretBtn.style.display = 'none'; // সিক্রেট বাটন বন্ধ
+    header.style.backgroundColor = "#861F41"; // Axis Burgundy নিশ্চিত করা
+    
+    const icons = header.querySelectorAll('i, span');
+    icons.forEach(icon => {
+        // ব্যালেন্স বাদে বাকি সব আইকন লুকিয়ে ফেলা
+        if(icon.id !== 'mainTotal') icon.style.display = 'none';
+    });
 
     document.getElementById('lName').innerText = person.name;
-    document.getElementById('lPhone').innerText = "Statement with: " + ownerName;
+    document.getElementById('lPhone').innerText = "Business Record with: " + ownerName;
 
-    // ৩. ফুটার এবং প্লাস বাটন বন্ধ করা
+    // ৩. ফুটার বাটন এবং প্লাস বাটন পার্মানেন্টলি বন্ধ
     document.getElementById('ledgerFooter')?.classList.add('hidden');
     const floatingBtn = document.querySelector('.fixed.bottom-10');
-    if(floatingBtn) floatingBtn.classList.add('hidden');
+    if(floatingBtn) floatingBtn.style.display = 'none';
 
     const list = document.getElementById('ledgerList');
     list.innerHTML = "";
     
-    // ৪. ফিল্টার লজিক: p হলে শুধু পাকা, s হলে পাকা+কাঁচা (সবই অরিজিনাল এমাউন্টে)
+    // ৪. ট্রানজ্যাকশন ফিল্টার (p = Pakka Only, s = Pakka + Kaccha)
     const txs = person.transactions.filter(t => t.status === 'active' && (mode === 's' || !t.secret));
+
+    if(txs.length === 0) {
+        list.innerHTML = `<div class="py-20 text-center text-slate-300 font-bold uppercase text-[10px]">No Transactions Shared</div>`;
+        return;
+    }
 
     txs.forEach(t => {
         const isR = t.type === 'RECEIVED';
         const imgsHTML = (t.images || []).map(i => `
-            <img src="${i}" class="w-24 h-24 rounded-xl object-cover shadow-sm mr-2" onclick="openZoom(this.src)">
+            <img src="${i}" class="w-full h-auto rounded-xl mb-3 shadow-md border border-slate-100" onclick="openZoom(this.src)">
         `).join("");
 
-        // ৫. শুধুমাত্র এমাউন্ট এবং ইমেজ রেন্ডার করা (কোনো বাটন ছাড়া)
         list.innerHTML += `
             <div class="flex flex-col ${isR ? 'items-end pr-2' : 'items-start pl-2'} w-full mb-10 px-2 animate-fade">
                 <div class="text-[8px] font-black text-slate-400 uppercase mb-2 tracking-widest">${t.date}</div>
-                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !border-slate-100 !shadow-lg">
+                <div class="bubble ${isR ? 'bubble-right' : 'bubble-left'} !border-slate-100">
                     <!-- ইমেজ সেকশন -->
-                    ${imgsHTML ? `<div class="flex gap-1 overflow-x-auto no-scrollbar mb-3">${imgsHTML}</div>` : ''}
+                    ${imgsHTML ? `<div class="flex gap-1 overflow-x-auto no-scrollbar">${imgsHTML}</div>` : ''}
                     
-                    <div class="flex justify-between items-center gap-10">
-                        <!-- এমাউন্ট এবং টাইপ -->
+                    <div class="flex justify-between items-center gap-10 mt-2">
                         <h3 class="text-xl font-black ${t.type === 'GIVEN' ? 'text-rose-600' : 'text-emerald-600'}">
                             ₹${t.amount.toLocaleString('en-IN')}
                         </h3>
                         <p class="text-[9px] font-bold text-slate-400 uppercase">${t.type}</p>
                     </div>
 
-                    <!-- নোট সেকশন -->
                     <p class="text-[10px] text-slate-500 mt-2 italic leading-tight">${t.note || ''}</p>
                     
                     <div class="mt-4 pt-2 border-t border-slate-50 text-center">
-                        <p class="text-[7px] text-slate-300 font-bold uppercase tracking-widest leading-none">Security Verified by PayBook Pro</p>
+                        <p class="text-[7px] text-slate-300 font-bold uppercase tracking-widest leading-none">Powered by PayBook Pro Verified</p>
                     </div>
                 </div>
             </div>`;
