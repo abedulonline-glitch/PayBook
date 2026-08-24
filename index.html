@@ -72,6 +72,37 @@ header {
     top: 0px !important;
     box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* উপরে গেলে হালকা শ্যাডো আসবে */
 } 
+   /* সব মডাল বা পপ-আপ উইন্ডোকে সবার ওপরে রাখার গ্যারান্টি সমাধান */
+#invoiceModal, 
+#userManagerModal, 
+#marginModal, 
+#godownModal, 
+#resManagerModal,
+#categoryAccessModal,
+#actionModal,
+#locModal {
+  position: fixed !important; /* স্ক্রিনের ওপর স্থির থাকবে */
+  inset: 0 !important; /* চারপাশ থেকে ০ পজিশন */
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 2147483647 !important; /* ব্রাউজারের সর্বোচ্চ পাওয়ার লেভেল */
+  background-color: rgba(0, 0, 0, 0.85) !important; /* পেছনে ডার্ক স্বচ্ছ আবরণ */
+  backdrop-filter: blur(15px) !important; /* পেছনের ক্যাটালগ ঝাপসা করে দিবে */
+  display: none; /* শুরুতে হাইড */
+  align-items: center;
+  justify-content: center;
+}
+
+/* মডালের ভেতরের মূল সাদা বা কালো বক্স */
+#invoiceModal > div, 
+#userManagerModal > div, 
+#marginModal > div, 
+#godownModal > div,
+#resManagerModal > div {
+  z-index: 2147483648 !important; /* বক্সটিকে আবরণের ওপর রাখা */
+  position: relative !important;
+}
+        
     </style>
 </head>
 <body>
