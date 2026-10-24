@@ -1,1 +1,27 @@
 
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayBook - সেটিংস</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body style="display: block; background: #f0f2f5;">
+  <div class="header" style="display:flex; align-items:center; background:#1a73e8; color:white; padding:16px;">
+    <button style="background:none; border:none; color:white; font-size:20px; margin-right:12px;" onclick="window.location.href='dashboard.html'">←</button>
+    <h2 style="font-size:18px;">সেটিংস</h2>
+  </div>
+
+  <div class="form-container" style="background:#fff; padding:20px; margin:16px; border-radius:12px;">
+    <h3 style="margin-bottom:12px;">প্যানিক মোড সেটিংস</h3>
+    
+    <label style="display:block; margin-bottom:8px; font-weight:bold;">প্যানিক টাইমআউট (সেকেন্ড)</label>
+    <input type="number" id="panic-timeout" min="15" max="300" style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ccc; border-radius:8px;">
+    
+    <button id="save-settings-btn" style="width:100%; padding:12px; background:#1a73e8; color:white; border:none; border-radius:8px;">সেভ করুন</button>
+  </div>
+
+  <script type="module" src="js/settings.js"></script>
+</body>
+</html>
