@@ -1,1 +1,46 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayBook - নতুন লেনদেন</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .header { display: flex; align-items: center; background: #1a73e8; color: white; padding: 16px; }
+    .back-btn { background: none; border: none; color: white; font-size: 20px; margin-right: 12px; cursor: pointer; }
+    .form-container { padding: 20px; background: #fff; margin: 16px; border-radius: 12px; }
+    .radio-group { display: flex; gap: 16px; margin-bottom: 16px; }
+    .radio-group label { display: flex; align-items: center; gap: 6px; font-weight: bold; }
+    .radio-group input[type="radio"] { width: 20px; height: 20px; }
+    input[type="number"], input[type="text"] { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; }
+    .image-preview { width: 100%; max-height: 200px; object-fit: contain; display: none; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .save-btn { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; margin-top: 12px; }
+  </style>
+</head>
+<body style="display: block; background: #f0f2f5;">
+  
+  <div class="header">
+    <button class="back-btn" onclick="history.back()">←</button>
+    <h2 id="tx-party-name" style="font-size:18px;">নতুন লেনদেন</h2>
+  </div>
 
+  <div class="form-container">
+    <div class="radio-group">
+      <label><input type="radio" name="direction" value="given" checked> প্রদেয় (Given)</label>
+      <label><input type="radio" name="direction" value="received"> প্রাপ্য (Received)</label>
+    </div>
+
+    <input type="number" id="visible-amount" placeholder="পাকা অ্যামাউন্ট (₹)" required>
+    <input type="number" id="kacha-amount" placeholder="কাঁচা অ্যামাউন্ট (₹) - ঐচ্ছিক">
+    <input type="text" id="note" placeholder="নোট (ঐচ্ছিক)">
+
+    <label style="display:block; margin-bottom:8px; font-weight:bold;">ইমেজ প্রুফ (বাধ্যতামূলক)</label>
+    <input type="file" id="image-input" accept="image/*" capture="environment" style="margin-bottom:12px;">
+    <img id="image-preview" class="image-preview">
+
+    <button class="save-btn" id="save-tx-btn">সেভ করুন</button>
+  </div>
+
+  <script type="module" src="js/transaction.js"></script>
+</body>
+</html>
