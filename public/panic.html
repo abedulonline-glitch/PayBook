@@ -1,1 +1,33 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Unlock</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .panic-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #1a1a1a; color: white; padding: 20px; }
+    .panic-container h2 { margin-bottom: 20px; font-size: 20px; }
+    .pin-input { width: 100%; max-width: 300px; padding: 16px; font-size: 24px; text-align: center; letter-spacing: 12px; border: none; border-radius: 8px; background: #333; color: white; margin-bottom: 20px; }
+    .unlock-btn { width: 100%; max-width: 300px; padding: 14px; background: #d32f2f; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    .cancel-btn { width: 100%; max-width: 300px; padding: 14px; background: transparent; color: #aaa; border: 1px solid #555; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+    .error-text { color: #ff5252; margin-bottom: 10px; font-size: 14px; }
+  </style>
+</head>
+<body style="background: #1a1a1a; display: block;">
+  
+  <div class="panic-container">
+    <h2>🔒 Security Unlock</h2>
+    <p style="margin-bottom: 20px; color: #aaa; font-size: 14px; text-align: center;">Enter 6-digit security PIN to proceed.</p>
+    
+    <div id="panic-error" class="error-text"></div>
+    
+    <input type="password" id="panic-pin" class="pin-input" maxlength="6" inputmode="numeric" placeholder="••••••">
+    
+    <button class="unlock-btn" id="unlock-btn">Unlock</button>
+    <button class="cancel-btn" id="cancel-btn">Cancel</button>
+  </div>
 
+  <script type="module" src="js/panic.js"></script>
+</body>
+</html>
