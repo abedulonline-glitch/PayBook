@@ -75,3 +75,18 @@ document.getElementById("logout-btn").addEventListener("click", () => {
 
 // পেজ লোড হলে পার্টি লোড করবে
 loadParties();
+
+// প্যানিক মোড ট্রিগার (লোগোতে ডাবল ক্লিক)
+let lastTap = 0;
+const logo = document.getElementById("app-logo");
+if (logo) {
+  logo.addEventListener("click", () => {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTap;
+    if (tapLength < 500 && tapLength > 0) {
+      // ডাবল ক্লিক সনাক্ত হয়েছে
+      window.location.href = "panic.html";
+    }
+    lastTap = currentTime;
+  });
+}
