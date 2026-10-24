@@ -19,3 +19,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+
+// ImgBB API Key (এই জায়গায় আপনার ImgBB এর Key বসাবেন)
+export const IMGBB_API_KEY = "75c125179a5af1e8a6ff2ed731a39e9e";
