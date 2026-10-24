@@ -1,1 +1,46 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayBook - লেজার</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .header { display: flex; justify-content: space-between; align-items: center; background: #1a73e8; color: white; padding: 16px; }
+    .back-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+    .ledger-container { display: flex; justify-content: space-between; padding: 16px; gap: 12px; }
+    .side { flex: 1; background: #fff; border-radius: 8px; min-height: 400px; padding: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    .side h3 { text-align: center; font-size: 14px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #ccc; }
+    .side.received h3 { color: #2e7d32; }
+    .side.given h3 { color: #c62828; }
+    .tx-item { background: #f9f9f9; padding: 8px; border-radius: 6px; margin-bottom: 8px; font-size: 13px; }
+    .tx-item .amount { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+    .tx-item.received .amount { color: #2e7d32; }
+    .tx-item.given .amount { color: #c62828; }
+    .add-tx-btn { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 30px; background: #1a73e8; color: white; border: none; font-size: 16px; box-shadow: 0 4px 12px rgba(26,115,232,0.4); cursor: pointer; }
+  </style>
+</head>
+<body style="display: block; background: #f0f2f5;">
+  
+  <div class="header">
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">←</button>
+    <h2 id="party-name" style="font-size:18px;">লোড হচ্ছে...</h2>
+    <div style="width: 24px;"></div>
+  </div>
 
+  <div class="ledger-container">
+    <div class="side given">
+      <h3>প্রদেয় (Given)</h3>
+      <div id="given-list"></div>
+    </div>
+    <div class="side received">
+      <h3>প্রাপ্য (Received)</h3>
+      <div id="received-list"></div>
+    </div>
+  </div>
+
+  <button class="add-tx-btn" id="add-tx">+ নতুন লেনদেন</button>
+
+  <script type="module" src="js/ledger.js"></script>
+</body>
+</html>
