@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body style="display: block; background: var(--bg-color); padding-bottom: 80px;">
   
@@ -14,7 +14,7 @@
     <div style="width: 24px;"></div>
   </div>
 
-  <!-- টাইমলাইন ভিউ (এখানে সব লেনদেন নিচে নিচে আসবে) -->
+  <!-- টাইমলাইন ভিউ -->
   <div id="timeline-container" style="padding: 16px;">
     <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
   </div>
@@ -29,9 +29,8 @@
     </button>
   </div>
 
-  <script type="module" src="js/ledger.js?v=6"></script>
+  <script type="module" src="js/ledger.js?v=7"></script>
   <script>
-    // বাটনে ক্লিক করলে কোন টাইপ (Given/Received) সেটা URL-এ পাঠাবে
     function goToNewTx(type) {
       const urlParams = new URLSearchParams(window.location.search);
       const partyId = urlParams.get("partyId");
