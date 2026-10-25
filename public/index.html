@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
   <div class="auth-container">
     <div class="logo">PayBook</div>
-    <div id="auth-message"></div>
+    <div id="auth-message" class="hidden"></div>
 
-    <!-- Signup Form -->
+    <!-- Signup Form (এটি শুরুতে লুকানো থাকবে) -->
     <form id="signup-form" class="hidden">
       <h2>নতুন অ্যাকাউন্ট</h2>
       <input type="tel" id="signup-mobile" placeholder="মোবাইল নম্বর" required>
@@ -33,7 +33,7 @@
       <p>ইতিমধ্যে অ্যাকাউন্ট আছে? <a href="#" id="show-login">লগইন করুন</a></p>
     </form>
 
-    <!-- Login Form -->
+    <!-- Login Form (এটি শুরুতে দেখা যাবে) -->
     <form id="login-form">
       <h2>লগইন</h2>
       <input type="tel" id="login-mobile" placeholder="মোবাইল নম্বর" required>
@@ -44,7 +44,7 @@
     </form>
   </div>
 
-  <!-- ফর্ম পরিবর্তন করার স্ক্রিপ্ট (এটি auth.js লোড না হলেও কাজ করবে) -->
+  <!-- ফর্ম পরিবর্তন করার স্ক্রিপ্ট -->
   <script>
     document.getElementById('show-signup').addEventListener('click', function(e) {
       e.preventDefault();
@@ -57,6 +57,7 @@
       document.getElementById('login-form').classList.remove('hidden');
     });
   </script>
-<script type="module" src="js/auth.js?v=2"></script>
+
+  <script type="module" src="js/auth.js?v=6"></script>
 </body>
 </html>
