@@ -25,38 +25,34 @@ async function loadTransactions() {
     timeline.innerHTML = "";
     const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
-    docs.forEach((txDoc) => { // এখানে 'document' এরর ফিক্স করা হয়েছে
+    docs.forEach((txDoc) => {
       const tx = txDoc.data();
       
       const dateObj = new Date(tx.date.toDate());
-      const timeStr = dateObj.toLocaleTimeString('bn-IN', { hour: '2-digit', minute: '2-digit' });
-      const dateStr = dateObj.toLocaleDateString('bn-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
-      // ইমেজ থাকলে দেখাবে, না থাকলে কিছুই দেখাবে না
       const imgHtml = tx.imageUrl 
-        ? `<div style="margin-top:8px;"><img src="${tx.imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:8px;" alt="Proof"></div>` 
+        ? `<div class="tx-img-wrapper"><img src="${tx.imageUrl}" alt="Proof"></div>` 
         : ``;
 
       const isGiven = tx.direction === "given";
       const arrow = isGiven ? "↑" : "↓";
       const colorClass = isGiven ? "given" : "received";
+      const noteHtml = tx.note ? `<div class="tx-note">${tx.note}</div>` : '';
 
       const card = document.createElement("div");
-      card.className = "tx-card";
+      card.className = "timeline-item";
       
       card.innerHTML = `
-        <div style="text-align:center; margin: 16px 0 8px 0;">
-          <span style="background: #E0E0E0; padding: 4px 12px; border-radius: 12px; font-size: 12px; color: #555;">
-            ${dateStr}
-          </span>
-        </div>
+        <div class="timeline-date"><span>${dateStr}</span></div>
         <div class="tx-card-inner">
           <div class="tx-card-header">
             <span class="tx-amount ${colorClass}">${arrow} ₹${tx.visibleAmount}</span>
             <span class="tx-time">${timeStr}</span>
           </div>
           ${imgHtml}
-          ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
+          ${noteHtml}
         </div>
       `;
       timeline.appendChild(card);
