@@ -4,35 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - ড্যাশবোর্ড</title>
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .header { display: flex; justify-content: space-between; align-items: center; background: #1a73e8; color: white; padding: 16px; border-radius: 0 0 12px 12px; }
-    .header h1 { font-size: 20px; }
-    .logout-btn { background: #fff; color: #1a73e8; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;}
-    .summary { display: flex; gap: 12px; margin: 20px 0; }
-    .card { flex: 1; padding: 16px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .card.received { background: #2e7d32; }
-    .card.given { background: #c62828; }
-    .card h3 { font-size: 14px; margin-bottom: 8px; }
-    .card p { font-size: 24px; font-weight: bold; }
-    .party-list { background: #fff; border-radius: 12px; padding: 16px; }
-    .party-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
-    .party-item:last-child { border-bottom: none; }
-    .party-name { font-weight: bold; color: #333; }
-    .party-balance.received { color: #2e7d32; }
-    .party-balance.given { color: #c62828; }
-    .add-btn { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: #1a73e8; color: white; font-size: 28px; border: none; box-shadow: 0 4px 12px rgba(26,115,232,0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .add-party-form { background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 16px; display: none; }
-  </style>
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
-<body style="display: block; background: #f0f2f5;">
-  
+<body style="display: block; background: var(--bg-color);">
+
   <div class="header">
-    <h1 id="app-logo" style="cursor: pointer;">PayBook</h1>
+    <h1 id="app-logo" style="cursor: pointer; color: var(--primary);">PayBook</h1>
     <button class="logout-btn" id="logout-btn">লগআউট</button>
   </div>
 
-  <div style="padding: 16px;">
+  <div style="padding: 16px; padding-bottom: 80px;">
+    <!-- সামারি কার্ড -->
     <div class="summary">
       <div class="card received">
         <h3>মোট প্রাপ্য (পাকা)</h3>
@@ -44,15 +26,17 @@
       </div>
     </div>
 
-    <div class="add-party-form" id="add-party-form">
-      <h3>নতুন পার্টি যোগ করুন</h3>
-      <input type="text" id="new-party-name" placeholder="পার্টির নাম" style="width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:6px;">
-      <input type="tel" id="new-party-mobile" placeholder="মোবাইল নম্বর (ঐচ্ছিক)" style="width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:6px;">
-      <button id="save-party-btn" style="width:100%; padding:10px; background:#1a73e8; color:white; border:none; border-radius:6px;">সেভ করুন</button>
+    <!-- পার্টি যোগ করার ফর্ম -->
+    <div class="add-party-form" id="add-party-form" style="display: none; margin: 0 0 16px 0;">
+      <h3 style="color: var(--primary); margin-bottom: 12px;">নতুন পার্টি যোগ করুন</h3>
+      <input type="text" id="new-party-name" placeholder="পার্টির নাম" required>
+      <input type="tel" id="new-party-mobile" placeholder="মোবাইল নম্বর (১০ ডিজিট)" maxlength="10" required>
+      <button id="save-party-btn">সেভ করুন</button>
     </div>
 
+    <!-- পার্টি লিস্ট -->
     <div class="party-list">
-      <h3 style="margin-bottom:12px;">আপনার পার্টি লিস্ট</h3>
+      <h3>আপনার পার্টি লিস্ট</h3>
       <div id="party-container">
         <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
       </div>
@@ -61,6 +45,6 @@
 
   <button class="add-btn" id="show-add-party">+</button>
 
-  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/dashboard.js?v=3"></script>
 </body>
 </html>
