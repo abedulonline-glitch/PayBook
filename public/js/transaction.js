@@ -5,16 +5,30 @@ import { IMGBB_API_KEY } from "./config.js";
 const urlParams = new URLSearchParams(window.location.search);
 const partyId = urlParams.get("partyId");
 const partyName = urlParams.get("name");
+const txType = urlParams.get("type") || "given"; // ডিফল্ট given
 const mobile = localStorage.getItem("paybook_mobile");
 
 if (!partyId || !mobile) window.location.href = "dashboard.html";
 document.getElementById("tx-party-name").innerText = partyName;
 
+// টাইপ অনুযায়ী হেডার সেট করা
+const typeHeader = document.getElementById("tx-type-header");
+let selectedDirection = "given"; // ভেরিয়েবল
+
+if (txType === "received") {
+  selectedDirection = "received";
+  typeHeader.innerText = "↓ প্রাপ্য (Received)";
+  typeHeader.style.color = "var(--success)";
+} else {
+  selectedDirection = "given";
+  typeHeader.innerText = "↑ প্রদেয় (Given)";
+  typeHeader.style.color = "var(--danger)";
+}
+
 let cropper = null;
 let finalFile = null;
 
-// ইমেজ সিলেক্ট করলে ক্রপার চালু হবে
-document.getElementById("image-input").addEventListener("change", (e) => {
+function handleImageSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -34,9 +48,11 @@ document.getElementById("image-input").addEventListener("change", (e) => {
     });
   };
   reader.readAsDataURL(file);
-});
+}
 
-// ImgBB আপলোড ফাংশন
+document.getElementById("camera-input").addEventListener("change", handleImageSelect);
+document.getElementById("gallery-input").addEventListener("change", handleImageSelect);
+
 async function uploadToImgBB(file) {
   const formData = new FormData();
   formData.append("image", file);
@@ -48,9 +64,7 @@ async function uploadToImgBB(file) {
   return data.data.url;
 }
 
-// সেভ বাটন
 document.getElementById("save-tx-btn").addEventListener("click", async () => {
-  const direction = document.querySelector('input[name="direction"]:checked').value;
   const visibleAmount = parseFloat(document.getElementById("visible-amount").value);
   const kachaAmount = parseFloat(document.getElementById("kacha-amount").value) || 0;
   const note = document.getElementById("note").value.trim();
@@ -63,20 +77,16 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   btn.disabled = true;
 
   try {
-    // ১. ক্রপ করা ছবি তৈরি করা
     cropper.getCroppedCanvas().toBlob(async (blob) => {
       if (!blob) return alert("ছবি ক্রপ করতে সমস্যা হয়েছে");
       
       finalFile = new File([blob], "proof.jpg", { type: "image/jpeg" });
-
-      // ২. ImgBB তে আপলোড
       const imageUrl = await uploadToImgBB(finalFile);
 
-      // ৩. Firestore এ সেভ
       const txRef = await addDoc(collection(db, "transactions"), {
         ownerMobile: mobile,
         partyId: partyId,
-        direction: direction,
+        direction: selectedDirection, // এখানে URL থেকে আসা ডিরেকশন সেভ হচ্ছে
         visibleAmount: visibleAmount,
         totalAmount: visibleAmount + kachaAmount,
         imageUrl: imageUrl,
@@ -86,7 +96,6 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
         verifiedBy: []
       });
 
-      // ৪. কাঁচা অ্যামাউন্ট সেভ
       if (kachaAmount > 0) {
         await setDoc(doc(db, "transactions", txRef.id, "private", "details"), {
           kachaAmount: kachaAmount
@@ -95,7 +104,7 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
 
       alert("সফলভাবে সেভ হয়েছে!");
       history.back();
-    }, "image/jpeg", 0.8); // ৮০% কোয়ালিটিতে ছবি সেভ হবে যাতে সাইজ কম হয়
+    }, "image/jpeg", 0.8);
 
   } catch (err) {
     alert("সমস্যা হয়েছে: " + err.message);
