@@ -1,4 +1,17 @@
-console.log("auth.js লোড হয়েছে");
+// এরর হলে স্ক্রিনে দেখানোর জন্য
+window.onerror = function(msg) {
+  const authMessage = document.getElementById("auth-message");
+  if (authMessage) {
+    authMessage.textContent = "Error: " + msg;
+    authMessage.className = "error";
+    authMessage.style.display = "block";
+  }
+  return false;
+};
+
+import { db } from "./firebase-init.js";
+// ... বাকি আগের কোডগুলো থাকবে ...
+//console.log("auth.js লোড হয়েছে");
 import { db } from "./firebase-init.js";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
