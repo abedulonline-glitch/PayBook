@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - নতুন লেনদেন</title>
-  <link rel="stylesheet" href="css/style.css?v=9">
+  <link rel="stylesheet" href="css/style.css?v=10">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body style="display: block; background: var(--bg-color);">
@@ -17,13 +17,21 @@
 
   <div style="padding: 20px; background: #fff; margin: 16px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
     
-    <!-- ট্রানজেকশনের ধরন (রেডিও বাটনের বদলে) -->
+    <!-- ট্রানজেকশনের ধরন -->
     <div id="tx-type-header" style="text-align: center; margin-bottom: 20px; font-size: 20px; font-weight: 700;">
       প্রদেয় (Given)
     </div>
 
+    <!-- পাকা অ্যামাউন্ট -->
     <input type="number" id="visible-amount" placeholder="পাকা অ্যামাউন্ট (₹)" required style="font-size: 24px; text-align: center; font-weight: bold; padding: 20px;">
-    <input type="number" id="kacha-amount" placeholder="কাঁচা অ্যামাউন্ট (₹) - ঐচ্ছিক">
+    
+    <!-- ডেট পিকার (এখানে কাঁচা অ্যামাউন্টের জায়গায়) -->
+    <div style="margin-bottom: 12px;">
+      <label style="display:block; margin-bottom:5px; font-size:14px; color:#666;">তারিখ (Date)</label>
+      <input type="date" id="tx-date" style="width: 100%; padding: 12px; border: 1.5px solid #E0E0E0; border-radius: 12px; font-size: 16px; background: #FAFAFA;">
+    </div>
+
+    <!-- নোট -->
     <input type="text" id="note" placeholder="নোট (ঐচ্ছিক)">
     
     <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--primary);">ইমেজ প্রুফ (বাধ্যতামূলক)</label>
@@ -47,6 +55,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-  <script type="module" src="js/transaction.js?v=9"></script>
+  <script type="module" src="js/transaction.js?v=10"></script>
 </body>
 </html>
