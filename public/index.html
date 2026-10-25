@@ -11,7 +11,7 @@
     <div class="logo">PayBook</div>
     <div id="auth-message"></div>
 
-    <!-- Signup Form (এটি শুরুতে লুকানো থাকবে) -->
+    <!-- Signup Form -->
     <form id="signup-form" class="hidden">
       <h2>নতুন অ্যাকাউন্ট</h2>
       <input type="tel" id="signup-mobile" placeholder="মোবাইল নম্বর" required>
@@ -33,7 +33,7 @@
       <p>ইতিমধ্যে অ্যাকাউন্ট আছে? <a href="#" id="show-login">লগইন করুন</a></p>
     </form>
 
-    <!-- Login Form (এটি শুরুতে দেখা যাবে) -->
+    <!-- Login Form -->
     <form id="login-form">
       <h2>লগইন</h2>
       <input type="tel" id="login-mobile" placeholder="মোবাইল নম্বর" required>
@@ -43,6 +43,20 @@
       <p>নতুন? <a href="#" id="show-signup">অ্যাকাউন্ট খুলুন</a></p>
     </form>
   </div>
+
+  <!-- ফর্ম পরিবর্তন করার স্ক্রিপ্ট (এটি auth.js লোড না হলেও কাজ করবে) -->
+  <script>
+    document.getElementById('show-signup').addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('signup-form').classList.remove('hidden');
+    });
+    document.getElementById('show-login').addEventListener('click', function(e) {
+      e.preventDefault();
+      document.getElementById('signup-form').classList.add('hidden');
+      document.getElementById('login-form').classList.remove('hidden');
+    });
+  </script>
 
   <script type="module" src="js/auth.js"></script>
 </body>
