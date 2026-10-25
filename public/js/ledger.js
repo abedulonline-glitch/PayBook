@@ -15,60 +15,60 @@ async function loadTransactions() {
   
   try {
     const snapshot = await getDocs(q);
-    const givenList = document.getElementById("given-list");
-    const receivedList = document.getElementById("received-list");
+    const timeline = document.getElementById("timeline-container");
     
     if (snapshot.empty) {
-      givenList.innerHTML = "<p style='font-size:12px; text-align:center; color:#999;'>খালি</p>";
-      receivedList.innerHTML = "<p style='font-size:12px; text-align:center; color:#999;'>খালি</p>";
+      timeline.innerHTML = "<p style='text-align:center; color:#999; margin-top:50px;'>এখনো কোনো লেনদেন নেই</p>";
       return;
     }
     
-    givenList.innerHTML = "";
-    receivedList.innerHTML = "";
+    timeline.innerHTML = "";
     
     // তারিখ অনুযায়ী সাজানো (নতুন আগে)
     const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
-    docs.forEach((document) => {
-      const tx = document.data();
-      const txDiv = document.createElement("div");
-      txDiv.className = `tx-card`;
+    // এখানে 'document' এর বদলে 'txDoc' ব্যবহার করা হয়েছে যাতে এরর না আসে
+    docs.forEach((txDoc) => {
+      const tx = txDoc.data();
       
-      const timeStr = new Date(tx.date.toDate()).toLocaleTimeString('bn-IN', { hour: '2-digit', minute: '2-digit' });
-      const dateStr = new Date(tx.date.toDate()).toLocaleDateString('bn-IN', { day: '2-digit', month: 'short' });
+      const dateObj = new Date(tx.date.toDate());
+      const timeStr = dateObj.toLocaleTimeString('bn-IN', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = dateObj.toLocaleDateString('bn-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
       const imgHtml = tx.imageUrl 
-        ? `<img src="${tx.imageUrl}" alt="Proof">` 
-        : `<span class="no-img">কোনো ছবি নেই</span>`;
+        ? `<img src="${tx.imageUrl}" style="width:100%; height:150px; object-fit:cover; border-radius:8px; margin-top:8px;" alt="Proof">` 
+        : ``;
 
-      txDiv.innerHTML = `
-        <div class="tx-card-header">
-          <span class="tx-amount ${tx.direction}">
-            ${tx.direction === 'given' ? '↑' : '↓'} ₹${tx.visibleAmount}
-          </span>
-          <span class="tx-time">${dateStr}, ${timeStr}</span>
-        </div>
-        <div class="tx-image-container">
-          ${imgHtml}
-        </div>
-        ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
-      `;
+      const isGiven = tx.direction === "given";
+      const arrow = isGiven ? "↑" : "↓";
+      const colorClass = isGiven ? "given" : "received";
+
+      const card = document.createElement("div");
+      card.className = "tx-card";
       
-      if (tx.direction === "given") {
-        givenList.appendChild(txDiv);
-      } else {
-        receivedList.appendChild(txDiv);
-      }
+      card.innerHTML = `
+        <div style="text-align:center; margin: 16px 0 8px 0;">
+          <span style="background: #E0E0E0; padding: 4px 12px; border-radius: 12px; font-size: 12px; color: #555;">
+            ${dateStr}
+          </span>
+        </div>
+        <div class="tx-card-inner">
+          <div class="tx-card-header">
+            <span class="tx-amount ${colorClass}">
+              ${arrow} ₹${tx.visibleAmount}
+            </span>
+            <span class="tx-time">${timeStr}</span>
+          </div>
+          ${imgHtml}
+          ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
+        </div>
+      `;
+      timeline.appendChild(card);
     });
     
   } catch (err) {
     alert("লেনদেন লোড করতে সমস্যা: " + err.message);
   }
 }
-
-document.getElementById("add-tx").addEventListener("click", () => {
-  window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(partyName)}`;
-});
 
 loadTransactions();
