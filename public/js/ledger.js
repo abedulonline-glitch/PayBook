@@ -23,20 +23,18 @@ async function loadTransactions() {
     }
     
     timeline.innerHTML = "";
-    
-    // তারিখ অনুযায়ী সাজানো (নতুন আগে)
     const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
-    // এখানে 'document' এর বদলে 'txDoc' ব্যবহার করা হয়েছে যাতে এরর না আসে
-    docs.forEach((txDoc) => {
+    docs.forEach((txDoc) => { // এখানে 'document' এরর ফিক্স করা হয়েছে
       const tx = txDoc.data();
       
       const dateObj = new Date(tx.date.toDate());
       const timeStr = dateObj.toLocaleTimeString('bn-IN', { hour: '2-digit', minute: '2-digit' });
       const dateStr = dateObj.toLocaleDateString('bn-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
+      // ইমেজ থাকলে দেখাবে, না থাকলে কিছুই দেখাবে না
       const imgHtml = tx.imageUrl 
-        ? `<img src="${tx.imageUrl}" style="width:100%; height:150px; object-fit:cover; border-radius:8px; margin-top:8px;" alt="Proof">` 
+        ? `<div style="margin-top:8px;"><img src="${tx.imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:8px;" alt="Proof"></div>` 
         : ``;
 
       const isGiven = tx.direction === "given";
@@ -54,9 +52,7 @@ async function loadTransactions() {
         </div>
         <div class="tx-card-inner">
           <div class="tx-card-header">
-            <span class="tx-amount ${colorClass}">
-              ${arrow} ₹${tx.visibleAmount}
-            </span>
+            <span class="tx-amount ${colorClass}">${arrow} ₹${tx.visibleAmount}</span>
             <span class="tx-time">${timeStr}</span>
           </div>
           ${imgHtml}
@@ -65,7 +61,6 @@ async function loadTransactions() {
       `;
       timeline.appendChild(card);
     });
-    
   } catch (err) {
     alert("লেনদেন লোড করতে সমস্যা: " + err.message);
   }
