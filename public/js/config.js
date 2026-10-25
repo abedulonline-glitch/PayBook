@@ -7,7 +7,7 @@ import { getAnalytics } from "firebase/analytics";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyD0j438UHEozebvHUnoJK58-YT3Sv4JbQQ",
+  apiKey: "AIzaSyBWKqNG--njxrhn5FsIxhaM76Pu-TMq_C8",
   authDomain: "paybook-cc6be.firebaseapp.com",
   projectId: "paybook-cc6be",
   storageBucket: "paybook-cc6be.firebasestorage.app",
