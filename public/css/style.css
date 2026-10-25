@@ -6,263 +6,109 @@
   --card-bg: #FFFFFF;
   --text-main: #1A1A1A;
   --text-muted: #7A7A7A;
-  --success: #2E7D32;
-  --danger: #D32F2F;
+  --success: #2E7D32; /* Received Green */
+  --danger: #D32F2F; /* Given Red */
   --border-radius: 16px;
-  --shadow: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow: 0 4px 20px rgba(0,0,0,0.05);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Hind Siliguri', sans-serif; -webkit-tap-highlight-color: transparent; }
 body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
 
-/* Header */
+/* =========================================
+   1. LOGIN / REGISTER SCREEN (From your Screenshot)
+   ========================================= */
+.auth-container {
+  background: var(--card-bg);
+  padding: 32px 24px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 420px;
+  margin: 20px auto;
+  align-self: center;
+}
+.logo { font-size: 32px; font-weight: 700; text-align: center; color: var(--primary); margin-bottom: 30px; }
+h2 { font-size: 22px; font-weight: 600; margin-bottom: 20px; color: var(--text-main); }
+input, select {
+  width: 100%; padding: 14px 16px; margin-bottom: 16px; border: 1.5px solid #E0E0E0;
+  border-radius: 12px; font-size: 16px; background: #FAFAFA; transition: all 0.2s ease;
+}
+input:focus, select:focus { outline: none; border-color: var(--primary); background: #FFF; }
+button {
+  width: 100%; padding: 14px; background: var(--primary); color: #FFF;
+  border: none; border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer;
+}
+p { margin-top: 20px; text-align: center; font-size: 15px; color: var(--text-muted); }
+a { color: var(--primary); text-decoration: none; font-weight: 600; }
+#auth-message { padding: 12px; margin-bottom: 16px; border-radius: 8px; font-size: 14px; text-align: center; }
+#auth-message.error { background: #FFEBEE; color: var(--danger); border: 1px solid var(--danger); }
+#auth-message.success { background: #E8F5E9; color: var(--success); border: 1px solid var(--success); }
+
+/* =========================================
+   2. DASHBOARD
+   ========================================= */
 .header {
   display: flex; justify-content: space-between; align-items: center;
   background: var(--card-bg); padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100;
 }
 .header h1, .header h2 { font-size: 20px; font-weight: 700; color: var(--primary); }
-.logout-btn { background: #f0f0f0; color: var(--text-main); border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.logout-btn { background: #f0f0f0; color: var(--text-main); border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; width: auto; }
 
-/* Dashboard Cards */
 .summary { display: flex; gap: 16px; margin: 20px 16px; }
 .card { flex: 1; padding: 20px 16px; border-radius: var(--border-radius); background: var(--card-bg); box-shadow: var(--shadow); text-align: center; }
 .card h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
-.card p { font-size: 24px; font-weight: 700; }
+.card p { font-size: 24px; font-weight: 700; margin: 0; }
 .card.received { border-bottom: 4px solid var(--success); }
 .card.received p { color: var(--success); }
 .card.given { border-bottom: 4px solid var(--danger); }
 .card.given p { color: var(--danger); }
 
-/* Party List */
 .party-list { background: var(--card-bg); border-radius: var(--border-radius); padding: 20px 16px; margin: 0 16px 100px 16px; box-shadow: var(--shadow); }
 .party-list h3 { font-size: 16px; margin-bottom: 16px; color: var(--text-muted); }
 .party-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #F0F0F0; cursor: pointer; }
 .party-item:last-child { border-bottom: none; }
 .party-name { font-weight: 600; color: var(--text-main); font-size: 16px; }
 .party-balance { font-weight: 700; font-size: 16px; }
+.party-balance.received { color: var(--success); }
+.party-balance.given { color: var(--danger); }
 
-/* Ledger View */
-.ledger-container { display: flex; gap: 8px; padding: 16px; min-height: calc(100vh - 60px); padding-bottom: 100px; }
-.side { flex: 1; background: var(--card-bg); border-radius: var(--border-radius); padding: 12px; box-shadow: var(--shadow); }
-.side h3 { text-align: center; font-size: 14px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px dashed #EEE; }
-.side.received h3 { color: var(--success); }
-.side.given h3 { color: var(--danger); }
-
-/* OkCredit Style Transaction Card */
-.tx-card { background: #FFF; border: 1px solid #E0E0E0; border-radius: 12px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
-.tx-card-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #FAFAFA; border-bottom: 1px solid #EEE; }
-.tx-amount { font-weight: 700; font-size: 16px; }
-.tx-amount.received { color: var(--success); }
-.tx-amount.given { color: var(--danger); }
-.tx-time { font-size: 12px; color: var(--text-muted); }
-.tx-image-container { width: 100%; height: 150px; background: #F0F0F0; display: flex; align-items: center; justify-content: center; }
-.tx-image-container img { width: 100%; height: 100%; object-fit: cover; }
-.tx-image-container .no-img { color: #999; font-size: 12px; }
-.tx-note { padding: 10px 12px; font-size: 13px; color: #444; background: #FFF; border-top: 1px solid #EEE; }
-
-/* Buttons */
 .add-btn { position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; font-size: 32px; border: none; box-shadow: 0 4px 16px rgba(151, 20, 77, 0.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
-.add-tx-btn { position: fixed; bottom: 20px; left: 16px; right: 16px; padding: 16px; border-radius: 30px; background: var(--primary); color: white; border: none; font-size: 16px; font-weight: 600; box-shadow: 0 4px 16px rgba(151, 20, 77, 0.4); z-index: 100; }
 
-/* Forms */
-input, select, textarea { width: 100%; padding: 14px; margin-bottom: 12px; border: 1.5px solid #E0E0E0; border-radius: 12px; font-size: 16px; background: #FAFAFA; }
-button { background: var(--primary); color: white; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; width: 100%; }
-
-/* OkCredit Style Bottom Buttons */
-.bottom-action-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #FFF;
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-  z-index: 100;
-}
-
-.btn-received {
-  flex: 1;
-  background: #FFF;
-  color: var(--success);
-  border: 2px solid var(--success);
-  border-radius: 30px;
-  padding: 12px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.btn-given {
-  flex: 1;
-  background: #FFF;
-  color: var(--danger);
-  border: 2px solid var(--danger);
-  border-radius: 30px;
-  padding: 12px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-/* Timeline Card Style */
-.tx-card-inner {
-  background: #FFF;
-  border: 1px solid #E0E0E0;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-  margin-bottom: 8px;
-}
-
-.tx-card-header {
-  display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #FAFAFA; border-bottom: 1px solid #EEE;
-}
-.tx-amount { font-weight: 700; font-size: 16px; }
-.tx-amount.received { color: var(--success); }
-.tx-amount.given { color: var(--danger); }
-.tx-time { font-size: 12px; color: var(--text-muted); }
-.tx-note { padding: 10px 12px; font-size: 13px; color: #444; background: #FFF; border-top: 1px solid #EEE; }
-
-/* ওয়েবসাইট ক্যাশ আটকানোর জন্য */
-.hidden { display: none !important; }
-
-/* OkCredit Style Timeline */
+/* =========================================
+   3. LEDGER (TIMELINE)
+   ========================================= */
 .timeline-container {
   padding: 16px;
   max-width: 600px;
   margin: 0 auto;
-}
-
-.timeline-item {
-  margin-bottom: 24px;
-  position: relative;
-}
-
-.timeline-date {
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.timeline-date span {
-  background: #6b8e91; /* OkCredit grey-green color */
-  color: white;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-.tx-card-inner {
-  background: #FFF;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  border: 1px solid #EAEAEA;
-}
-
-.tx-card-header {
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  padding: 16px; 
-  background: #FFF;
-}
-
-.tx-amount { 
-  font-weight: 700; 
-  font-size: 20px; 
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tx-amount.received { color: #1a1a1a; } /* OkCredit keeps amount black usually */
-.tx-amount.given { color: #1a1a1a; }
-
-/* Arrow colors */
-.tx-amount.received span.arrow { color: var(--success); }
-.tx-amount.given span.arrow { color: var(--danger); }
-
-.tx-time { 
-  font-size: 13px; 
-  color: #777; 
-}
-
-.tx-img-wrapper {
-  width: 100%;
-  background: #F0F0F0;
-  border-top: 1px solid #EAEAEA;
-  border-bottom: 1px solid #EAEAEA;
-}
-
-.tx-img-wrapper img {
-  width: 100%;
-  max-height: 250px;
-  object-fit: contain; /* Contain keeps the full image visible like OkCredit */
-  display: block;
-}
-
-.tx-note { 
-  padding: 14px 16px; 
-  font-size: 14px; 
-  color: #333; 
-  background: #FFF; 
-  border-top: 1px solid #EAEAEA;
-}
-
-/* Bottom Buttons */
-.bottom-action-bar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: #FFF; padding: 12px 16px;
-  display: flex; gap: 12px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-  z-index: 100;
-}
-.btn-received, .btn-given {
-  flex: 1; background: #FFF; border-radius: 30px; padding: 12px;
-  font-size: 16px; font-weight: 700;
-}
-.btn-received { color: var(--success); border: 1.5px solid var(--success); }
-.btn-given { color: var(--danger); border: 1.5px solid var(--danger); }
-
-/* OkCredit Style Timeline Alignment */
-.timeline-container {
-  padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.timeline-item {
-  margin-bottom: 24px;
-  position: relative;
   display: flex;
   flex-direction: column;
 }
 
-/* Given থাকলে ডান দিকে থাকবে */
-.timeline-item.given-item {
-  align-items: flex-end;
-  padding-left: 20px; 
+.timeline-item {
+  margin-bottom: 24px;
+  position: relative;
+  width: 90%; /* কার্ড ফুল স্ক্রিন জুড়ে থাকবে না */
 }
 
-/* Received থাকলে বাম দিকে থাকবে */
+/* Received (বাম দিকে) */
 .timeline-item.received-item {
-  align-items: flex-start;
-  padding-right: 20px;
+  align-self: flex-start; /* বাম দিকে থাকবে */
+  margin-right: auto;
 }
-
-/* Given কার্ডের ডান দিকে লাল বর্ডার */
-.given-item .tx-card-inner {
-  border-right: 4px solid var(--danger);
-  border-left: 1px solid #EAEAEA;
-}
-
-/* Received কার্ডের বাম দিকে সবুজ বর্ডার */
 .received-item .tx-card-inner {
   border-left: 4px solid var(--success);
-  border-right: 1px solid #EAEAEA;
+}
+
+/* Given (ডান দিকে) */
+.timeline-item.given-item {
+  align-self: flex-end; /* ডান দিকে থাকবে */
+  margin-left: auto;
+}
+.given-item .tx-card-inner {
+  border-right: 4px solid var(--danger);
 }
 
 .timeline-date {
@@ -270,7 +116,6 @@ button { background: var(--primary); color: white; padding: 14px; border: none; 
   margin-bottom: 12px;
   width: 100%;
 }
-
 .timeline-date span {
   background: #6b8e91;
   color: white;
@@ -286,56 +131,70 @@ button { background: var(--primary); color: white; padding: 14px; border: none; 
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  border: 1px solid #EAEAEA;
-  width: 100%;
+  border-top: 1px solid #EAEAEA;
+  border-bottom: 1px solid #EAEAEA;
 }
-
 
 .tx-card-header {
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  padding: 16px; 
+  padding: 14px 16px; 
   background: #FFF;
 }
 
-.tx-amount { 
-  font-weight: 700; 
-  font-size: 20px; 
+/* Given এর ক্ষেত্রে ডান দিক থেকে টেক্সট শুরু হবে */
+.header-given {
+  flex-direction: row-reverse; 
 }
 
+.tx-amount { font-weight: 700; font-size: 18px; }
 .tx-amount.received { color: var(--success); }
 .tx-amount.given { color: var(--danger); }
+.tx-time { font-size: 13px; color: var(--text-muted); }
 
-.tx-time { 
-  font-size: 13px; 
-  color: #777; 
-}
-
-/* --- ছবি ঠিক করার অংশ --- */
+/* ছবির সাইজ ছোট করা হলো */
 .tx-img-wrapper {
   width: 100%;
+  height: 180px; /* লম্বা ছবি আর পেজ ঢাকবে না */
   background: #F0F0F0;
   border-top: 1px solid #EAEAEA;
   border-bottom: 1px solid #EAEAEA;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
 }
 
 .tx-img-wrapper img {
   width: 100%;
-  height: auto; /* ছবির আসল অনুপাত বজায় রাখবে */
-  max-height: 350px; /* স্ক্রিনের বাইরে চলে যাওয়া ঠেকাবে */
-  object-fit: cover; /* ফাঁকা জায়গা ঢেকে দেবে */
-  display: block;
+  height: 100%;
+  object-fit: cover; /* ছবি সুন্দরভাবে ফিট হবে */
+  cursor: pointer;
 }
 
 .tx-note { 
-  padding: 14px 16px; 
+  padding: 12px 16px; 
   font-size: 14px; 
   color: #333; 
   background: #FFF; 
-  border-top: 1px solid #EAEAEA;
 }
+
+/* =========================================
+   4. BOTTOM ACTION BAR
+   ========================================= */
+.bottom-action-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #FFF; padding: 12px 16px;
+  display: flex; gap: 12px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  z-index: 100;
+}
+.btn-received, .btn-given {
+  flex: 1; background: #FFF; border-radius: 30px; padding: 12px;
+  font-size: 16px; font-weight: 700;
+}
+.btn-received { color: var(--success); border: 2px solid var(--success); }
+.btn-given { color: var(--danger); border: 2px solid var(--danger); }
+
+.hidden { display: none !important; }
