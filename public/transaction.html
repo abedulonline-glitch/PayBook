@@ -4,43 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - নতুন লেনদেন</title>
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .header { display: flex; align-items: center; background: #1a73e8; color: white; padding: 16px; }
-    .back-btn { background: none; border: none; color: white; font-size: 20px; margin-right: 12px; cursor: pointer; }
-    .form-container { padding: 20px; background: #fff; margin: 16px; border-radius: 12px; }
-    .radio-group { display: flex; gap: 16px; margin-bottom: 16px; }
-    .radio-group label { display: flex; align-items: center; gap: 6px; font-weight: bold; }
-    .radio-group input[type="radio"] { width: 20px; height: 20px; }
-    input[type="number"], input[type="text"] { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; }
-    .image-preview { width: 100%; max-height: 200px; object-fit: contain; display: none; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; }
-    .save-btn { width: 100%; padding: 14px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; margin-top: 12px; }
-  </style>
+  <link rel="stylesheet" href="css/style.css?v=4">
+  <!-- Cropper.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
-<body style="display: block; background: #f0f2f5;">
+<body style="display: block; background: var(--bg-color);">
   
   <div class="header">
-    <button class="back-btn" onclick="history.back()">←</button>
-    <h2 id="tx-party-name" style="font-size:18px;">নতুন লেনদেন</h2>
+    <button onclick="history.back()" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
+    <h2 id="tx-party-name" style="flex-grow: 1; text-align: center; margin: 0;">নতুন লেনদেন</h2>
+    <div style="width: 24px;"></div>
   </div>
 
-  <div class="form-container">
-    <div class="radio-group">
-      <label><input type="radio" name="direction" value="given" checked> প্রদেয় (Given)</label>
-      <label><input type="radio" name="direction" value="received"> প্রাপ্য (Received)</label>
+  <div style="padding: 20px; background: #fff; margin: 16px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
+    <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+      <label style="flex: 1; display: flex; align-items: center; gap: 8px; font-weight: bold; color: var(--danger);">
+        <input type="radio" name="direction" value="given" checked style="width: 20px; height: 20px;"> প্রদেয় (Given)
+      </label>
+      <label style="flex: 1; display: flex; align-items: center; gap: 8px; font-weight: bold; color: var(--success);">
+        <input type="radio" name="direction" value="received" style="width: 20px; height: 20px;"> প্রাপ্য (Received)
+      </label>
     </div>
 
     <input type="number" id="visible-amount" placeholder="পাকা অ্যামাউন্ট (₹)" required>
     <input type="number" id="kacha-amount" placeholder="কাঁচা অ্যামাউন্ট (₹) - ঐচ্ছিক">
     <input type="text" id="note" placeholder="নোট (ঐচ্ছিক)">
-
+    
     <label style="display:block; margin-bottom:8px; font-weight:bold;">ইমেজ প্রুফ (বাধ্যতামূলক)</label>
-    <input type="file" id="image-input" accept="image/*" capture="environment" style="margin-bottom:12px;">
-    <img id="image-preview" class="image-preview">
+    <!-- capture="environment" সরিয়ে দেওয়া হয়েছে যাতে গ্যালারি ও ক্যামেরা দুটো অপশনই আসে -->
+    <input type="file" id="image-input" accept="image/*" required>
+    
+    <!-- Cropper Image Preview -->
+    <div id="cropper-container" style="display: none; margin-bottom: 12px; max-height: 300px;">
+      <img id="image-preview" style="max-width: 100%;">
+    </div>
 
-    <button class="save-btn" id="save-tx-btn">সেভ করুন</button>
+    <button id="save-tx-btn" style="margin-top: 12px;">সেভ করুন</button>
   </div>
 
-  <script type="module" src="js/transaction.js"></script>
+  <!-- Cropper.js Script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+  <script type="module" src="js/transaction.js?v=4"></script>
 </body>
 </html>
