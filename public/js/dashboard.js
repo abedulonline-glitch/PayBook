@@ -121,27 +121,34 @@ document.getElementById("save-party-btn").addEventListener("click", async () => 
   if (!name) return alert("পার্টির নাম দিন");
   if (!/^[0-9]{10}$/.test(partyMobile)) return alert("সঠিক ১০-ডিজিটের মোবাইল নম্বর দিন");
   
-  // ১. ইউজার নিজের নম্বর দিয়ে পার্টি বানাতে পারবে না
+  // নিজের নম্বর চেক
   if (partyMobile === mobile) {
     return alert("আপনি নিজের মোবাইল নম্বর দিয়ে পার্টি তৈরি করতে পারবেন না!");
   }
 
   try {
-    // ২. চেক করা: এই নম্বরটি আগে থেকেই এই ইউজারের কোনো পার্টি হিসেবে আছে কি না
+    // ১. এই ইউজারের সব পার্টি লোড করা (কোনো ইনডেক্সের প্রয়োজন নেই)
     const partiesRef = collection(db, "parties");
-    const checkQuery = query(
-      partiesRef, 
-      where("ownerMobile", "==", mobile), 
-      where("mobile", "==", partyMobile)
-    );
-    const querySnapshot = await getDocs(checkQuery);
+    const q = query(partiesRef, where("ownerMobile", "==", mobile));
+    const snapshot = await getDocs(q);
 
-    if (!querySnapshot.empty) {
-      const existingParty = querySnapshot.docs[0].data();
-      return alert(`এই মোবাইল নম্বরটি ইতিমধ্যে "${existingParty.name}" নামে সেভ করা আছে!`);
+    // ২. চেক করা নম্বরটি আগে থেকেই আছে কি না
+    let isDuplicate = false;
+    let existingName = "";
+
+    snapshot.forEach((doc) => {
+      if (doc.data().mobile === partyMobile) {
+        isDuplicate = true;
+        existingName = doc.data().name;
+      }
+    });
+
+    // ৩. যদি নম্বরটি আগে থেকেই থাকে, তবে এরর দেখাবে
+    if (isDuplicate) {
+      return alert(`এই মোবাইল নম্বরটি ইতিমধ্যে "${existingName}" নামে সেভ করা আছে!`);
     }
 
-    // ৩. কোনো ডুপ্লিকেট না থাকলে নতুন পার্টি সেভ হবে
+    // ৪. নতুন পার্টি সেভ করা
     await addDoc(collection(db, "parties"), { 
       ownerMobile: mobile, 
       name: name, 
@@ -152,7 +159,7 @@ document.getElementById("save-party-btn").addEventListener("click", async () => 
     addPartyForm.style.display = "none";
     document.getElementById("new-party-name").value = "";
     document.getElementById("new-party-mobile").value = "";
-    loadDashboard();
+    loadDashboard(); // লিস্ট রিফ্রেশ
     
   } catch (err) {
     alert("সেভ করতে সমস্যা: " + err.message);
