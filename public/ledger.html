@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
-<body style="display: block; background: var(--bg-color); padding-bottom: 80px;">
+<body style="display: block; background: var(--bg-color);">
   
   <div class="header">
-    <button class="back-btn" onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; margin-right:10px; cursor:pointer;">←</button>
-    <h2 id="party-name" style="font-size:18px; flex-grow: 1; text-align: center; color: var(--text-main);">লোড হচ্ছে...</h2>
-    <div style="width: 24px;"></div> <!-- ব্যালেন্স রাখার জন্য -->
+    <button onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
+    <h2 id="party-name" style="flex-grow: 1; text-align: center; margin: 0;">লোড হচ্ছে...</h2>
+    <div style="width: 24px;"></div>
   </div>
 
   <div class="ledger-container">
@@ -27,6 +27,6 @@
 
   <button class="add-tx-btn" id="add-tx">+ নতুন লেনদেন</button>
 
-  <script type="module" src="js/ledger.js?v=3"></script>
+  <script type="module" src="js/ledger.js?v=4"></script>
 </body>
 </html>
