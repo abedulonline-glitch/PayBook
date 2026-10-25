@@ -241,16 +241,28 @@ button { background: var(--primary); color: white; padding: 14px; border: none; 
   flex-direction: column;
 }
 
-/* Given থাকলে বাম দিকে থাকবে */
+/* Given থাকলে ডান দিকে থাকবে */
 .timeline-item.given-item {
-  align-items: flex-start;
-  padding-right: 20px; /* ডান দিক থেকে একটু জায়গা ছাড়বে */
+  align-items: flex-end;
+  padding-left: 20px; 
 }
 
-/* Received থাকলে ডান দিকে থাকবে */
+/* Received থাকলে বাম দিকে থাকবে */
 .timeline-item.received-item {
-  align-items: flex-end;
-  padding-left: 20px; /* বাম দিক থেকে একটু জায়গা ছাড়বে */
+  align-items: flex-start;
+  padding-right: 20px;
+}
+
+/* Given কার্ডের ডান দিকে লাল বর্ডার */
+.given-item .tx-card-inner {
+  border-right: 4px solid var(--danger);
+  border-left: 1px solid #EAEAEA;
+}
+
+/* Received কার্ডের বাম দিকে সবুজ বর্ডার */
+.received-item .tx-card-inner {
+  border-left: 4px solid var(--success);
+  border-right: 1px solid #EAEAEA;
 }
 
 .timeline-date {
@@ -278,15 +290,6 @@ button { background: var(--primary); color: white; padding: 14px; border: none; 
   width: 100%;
 }
 
-/* Given কার্ডের বাম দিকে লাল বর্ডার */
-.given-item .tx-card-inner {
-  border-left: 4px solid var(--danger);
-}
-
-/* Received কার্ডের ডান দিকে সবুজ বর্ডার */
-.received-item .tx-card-inner {
-  border-right: 4px solid var(--success);
-}
 
 .tx-card-header {
   display: flex; 
