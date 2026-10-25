@@ -126,3 +126,103 @@ button { background: var(--primary); color: white; padding: 14px; border: none; 
 
 /* ওয়েবসাইট ক্যাশ আটকানোর জন্য */
 .hidden { display: none !important; }
+
+/* OkCredit Style Timeline */
+.timeline-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.timeline-item {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.timeline-date {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.timeline-date span {
+  background: #6b8e91; /* OkCredit grey-green color */
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.tx-card-inner {
+  background: #FFF;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border: 1px solid #EAEAEA;
+}
+
+.tx-card-header {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 16px; 
+  background: #FFF;
+}
+
+.tx-amount { 
+  font-weight: 700; 
+  font-size: 20px; 
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-amount.received { color: #1a1a1a; } /* OkCredit keeps amount black usually */
+.tx-amount.given { color: #1a1a1a; }
+
+/* Arrow colors */
+.tx-amount.received span.arrow { color: var(--success); }
+.tx-amount.given span.arrow { color: var(--danger); }
+
+.tx-time { 
+  font-size: 13px; 
+  color: #777; 
+}
+
+.tx-img-wrapper {
+  width: 100%;
+  background: #F0F0F0;
+  border-top: 1px solid #EAEAEA;
+  border-bottom: 1px solid #EAEAEA;
+}
+
+.tx-img-wrapper img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain; /* Contain keeps the full image visible like OkCredit */
+  display: block;
+}
+
+.tx-note { 
+  padding: 14px 16px; 
+  font-size: 14px; 
+  color: #333; 
+  background: #FFF; 
+  border-top: 1px solid #EAEAEA;
+}
+
+/* Bottom Buttons */
+.bottom-action-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #FFF; padding: 12px 16px;
+  display: flex; gap: 12px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  z-index: 100;
+}
+.btn-received, .btn-given {
+  flex: 1; background: #FFF; border-radius: 30px; padding: 12px;
+  font-size: 16px; font-weight: 700;
+}
+.btn-received { color: var(--success); border: 1.5px solid var(--success); }
+.btn-given { color: var(--danger); border: 1.5px solid var(--danger); }
