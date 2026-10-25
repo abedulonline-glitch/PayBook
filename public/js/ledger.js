@@ -32,6 +32,7 @@ async function loadTransactions() {
       const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
+      // ইমেজ ট্যাগ (যদি ইমেজ থাকে)
       const imgHtml = tx.imageUrl 
         ? `<div class="tx-img-wrapper"><img src="${tx.imageUrl}" alt="Proof"></div>` 
         : ``;
@@ -42,7 +43,8 @@ async function loadTransactions() {
       const noteHtml = tx.note ? `<div class="tx-note">${tx.note}</div>` : '';
 
       const card = document.createElement("div");
-      card.className = "timeline-item";
+      // Given হলে given-item ক্লাস, Received হলে received-item ক্লাস
+      card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
       
       card.innerHTML = `
         <div class="timeline-date"><span>${dateStr}</span></div>
