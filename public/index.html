@@ -11,13 +11,14 @@
     <div class="logo">PayBook</div>
     <div id="auth-message"></div>
 
-    <!-- Signup Form -->
+    <!-- Signup Form (এটি শুরুতে লুকানো থাকবে) -->
     <form id="signup-form" class="hidden">
       <h2>নতুন অ্যাকাউন্ট</h2>
       <input type="tel" id="signup-mobile" placeholder="মোবাইল নম্বর" required>
       <input type="text" id="signup-name" placeholder="আপনার নাম" required>
       <input type="password" id="signup-pin" placeholder="৬-ডিজিট পিন" maxlength="6" required>
       <input type="password" id="signup-panic-pin" placeholder="প্যানিক পিন (৬-ডিজিট)" maxlength="6" required>
+      
       <select id="signup-security-q" required>
         <option value="">সিকিউরিটি প্রশ্ন নির্বাচন করুন</option>
         <option value="childhood_friend">আপনার শৈশবের সেরা বন্ধুর নাম কী?</option>
@@ -25,19 +26,24 @@
         <option value="mother_tongue">আপনার মায়ের ডাকনাম কী?</option>
         <option value="birth_city">আপনি কোন শহরে জন্মগ্রহণ করেছেন?</option>
       </select>
+      
       <input type="text" id="signup-security-a" placeholder="সিকিউরিটি প্রশ্নের উত্তর" required>
       <button type="submit">সাইন আপ</button>
-      <p>ইতিমধ্যে অ্যাকাউন্ট আছে? <a href="#" id="show-login" onclick="document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); return false;">লগইন করুন</a>
+      
+      <p>ইতিমধ্যে অ্যাকাউন্ট আছে? <a href="#" id="show-login">লগইন করুন</a></p>
+    </form>
 
-    <!-- Login Form -->
+    <!-- Login Form (এটি শুরুতে দেখা যাবে) -->
     <form id="login-form">
       <h2>লগইন</h2>
       <input type="tel" id="login-mobile" placeholder="মোবাইল নম্বর" required>
       <input type="password" id="login-pin" placeholder="৬-ডিজিট পিন" maxlength="6" required>
       <button type="submit">লগইন</button>
-      <p>নতুন? <a href="#" id="show-signup" onclick="document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); return false;">অ্যাকাউন্ট খুলুন</a>
+      
+      <p>নতুন? <a href="#" id="show-signup">অ্যাকাউন্ট খুলুন</a></p>
     </form>
   </div>
+
   <script type="module" src="js/auth.js"></script>
 </body>
 </html>
