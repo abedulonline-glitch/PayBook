@@ -1,11 +1,11 @@
 import { db } from "./firebase-init.js";
-import { collection, addDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { IMGBB_API_KEY } from "./config.js";
 
 const urlParams = new URLSearchParams(window.location.search);
 const partyId = urlParams.get("partyId");
 const partyName = urlParams.get("name");
-const txType = urlParams.get("type") || "given"; // ডিফল্ট given
+const txType = urlParams.get("type") || "given";
 const mobile = localStorage.getItem("paybook_mobile");
 
 if (!partyId || !mobile) window.location.href = "dashboard.html";
@@ -13,7 +13,7 @@ document.getElementById("tx-party-name").innerText = partyName;
 
 // টাইপ অনুযায়ী হেডার সেট করা
 const typeHeader = document.getElementById("tx-type-header");
-let selectedDirection = "given"; // ভেরিয়েবল
+let selectedDirection = "given";
 
 if (txType === "received") {
   selectedDirection = "received";
@@ -21,9 +21,14 @@ if (txType === "received") {
   typeHeader.style.color = "var(--success)";
 } else {
   selectedDirection = "given";
-  typeHeader.innerText = "↑ প্রদেয় (Given)";
+  typeHeader.innerText = "↑ প্রদেয় (Given)";
   typeHeader.style.color = "var(--danger)";
 }
+
+// ডেট পিকারে ডিফল্টভাবে আজকের তারিখ সেট করে দেওয়া
+const dateInput = document.getElementById("tx-date");
+const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD ফরম্যাট
+dateInput.value = today;
 
 let cropper = null;
 let finalFile = null;
@@ -66,11 +71,14 @@ async function uploadToImgBB(file) {
 
 document.getElementById("save-tx-btn").addEventListener("click", async () => {
   const visibleAmount = parseFloat(document.getElementById("visible-amount").value);
-  const kachaAmount = parseFloat(document.getElementById("kacha-amount").value) || 0;
   const note = document.getElementById("note").value.trim();
+  const dateValue = dateInput.value;
 
   if (!visibleAmount || visibleAmount <= 0) return alert("সঠিক পাকা অ্যামাউন্ট দিন");
   if (!cropper) return alert("ইমেজ প্রুফ আপলোড করা বাধ্যতামূলক");
+
+  // ইউজারের দেওয়া ডেট, যদি না থাকে তবে আজকের ডেট
+  const selectedDate = dateValue ? new Date(dateValue) : new Date();
 
   const btn = document.getElementById("save-tx-btn");
   btn.innerText = "প্রসেস হচ্ছে...";
@@ -83,24 +91,18 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       finalFile = new File([blob], "proof.jpg", { type: "image/jpeg" });
       const imageUrl = await uploadToImgBB(finalFile);
 
-      const txRef = await addDoc(collection(db, "transactions"), {
+      // ডেটাবেসে ডেটা সেভ
+      await addDoc(collection(db, "transactions"), {
         ownerMobile: mobile,
         partyId: partyId,
-        direction: selectedDirection, // এখানে URL থেকে আসা ডিরেকশন সেভ হচ্ছে
+        direction: selectedDirection,
         visibleAmount: visibleAmount,
-        totalAmount: visibleAmount + kachaAmount,
         imageUrl: imageUrl,
         note: note,
-        date: new Date(),
+        date: selectedDate, // ডেট পিকার থেকে আসা ডেট
         deletedBy: [],
         verifiedBy: []
       });
-
-      if (kachaAmount > 0) {
-        await setDoc(doc(db, "transactions", txRef.id, "private", "details"), {
-          kachaAmount: kachaAmount
-        });
-      }
 
       alert("সফলভাবে সেভ হয়েছে!");
       history.back();
