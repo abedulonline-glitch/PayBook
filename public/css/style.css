@@ -226,3 +226,113 @@ button { background: var(--primary); color: white; padding: 14px; border: none; 
 }
 .btn-received { color: var(--success); border: 1.5px solid var(--success); }
 .btn-given { color: var(--danger); border: 1.5px solid var(--danger); }
+
+/* OkCredit Style Timeline Alignment */
+.timeline-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.timeline-item {
+  margin-bottom: 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Given থাকলে বাম দিকে থাকবে */
+.timeline-item.given-item {
+  align-items: flex-start;
+  padding-right: 20px; /* ডান দিক থেকে একটু জায়গা ছাড়বে */
+}
+
+/* Received থাকলে ডান দিকে থাকবে */
+.timeline-item.received-item {
+  align-items: flex-end;
+  padding-left: 20px; /* বাম দিক থেকে একটু জায়গা ছাড়বে */
+}
+
+.timeline-date {
+  text-align: center;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.timeline-date span {
+  background: #6b8e91;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.tx-card-inner {
+  background: #FFF;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border: 1px solid #EAEAEA;
+  width: 100%;
+}
+
+/* Given কার্ডের বাম দিকে লাল বর্ডার */
+.given-item .tx-card-inner {
+  border-left: 4px solid var(--danger);
+}
+
+/* Received কার্ডের ডান দিকে সবুজ বর্ডার */
+.received-item .tx-card-inner {
+  border-right: 4px solid var(--success);
+}
+
+.tx-card-header {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 16px; 
+  background: #FFF;
+}
+
+.tx-amount { 
+  font-weight: 700; 
+  font-size: 20px; 
+}
+
+.tx-amount.received { color: var(--success); }
+.tx-amount.given { color: var(--danger); }
+
+.tx-time { 
+  font-size: 13px; 
+  color: #777; 
+}
+
+/* --- ছবি ঠিক করার অংশ --- */
+.tx-img-wrapper {
+  width: 100%;
+  background: #F0F0F0;
+  border-top: 1px solid #EAEAEA;
+  border-bottom: 1px solid #EAEAEA;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.tx-img-wrapper img {
+  width: 100%;
+  height: auto; /* ছবির আসল অনুপাত বজায় রাখবে */
+  max-height: 350px; /* স্ক্রিনের বাইরে চলে যাওয়া ঠেকাবে */
+  object-fit: cover; /* ফাঁকা জায়গা ঢেকে দেবে */
+  display: block;
+}
+
+.tx-note { 
+  padding: 14px 16px; 
+  font-size: 14px; 
+  color: #333; 
+  background: #FFF; 
+  border-top: 1px solid #EAEAEA;
+}
