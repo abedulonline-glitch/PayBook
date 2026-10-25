@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
-<body style="display: block; background: var(--bg-color);">
+<body style="display: block; background: var(--bg-color); padding-bottom: 80px;">
   
   <div class="header">
     <button onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
@@ -14,19 +14,30 @@
     <div style="width: 24px;"></div>
   </div>
 
-  <div class="ledger-container">
-    <div class="side given">
-      <h3>প্রদেয় (Given)</h3>
-      <div id="given-list"></div>
-    </div>
-    <div class="side received">
-      <h3>প্রাপ্য (Received)</h3>
-      <div id="received-list"></div>
-    </div>
+  <!-- টাইমলাইন ভিউ (এখানে সব লেনদেন নিচে নিচে আসবে) -->
+  <div id="timeline-container" style="padding: 16px;">
+    <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
   </div>
 
-  <button class="add-tx-btn" id="add-tx">+ নতুন লেনদেন</button>
+  <!-- OkCredit-এর মতো নিচে ফিক্সড দুটি বাটন -->
+  <div class="bottom-action-bar">
+    <button class="btn-received" onclick="goToNewTx('received')">
+      ↓ Received
+    </button>
+    <button class="btn-given" onclick="goToNewTx('given')">
+      ↑ Given
+    </button>
+  </div>
 
-  <script type="module" src="js/ledger.js?v=4"></script>
+  <script type="module" src="js/ledger.js?v=6"></script>
+  <script>
+    // বাটনে ক্লিক করলে কোন টাইপ (Given/Received) সেটা URL-এ পাঠাবে
+    function goToNewTx(type) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const partyId = urlParams.get("partyId");
+      const name = urlParams.get("name");
+      window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}`;
+    }
+  </script>
 </body>
 </html>
