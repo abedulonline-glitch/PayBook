@@ -27,8 +27,7 @@
       </select>
       <input type="text" id="signup-security-a" placeholder="সিকিউরিটি প্রশ্নের উত্তর" required>
       <button type="submit">সাইন আপ</button>
-      <p>ইতিমধ্যে অ্যাকাউন্ট আছে? <a href="#" id="show-login">লগইন করুন</a></p>
-    </form>
+      <p>ইতিমধ্যে অ্যাকাউন্ট আছে? <a href="#" id="show-login" onclick="document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); return false;">লগইন করুন</a>
 
     <!-- Login Form -->
     <form id="login-form">
@@ -36,7 +35,7 @@
       <input type="tel" id="login-mobile" placeholder="মোবাইল নম্বর" required>
       <input type="password" id="login-pin" placeholder="৬-ডিজিট পিন" maxlength="6" required>
       <button type="submit">লগইন</button>
-      <p>নতুন? <a href="#" id="show-signup">অ্যাকাউন্ট খুলুন</a></p>
+      <p>নতুন? <a href="#" id="show-signup" onclick="document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); return false;">অ্যাকাউন্ট খুলুন</a>
     </form>
   </div>
   <script type="module" src="js/auth.js"></script>
