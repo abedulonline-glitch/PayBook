@@ -117,15 +117,43 @@ async function loadDashboard() {
 document.getElementById("save-party-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-party-name").value.trim();
   const partyMobile = document.getElementById("new-party-mobile").value.trim();
+  
   if (!name) return alert("পার্টির নাম দিন");
   if (!/^[0-9]{10}$/.test(partyMobile)) return alert("সঠিক ১০-ডিজিটের মোবাইল নম্বর দিন");
+  
+  // ১. ইউজার নিজের নম্বর দিয়ে পার্টি বানাতে পারবে না
+  if (partyMobile === mobile) {
+    return alert("আপনি নিজের মোবাইল নম্বর দিয়ে পার্টি তৈরি করতে পারবেন না!");
+  }
 
   try {
-    await addDoc(collection(db, "parties"), { ownerMobile: mobile, name: name, mobile: partyMobile, createdAt: new Date() });
+    // ২. চেক করা: এই নম্বরটি আগে থেকেই এই ইউজারের কোনো পার্টি হিসেবে আছে কি না
+    const partiesRef = collection(db, "parties");
+    const checkQuery = query(
+      partiesRef, 
+      where("ownerMobile", "==", mobile), 
+      where("mobile", "==", partyMobile)
+    );
+    const querySnapshot = await getDocs(checkQuery);
+
+    if (!querySnapshot.empty) {
+      const existingParty = querySnapshot.docs[0].data();
+      return alert(`এই মোবাইল নম্বরটি ইতিমধ্যে "${existingParty.name}" নামে সেভ করা আছে!`);
+    }
+
+    // ৩. কোনো ডুপ্লিকেট না থাকলে নতুন পার্টি সেভ হবে
+    await addDoc(collection(db, "parties"), { 
+      ownerMobile: mobile, 
+      name: name, 
+      mobile: partyMobile, 
+      createdAt: new Date() 
+    });
+    
     addPartyForm.style.display = "none";
     document.getElementById("new-party-name").value = "";
     document.getElementById("new-party-mobile").value = "";
     loadDashboard();
+    
   } catch (err) {
     alert("সেভ করতে সমস্যা: " + err.message);
   }
