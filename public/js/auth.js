@@ -1,3 +1,4 @@
+console.log("auth.js লোড হয়েছে");
 import { db } from "./firebase-init.js";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
