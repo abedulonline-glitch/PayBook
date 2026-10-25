@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
-<body style="display: block; background: var(--bg-color); padding-bottom: 80px;">
+<body style="display: block; background: var(--bg-color); padding-bottom: 90px;">
   
   <div class="header">
     <button onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
@@ -14,22 +14,18 @@
     <div style="width: 24px;"></div>
   </div>
 
-  <!-- টাইমলাইন ভিউ -->
-  <div id="timeline-container" style="padding: 16px;">
+  <!-- OkCredit-এর মতো টাইমলাইন -->
+  <div id="timeline-container" class="timeline-container">
     <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
   </div>
 
-  <!-- OkCredit-এর মতো নিচে ফিক্সড দুটি বাটন -->
+  <!-- নিচে ফিক্সড বাটন -->
   <div class="bottom-action-bar">
-    <button class="btn-received" onclick="goToNewTx('received')">
-      ↓ Received
-    </button>
-    <button class="btn-given" onclick="goToNewTx('given')">
-      ↑ Given
-    </button>
+    <button class="btn-received" onclick="goToNewTx('received')">↓ Received</button>
+    <button class="btn-given" onclick="goToNewTx('given')">↑ Given</button>
   </div>
 
-  <script type="module" src="js/ledger.js?v=7"></script>
+  <script type="module" src="js/ledger.js?v=8"></script>
   <script>
     function goToNewTx(type) {
       const urlParams = new URLSearchParams(window.location.search);
