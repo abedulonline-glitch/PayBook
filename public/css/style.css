@@ -198,3 +198,31 @@ a { color: var(--primary); text-decoration: none; font-weight: 600; }
 .btn-given { color: var(--danger); border: 2px solid var(--danger); }
 
 .hidden { display: none !important; }
+
+/* Tabs Container */
+.tab-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  border: 1.5px solid #E0E0E0;
+  background: #FFF;
+  color: #666;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: #E8F5E9;
+  color: #2E7D32;
+  border-color: #2E7D32;
+}
