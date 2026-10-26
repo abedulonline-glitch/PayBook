@@ -23,8 +23,21 @@ window.switchTab = function(tab) {
   
   document.getElementById("list-title").innerText = tab === "customer" ? "কাস্টমার লিস্ট" : "সাপ্লায়ার লিস্ট";
   
+  // ফর্মের হেডিং এবং ড্রপডাউন আপডেট (নতুন যোগ করা হলো)
+  const formHeading = document.getElementById("add-party-heading");
+  const typeDropdown = document.getElementById("new-party-type");
+  
+  if (tab === "supplier") {
+    formHeading.innerText = "নতুন সাপ্লায়ার যোগ করুন";
+    typeDropdown.value = "supplier"; // ড্রপডাউন অটো সাপ্লায়ার হবে
+  } else {
+    formHeading.innerText = "নতুন কাস্টমার যোগ করুন";
+    typeDropdown.value = "customer"; // ড্রপডাউন অটো কাস্টমার হবে
+  }
+
   renderDashboard(); // ডেটা রি-রেন্ডার
 };
+
 
 // ডেটা লোড করা
 async function loadData() {
