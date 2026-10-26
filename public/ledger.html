@@ -4,9 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=24">
+  <!-- ক্যাশ এড়াতে ভার্সন পরিবর্তন করা হলো -->
+  <link rel="stylesheet" href="css/style.css?v=31">
+  <style>
+    /* পাকা এবং কাঁচা বাটনের জন্য বাড়তি স্টাইল */
+    .bottom-action-bar {
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .btn-row button {
+      flex: 1;
+      padding: 10px;
+      font-size: 15px;
+    }
+    .btn-kacha {
+      border-style: dashed !important; /* কাঁচা বোঝানোর জন্য ড্যাশড বর্ডার */
+    }
+  </style>
 </head>
-<body style="display: block; background: var(--bg-color); padding-bottom: 90px;">
+<body style="display: block; background: var(--bg-color); padding-bottom: 100px;">
   
   <!-- হেডার (প্রোফাইল ছবি সহ) -->
   <div class="header" style="padding: 12px 16px;">
@@ -61,18 +83,34 @@
     <div id="image-counter" style="color: #aaa; margin-top: 10px; font-size: 16px;"></div>
   </div>
 
+  <!-- নিচের ফিক্সড বাটন (পাকা এবং কাঁচা) -->
   <div class="bottom-action-bar">
-    <button class="btn-received" onclick="goToNewTx('received')">↓ Received</button>
-    <button class="btn-given" onclick="goToNewTx('given')">↑ Given</button>
+    <!-- পাকা বাটন (সবসময় দেখাবে) -->
+    <div class="btn-row">
+      <button class="btn-received" onclick="goToNewTx('received', 'paka')">↓ Received (পাকা)</button>
+      <button class="btn-given" onclick="goToNewTx('given', 'paka')">↑ Given (পাকা)</button>
+    </div>
+    
+    <!-- কাঁচা বাটন (প্যানিক মোড আনলক থাকলে দেখাবে) -->
+    <div class="btn-row hidden" id="kacha-buttons">
+      <button class="btn-received btn-kacha" onclick="goToNewTx('received', 'kacha')">↓ Received (কাঁচা)</button>
+      <button class="btn-given btn-kacha" onclick="goToNewTx('given', 'kacha')">↑ Given (কাঁচা)</button>
+    </div>
   </div>
 
-  <script type="module" src="js/ledger.js?v=24"></script>
+  <script type="module" src="js/ledger.js?v=31"></script>
   <script>
-    function goToNewTx(type) {
+    // প্যানিক আনলক থাকলে কাঁচা বাটনগুলো দেখাবে
+    if (sessionStorage.getItem("panic_unlock_until") && Date.now() < parseInt(sessionStorage.getItem("panic_unlock_until"))) {
+      document.getElementById("kacha-buttons").classList.remove("hidden");
+    }
+
+    // ট্রানজেকশন পেজে পাঠানোর ফাংশন (পাকা/কাঁচা সহ)
+    function goToNewTx(type, accType) {
       const urlParams = new URLSearchParams(window.location.search);
       const partyId = urlParams.get("partyId");
       const name = urlParams.get("name");
-      window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}`;
+      window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}&accountType=${accType}`;
     }
   </script>
 </body>
