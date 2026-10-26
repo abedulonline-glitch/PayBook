@@ -103,6 +103,14 @@ function renderDashboard() {
     div.className = "party-item";
     const initial = party.name.charAt(0).toUpperCase();
     
+    // ডিফল্ট অ্যাভাটার (নামের প্রথম অক্ষর)
+    let avatarHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; background: #E8F5E9; color: #2E7D32; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">${initial}</div>`;
+
+    // যদি প্রোফাইল ছবি থাকে, তবে ছবিটি দেখাবে
+    if (party.profilePic) {
+      avatarHtml = `<img src="${party.profilePic}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd;">`;
+    }
+
     const balanceData = partyBalances[party.id] || { given: 0, received: 0 };
     const netBalance = balanceData.received - balanceData.given;
     
@@ -120,7 +128,7 @@ function renderDashboard() {
 
     div.innerHTML = `
       <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="width: 40px; height: 40px; border-radius: 50%; background: #E8F5E9; color: #2E7D32; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">${initial}</div>
+        ${avatarHtml}
         <div>
           <div class="party-name">${party.name}</div>
           <div style="font-size: 11px; color: #777;">${typeText}</div>
