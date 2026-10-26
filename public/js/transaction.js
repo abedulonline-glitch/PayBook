@@ -21,104 +21,62 @@ typeHeader.style.color = selectedDirection === "received" ? "var(--success)" : "
 const dateInput = document.getElementById("tx-date");
 dateInput.value = new Date().toISOString().split('T')[0];
 
-// মোডাল হ্যান্ডলিং
-const modal = document.getElementById("media-modal");
-document.getElementById("open-media-modal").onclick = () => modal.style.display = "flex";
-document.getElementById("close-modal").onclick = () => modal.style.display = "none";
-document.getElementById("btn-camera").onclick = () => { document.getElementById("camera-input").click(); modal.style.display = "none"; };
-document.getElementById("btn-gallery").onclick = () => { document.getElementById("gallery-input").click(); modal.style.display = "none"; };
+// গ্লোবাল ভেরিয়েবল
+let selectedFiles = []; 
+const fileInput = document.getElementById("image-input");
+const previewContainer = document.getElementById("image-preview-container");
 
-let cropper = null;
-let finalFiles = []; // সব ছবি এখানে জমা হবে
-let currentCameraFile = null;
+// ছবি সিলেক্ট করার বাটনে ক্লিক করলে ইনপুট ফিল্ড ওপেন হবে
+document.getElementById("add-image-btn").addEventListener("click", () => {
+  fileInput.click();
+});
 
-// ছবি কম্প্রেস করার ফাংশন (মাল্টিপল ছবির জন্য)
-function compressImage(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 800; // রেজোলিউশন কমানো হলো
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          resolve(new File([blob], file.name, { type: "image/jpeg" }));
-        }, "image/jpeg", 0.7); // ৭০% কোয়ালিটি
-      };
-    };
+// ছবি সিলেক্ট করলে এই ফাংশন চলবে
+fileInput.addEventListener("change", (e) => {
+  const files = Array.from(e.target.files);
+  
+  files.forEach(file => {
+    selectedFiles.push(file); // নতুন ছবিগুলো লিস্টে যোগ হলো
+    renderPreview(file, selectedFiles.length - 1); // প্রিভিউ দেখানো হলো
+  });
+
+  fileInput.value = ""; // ইনপুট রিসেট করা হলো যাতে আবার একই ছবি দেওয়া যায়
+});
+
+// প্রিভিউ তৈরি করার ফাংশন
+function renderPreview(file, index) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const div = document.createElement("div");
+    div.style.position = "relative";
+    div.style.width = "70px";
+    div.style.height = "70px";
+    
+    div.innerHTML = `
+      <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;">
+      <button type="button" class="remove-btn" data-index="${index}" style="position: absolute; top: -5px; right: -5px; background: red; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer;">✕</button>
+    `;
+    previewContainer.appendChild(div);
+
+    // ডিলিট বাটনের ইভেন্ট
+    div.querySelector('.remove-btn').addEventListener('click', function() {
+      const removeIndex = parseInt(this.getAttribute('data-index'));
+      selectedFiles.splice(removeIndex, 1); // লিস্ট থেকে মুছে ফেলা হলো
+      refreshPreviews(); // প্রিভিউ রিফ্রেশ
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+// প্রিভিউ রিফ্রেশ (ডিলিট করার পর)
+function refreshPreviews() {
+  previewContainer.innerHTML = "";
+  selectedFiles.forEach((file, index) => {
+    renderPreview(file, index);
   });
 }
 
-// গ্যালারি থেকে ছবি সিলেক্ট
-document.getElementById("gallery-input").addEventListener("change", async (e) => {
-  const files = Array.from(e.target.files);
-  if (files.length === 0) return;
-
-  const previewGrid = document.getElementById("preview-grid");
-  
-  for (const file of files) {
-    const compressedFile = await compressImage(file);
-    finalFiles.push(compressedFile);
-    
-    // প্রিভিউ দেখানো
-    const div = document.createElement("div");
-    div.className = "preview-item";
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(compressedFile);
-    div.appendChild(img);
-    previewGrid.appendChild(div);
-  }
-});
-
-// ক্যামেরা থেকে ছবি সিলেক্ট (একটি একটি করে ক্রপ হবে)
-document.getElementById("camera-input").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  currentCameraFile = file;
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    document.getElementById("cropper-container").style.display = "block";
-    const image = document.getElementById("image-preview");
-    image.src = event.target.result;
-
-    if (cropper) cropper.destroy();
-    cropper = new Cropper(image, { aspectRatio: NaN, viewMode: 1 });
-  };
-  reader.readAsDataURL(file);
-});
-
-// ক্যামেরার ছবি ক্রপ কনফার্ম
-document.getElementById("confirm-crop-btn").onclick = () => {
-  if (!cropper) return;
-  cropper.getCroppedCanvas().toBlob((blob) => {
-    const croppedFile = new File([blob], "camera_proof.jpg", { type: "image/jpeg" });
-    finalFiles.push(croppedFile);
-    
-    // প্রিভিউ দেখানো
-    const previewGrid = document.getElementById("preview-grid");
-    const div = document.createElement("div");
-    div.className = "preview-item";
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(croppedFile);
-    div.appendChild(img);
-    previewGrid.appendChild(div);
-
-    // রিসেট
-    cropper.destroy();
-    cropper = null;
-    document.getElementById("cropper-container").style.display = "none";
-  }, "image/jpeg", 0.8);
-};
-
-// ImgBB তে আপলোড
+// ImgBB তে আপলোড ফাংশন
 async function uploadToImgBB(file) {
   const formData = new FormData();
   formData.append("image", file);
@@ -134,28 +92,27 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   const note = document.getElementById("note").value.trim();
 
   if (!visibleAmount || visibleAmount <= 0) return alert("সঠিক পাকা অ্যামাউন্ট দিন");
-  if (finalFiles.length === 0) return alert("অন্তত একটি ইমেজ প্রুফ আপলোড করা বাধ্যতামূলক");
+  if (selectedFiles.length === 0) return alert("অন্তত একটি ইমেজ প্রুফ আপলোড করা বাধ্যতামূলক");
 
   const btn = document.getElementById("save-tx-btn");
-  btn.innerText = `আপলোড হচ্ছে (0/${finalFiles.length})...`;
+  btn.innerText = `আপলোড হচ্ছে (0/${selectedFiles.length})...`;
   btn.disabled = true;
 
   try {
     const imageUrls = [];
-    // একটার পর একটা ছবি আপলোড হবে
-    for (let i = 0; i < finalFiles.length; i++) {
-      btn.innerText = `আপলোড হচ্ছে (${i + 1}/${finalFiles.length})...`;
-      const url = await uploadToImgBB(finalFiles[i]);
+    for (let i = 0; i < selectedFiles.length; i++) {
+      btn.innerText = `আপলোড হচ্ছে (${i + 1}/${selectedFiles.length})...`;
+      const url = await uploadToImgBB(selectedFiles[i]);
       imageUrls.push(url);
     }
 
-    // Firestore এ সেভ (imageUrls অ্যারে হিসেবে যাবে)
+    // Firestore এ সেভ
     await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
       partyId: partyId,
       direction: selectedDirection,
       visibleAmount: visibleAmount,
-      imageUrls: imageUrls, // নতুন ফিল্ড: একাধিক ছবির লিংক
+      imageUrls: imageUrls, // এখানে একাধিক ছবির লিংক অ্যারে আকারে যাচ্ছে
       note: note,
       date: new Date(dateInput.value),
       deletedBy: [],
