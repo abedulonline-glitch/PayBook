@@ -23,16 +23,12 @@ window.switchTab = function(tab) {
   
   document.getElementById("list-title").innerText = tab === "customer" ? "কাস্টমার লিস্ট" : "সাপ্লায়ার লিস্ট";
   
-  // ফর্মের হেডিং এবং ড্রপডাউন আপডেট (নতুন যোগ করা হলো)
+  // শুধু ফর্মের হেডিং আপডেট হবে (ড্রপডাউনের কোড বাদ দেওয়া হলো)
   const formHeading = document.getElementById("add-party-heading");
-  const typeDropdown = document.getElementById("new-party-type");
-  
   if (tab === "supplier") {
     formHeading.innerText = "নতুন সাপ্লায়ার যোগ করুন";
-    typeDropdown.value = "supplier"; // ড্রপডাউন অটো সাপ্লায়ার হবে
   } else {
     formHeading.innerText = "নতুন কাস্টমার যোগ করুন";
-    typeDropdown.value = "customer"; // ড্রপডাউন অটো কাস্টমার হবে
   }
 
   renderDashboard(); // ডেটা রি-রেন্ডার
@@ -160,10 +156,13 @@ document.getElementById("profile-upload").addEventListener("change", async (e) =
 });
 
 // নতুন পার্টি সেভ
+// নতুন পার্টি সেভ
 document.getElementById("save-party-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-party-name").value.trim();
   const partyMobile = document.getElementById("new-party-mobile").value.trim();
-  const type = document.getElementById("new-party-type").value;
+  
+  // dropdown থেকে না নিয়ে, সরাসরি currentTab ব্যবহার করা হচ্ছে
+  const type = currentTab; 
 
   if (!name) return alert("পার্টির নাম দিন");
   if (!/^[0-9]{10}$/.test(partyMobile)) return alert("সঠিক ১০-ডিজিটের মোবাইল নম্বর দিন");
@@ -177,12 +176,12 @@ document.getElementById("save-party-btn").addEventListener("click", async () => 
     snap.forEach(d => { if (d.data().mobile === partyMobile) isDuplicate = true; });
     if (isDuplicate) return alert("এই নম্বরটি আগে থেকেই সেভ করা আছে!");
 
-    // partyType সহ সেভ
+    // partyType: type (যা currentTab থেকে আসছে) সহ সেভ
     await addDoc(collection(db, "parties"), { 
       ownerMobile: mobile, 
       name: name, 
       mobile: partyMobile, 
-      partyType: type,
+      partyType: type, 
       createdAt: new Date() 
     });
     
