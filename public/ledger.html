@@ -8,11 +8,15 @@
 </head>
 <body style="display: block; background: var(--bg-color); padding-bottom: 90px;">
   
-  <div class="header">
+<!-- header অংশে এইটুকু পরিবর্তন করুন -->
+<div class="header">
     <button onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
-    <h2 id="party-name" style="flex-grow: 1; text-align: center; margin: 0;">লোড হচ্ছে...</h2>
+    <div style="flex-grow: 1; text-align: center;">
+      <h2 id="party-name" style="margin: 0; line-height: 1.2;">লোড হচ্ছে...</h2>
+      <div id="party-type-label" style="font-size: 12px; color: #666;"></div>
+    </div>
     <div style="width: 24px;"></div>
-  </div>
+</div>
 
   <div id="timeline-container" class="timeline-container">
     <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
