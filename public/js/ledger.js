@@ -9,6 +9,10 @@ const mobile = localStorage.getItem("paybook_mobile");
 if (!partyId || !mobile) window.location.href = "dashboard.html";
 document.getElementById("party-name").innerText = partyName;
 
+// গ্লোবাল ভিউয়ার ভেরিয়েবল
+let currentImages = [];
+let currentImageIndex = 0;
+
 async function loadTransactions() {
   const txRef = collection(db, "transactions");
   const q = query(txRef, where("ownerMobile", "==", mobile), where("partyId", "==", partyId));
@@ -32,17 +36,18 @@ async function loadTransactions() {
       const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
-      // পুরনো ডেটার জন্য (imageUrl) এবং নতুন ডেটার জন্য (imageUrls) হ্যান্ডেল করা
-      let imgHtml = "";
+      // পুরনো ও নতুন ডেটা দুটোই হ্যান্ডেল করা
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
+      let imgHtml = "";
 
       if (images.length > 0) {
-        let overlay = "";
-        if (images.length > 1) {
-          overlay = `<div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">+${images.length - 1}</div>`;
-        }
+        let overlay = images.length > 1 
+          ? `<div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold;">+${images.length - 1}</div>` 
+          : "";
+        
+        // ছবিতে ক্লিক করলে viewImages ফাংশনটি কল হবে
         imgHtml = `
-          <div class="tx-img-wrapper" style="position: relative;" onclick="viewImages('${images.join(',')}')">
+          <div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'>
             <img src="${images[0]}" alt="Proof">
             ${overlay}
           </div>
@@ -76,15 +81,35 @@ async function loadTransactions() {
   }
 }
 
-// ফুল স্ক্রিনে ছবি দেখার ফাংশন
-window.viewImages = function(urlsString) {
-  const urls = urlsString.split(',');
+// ফুল স্ক্রিন ইমেজ ভিউয়ার ওপেন করা
+window.viewImages = function(imagesArray) {
+  currentImages = imagesArray;
+  currentImageIndex = 0;
+  
   const viewer = document.getElementById('image-viewer');
   const fullImage = document.getElementById('full-image');
+  const counter = document.getElementById('image-counter');
   
-  // আপাতত প্রথম ছবিটি দেখাবে (ভবিষ্যতে এখানে স্লাইডার করা যাবে)
-  fullImage.src = urls[0];
+  fullImage.src = currentImages[0];
+  counter.innerText = `1 / ${currentImages.length}`;
   viewer.style.display = 'flex';
+};
+
+// ডান-বাম নেভিগেশন (স্লাইডার)
+window.nextImage = function(e) {
+  e.stopPropagation();
+  if (currentImages.length <= 1) return;
+  currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+  document.getElementById('full-image').src = currentImages[currentImageIndex];
+  document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
+};
+
+window.prevImage = function(e) {
+  e.stopPropagation();
+  if (currentImages.length <= 1) return;
+  currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+  document.getElementById('full-image').src = currentImages[currentImageIndex];
+  document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
 };
 
 loadTransactions();
