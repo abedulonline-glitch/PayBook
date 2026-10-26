@@ -9,7 +9,6 @@ const mobile = localStorage.getItem("paybook_mobile");
 if (!partyId || !mobile) window.location.href = "dashboard.html";
 document.getElementById("party-name").innerText = partyName;
 
-// গ্লোবাল ভিউয়ার ভেরিয়েবল
 let currentImages = [];
 let currentImageIndex = 0;
 
@@ -31,21 +30,17 @@ async function loadTransactions() {
 
     docs.forEach((txDoc) => {
       const tx = txDoc.data();
-      
       const dateObj = new Date(tx.date.toDate());
       const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
-      // পুরনো ও নতুন ডেটা দুটোই হ্যান্ডেল করা
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
       let imgHtml = "";
 
       if (images.length > 0) {
         let overlay = images.length > 1 
-          ? `<div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold;">+${images.length - 1}</div>` 
-          : "";
+          ? `<div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold;">+${images.length - 1}</div>` : "";
         
-        // ছবিতে ক্লিক করলে viewImages ফাংশনটি কল হবে
         imgHtml = `
           <div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'>
             <img src="${images[0]}" alt="Proof">
@@ -81,35 +76,53 @@ async function loadTransactions() {
   }
 }
 
-// ফুল স্ক্রিন ইমেজ ভিউয়ার ওপেন করা
+// ইমেজ ভিউয়ার ওপেন
 window.viewImages = function(imagesArray) {
   currentImages = imagesArray;
   currentImageIndex = 0;
-  
-  const viewer = document.getElementById('image-viewer');
-  const fullImage = document.getElementById('full-image');
-  const counter = document.getElementById('image-counter');
-  
-  fullImage.src = currentImages[0];
-  counter.innerText = `1 / ${currentImages.length}`;
-  viewer.style.display = 'flex';
+  updateImageViewer();
+  document.getElementById('image-viewer').style.display = 'flex';
 };
 
-// ডান-বাম নেভিগেশন (স্লাইডার)
-window.nextImage = function(e) {
-  e.stopPropagation();
-  if (currentImages.length <= 1) return;
-  currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+function updateImageViewer() {
   document.getElementById('full-image').src = currentImages[currentImageIndex];
   document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
-};
+}
 
-window.prevImage = function(e) {
-  e.stopPropagation();
+// মোবাইল স্লাইড (Touch) লজিক
+let touchStartX = 0;
+let touchEndX = 0;
+const imgElement = document.getElementById('full-image');
+
+imgElement.addEventListener('touchstart', e => {
+  touchStartX = e.changedTouches[0].screenX;
+}, {passive: true});
+
+imgElement.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleSwipe();
+}, {passive: true});
+
+// ল্যাপটপে মাউস ড্র্যাগ লজিক
+imgElement.addEventListener('mousedown', e => { touchStartX = e.screenX; });
+imgElement.addEventListener('mouseup', e => {
+  touchEndX = e.screenX;
+  handleSwipe();
+});
+
+function handleSwipe() {
   if (currentImages.length <= 1) return;
-  currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
-  document.getElementById('full-image').src = currentImages[currentImageIndex];
-  document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
-};
+  const swipeThreshold = 50; // ৫০ পিক্সেল স্লাইড করলেই কাজ করবে
+  
+  if (touchEndX < touchStartX - swipeThreshold) {
+    // বাম দিকে স্লাইড (পরের ছবি)
+    currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+    updateImageViewer();
+  } else if (touchEndX > touchStartX + swipeThreshold) {
+    // ডান দিকে স্লাইড (আগের ছবি)
+    currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+    updateImageViewer();
+  }
+}
 
 loadTransactions();
