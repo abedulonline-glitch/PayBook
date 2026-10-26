@@ -226,3 +226,18 @@ a { color: var(--primary); text-decoration: none; font-weight: 600; }
   color: #2E7D32;
   border-color: #2E7D32;
 }
+
+/* লেজার হেডারে অ্যাভাটারের ডিজাইন */
+#avatar-box:active {
+  transform: scale(0.95);
+  transition: transform 0.1s;
+}
+
+/* প্রোফাইল মোডালের বড় ছবি */
+#modal-avatar-box:active {
+  transform: scale(0.95);
+}
+
+#modal-avatar-img {
+  cursor: zoom-in;
+}
