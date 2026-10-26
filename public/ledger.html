@@ -4,24 +4,39 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body style="display: block; background: var(--bg-color); padding-bottom: 90px;">
   
+  <!-- হেডার -->
   <div class="header">
     <button onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
     <h2 id="party-name" style="flex-grow: 1; text-align: center; margin: 0;">লোড হচ্ছে...</h2>
     <div style="width: 24px;"></div>
   </div>
 
-  <!-- টাইমলাইন -->
+  <!-- টাইমলাইন কন্টেইনার -->
   <div id="timeline-container" class="timeline-container">
     <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
   </div>
 
-  <!-- ইমেজ ফুল স্ক্রিন ভিউয়ার (ক্লিক করলে বড় হবে) -->
-  <div id="image-viewer" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; justify-content: center; align-items: center;">
-    <img id="full-image" style="max-width: 100%; max-height: 100%; object-fit: contain;" onclick="document.getElementById('image-viewer').style.display='none'">
+  <!-- ফুল স্ক্রিন ইমেজ ভিউয়ার -->
+  <div id="image-viewer" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;">
+    
+    <!-- বন্ধ করার বাটন -->
+    <button onclick="document.getElementById('image-viewer').style.display='none'" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; z-index: 10000;">✕</button>
+    
+    <!-- ছবি দেখার অংশ -->
+    <div style="position: relative; width: 100%; height: 80%; display: flex; align-items: center; justify-content: center;">
+      <img id="full-image" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+      
+      <!-- বাম-ডান নেভিগেশন বাটন -->
+      <button onclick="prevImage(event)" style="position: absolute; left: 10px; background: rgba(255,255,255,0.2); color: white; border: none; font-size: 30px; padding: 10px 15px; border-radius: 50%; cursor: pointer;">❮</button>
+      <button onclick="nextImage(event)" style="position: absolute; right: 10px; background: rgba(255,255,255,0.2); color: white; border: none; font-size: 30px; padding: 10px 15px; border-radius: 50%; cursor: pointer;">❯</button>
+    </div>
+
+    <!-- ছবির সংখ্যা (যেমন: 1 / 3) -->
+    <div id="image-counter" style="color: white; margin-top: 20px; font-size: 18px; font-weight: bold;"></div>
   </div>
 
   <!-- নিচের ফিক্সড বাটন -->
@@ -30,7 +45,7 @@
     <button class="btn-given" onclick="goToNewTx('given')">↑ Given</button>
   </div>
 
-  <script type="module" src="js/ledger.js?v=11"></script>
+  <script type="module" src="js/ledger.js?v=21"></script>
   <script>
     function goToNewTx(type) {
       const urlParams = new URLSearchParams(window.location.search);
