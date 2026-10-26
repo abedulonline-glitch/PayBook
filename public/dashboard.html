@@ -4,42 +4,56 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - ড্যাশবোর্ড</title>
-  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/style.css?v=23">
 </head>
 <body style="display: block; background: var(--bg-color);">
 
   <div class="header" style="padding: 12px 16px;">
     <h1 id="app-logo" style="cursor: pointer; color: var(--primary); margin: 0;">PayBook</h1>
     <div style="display: flex; align-items: center; gap: 12px;">
-      <!-- প্রোফাইল পিকচার -->
       <img id="profile-pic" src="https://via.placeholder.com/40" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: pointer;">
       <input type="file" id="profile-upload" accept="image/*" style="display: none;">
-      
       <button class="logout-btn" id="logout-btn" style="padding: 6px 12px;">লগআউট</button>
     </div>
   </div>
 
   <div style="padding: 16px; padding-bottom: 80px;">
+    
+    <!-- ট্যাব বাটন -->
+    <div class="tab-container">
+      <button class="tab-btn active" id="tab-customer" onclick="switchTab('customer')">Customer (কাস্টমার)</button>
+      <button class="tab-btn" id="tab-supplier" onclick="switchTab('supplier')">Supplier (সাপ্লায়ার)</button>
+    </div>
+
+    <!-- সামারি কার্ড -->
     <div class="summary">
       <div class="card received">
-        <h3>মোট প্রাপ্য (পাকা)</h3>
+        <h3>মোট প্রাপ্য</h3>
         <p id="total-received">₹0</p>
       </div>
       <div class="card given">
-        <h3>মোট প্রদেয় (পাকা)</h3>
+        <h3>মোট প্রদেয়</h3>
         <p id="total-given">₹0</p>
       </div>
     </div>
 
+    <!-- পার্টি যোগ করার ফর্ম -->
     <div class="add-party-form" id="add-party-form" style="display: none; margin: 0 0 16px 0;">
       <h3 style="color: var(--primary); margin-bottom: 12px;">নতুন পার্টি যোগ করুন</h3>
       <input type="text" id="new-party-name" placeholder="পার্টির নাম" required>
       <input type="tel" id="new-party-mobile" placeholder="মোবাইল নম্বর (১০ ডিজিট)" maxlength="10" required>
+      
+      <!-- পার্টি টাইপ সিলেক্ট -->
+      <select id="new-party-type" style="width: 100%; padding: 14px; margin-bottom: 12px; border: 1.5px solid #E0E0E0; border-radius: 12px; background: #FAFAFA;">
+        <option value="customer">কাস্টমার (Customer)</option>
+        <option value="supplier">সাপ্লায়ার (Supplier)</option>
+      </select>
+
       <button id="save-party-btn">সেভ করুন</button>
     </div>
 
     <div class="party-list">
-      <h3>আপনার পার্টি লিস্ট</h3>
+      <h3 id="list-title">কাস্টমার লিস্ট</h3>
       <div id="party-container">
         <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
       </div>
@@ -48,6 +62,6 @@
 
   <button class="add-btn" id="show-add-party">+</button>
 
-  <script type="module" src="js/dashboard.js?v=8"></script>
+  <script type="module" src="js/dashboard.js?v=23"></script>
 </body>
 </html>
