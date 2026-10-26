@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - ড্যাশবোর্ড</title>
-  <link rel="stylesheet" href="css/style.css?v=23">
+  <link rel="stylesheet" href="css/style.css?v=30">
 </head>
 <body style="display: block; background: var(--bg-color);">
 
@@ -19,30 +19,41 @@
 
   <div style="padding: 16px; padding-bottom: 80px;">
     
-    <!-- ট্যাব বাটন -->
+    <!-- কাস্টমার / সাপ্লায়ার ট্যাব -->
     <div class="tab-container">
-      <button class="tab-btn active" id="tab-customer" onclick="switchTab('customer')">Customer (কাস্টমার)</button>
-      <button class="tab-btn" id="tab-supplier" onclick="switchTab('supplier')">Supplier (সাপ্লায়ার)</button>
+      <button class="tab-btn active" id="tab-customer" onclick="switchTab('customer')">Customer</button>
+      <button class="tab-btn" id="tab-supplier" onclick="switchTab('supplier')">Supplier</button>
+    </div>
+
+    <!-- প্যানিক মোড ট্যাব (শুধু প্যানিক আনলক থাকলে দেখাবে) -->
+    <div class="tab-container" id="account-type-tabs" style="display: none; margin-top: -10px;">
+      <button class="tab-btn active" id="acc-paka" onclick="switchAccountType('paka')">পাকা</button>
+      <button class="tab-btn" id="acc-kacha" onclick="switchAccountType('kacha')">কাঁচা</button>
+      <button class="tab-btn" id="acc-both" onclick="switchAccountType('both')">উভয়</button>
     </div>
 
     <!-- সামারি কার্ড -->
     <div class="summary">
       <div class="card received">
-        <h3>মোট প্রাপ্য</h3>
+        <h3>মোট প্রাপ্য (পাকা)</h3>
         <p id="total-received">₹0</p>
       </div>
       <div class="card given">
-        <h3>মোট প্রদেয়</h3>
+        <h3>মোট প্রদেয় (পাকা)</h3>
         <p id="total-given">₹0</p>
       </div>
     </div>
 
+    <!-- ডাউনলোড রিপোর্ট বাটন -->
+    <div style="margin: 0 16px 16px 16px; text-align: right;">
+       <button onclick="downloadReport()" style="background: #E8F5E9; color: #2E7D32; padding: 8px 16px; border-radius: 8px; border: 1px solid #2E7D32; width: auto;">📥 রিপোর্ট ডাউনলোড</button>
+    </div>
+
     <!-- পার্টি যোগ করার ফর্ম -->
     <div class="add-party-form" id="add-party-form" style="display: none; margin: 0 0 16px 0;">
-     <h3 id="add-party-heading" style="color: var(--primary); margin-bottom: 12px;">নতুন কাস্টমার যোগ করুন</h3>
+      <h3 id="add-party-heading" style="color: var(--primary); margin-bottom: 12px;">নতুন কাস্টমার যোগ করুন</h3>
       <input type="text" id="new-party-name" placeholder="পার্টির নাম" required>
       <input type="tel" id="new-party-mobile" placeholder="মোবাইল নম্বর (১০ ডিজিট)" maxlength="10" required>
-
       <button id="save-party-btn">সেভ করুন</button>
     </div>
 
@@ -56,6 +67,6 @@
 
   <button class="add-btn" id="show-add-party">+</button>
 
-  <script type="module" src="js/dashboard.js?v=23"></script>
+  <script type="module" src="js/dashboard.js?v=30"></script>
 </body>
 </html>
