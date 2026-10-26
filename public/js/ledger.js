@@ -1,5 +1,5 @@
 import { db } from "./firebase-init.js";
-import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const urlParams = new URLSearchParams(window.location.search);
 const partyId = urlParams.get("partyId");
@@ -8,6 +8,18 @@ const mobile = localStorage.getItem("paybook_mobile");
 
 if (!partyId || !mobile) window.location.href = "dashboard.html";
 document.getElementById("party-name").innerText = partyName;
+
+// পার্টির টাইপ বের করা
+async function loadPartyType() {
+  try {
+    const docSnap = await getDoc(doc(db, "parties", partyId));
+    if (docSnap.exists()) {
+      const type = docSnap.data().partyType || "customer";
+      document.getElementById("party-type-label").innerText = type === "customer" ? "Customer (কাস্টমার)" : "Supplier (সাপ্লায়ার)";
+    }
+  } catch (e) { console.log("Type error", e); }
+}
+loadPartyType();
 
 let currentImages = [];
 let currentImageIndex = 0;
@@ -76,7 +88,6 @@ async function loadTransactions() {
   }
 }
 
-// ইমেজ ভিউয়ার ওপেন
 window.viewImages = function(imagesArray) {
   currentImages = imagesArray;
   currentImageIndex = 0;
@@ -89,37 +100,22 @@ function updateImageViewer() {
   document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
 }
 
-// মোবাইল স্লাইড (Touch) লজিক
 let touchStartX = 0;
 let touchEndX = 0;
 const imgElement = document.getElementById('full-image');
 
-imgElement.addEventListener('touchstart', e => {
-  touchStartX = e.changedTouches[0].screenX;
-}, {passive: true});
-
-imgElement.addEventListener('touchend', e => {
-  touchEndX = e.changedTouches[0].screenX;
-  handleSwipe();
-}, {passive: true});
-
-// ল্যাপটপে মাউস ড্র্যাগ লজিক
+imgElement.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+imgElement.addEventListener('touchend', e => { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
 imgElement.addEventListener('mousedown', e => { touchStartX = e.screenX; });
-imgElement.addEventListener('mouseup', e => {
-  touchEndX = e.screenX;
-  handleSwipe();
-});
+imgElement.addEventListener('mouseup', e => { touchEndX = e.screenX; handleSwipe(); });
 
 function handleSwipe() {
   if (currentImages.length <= 1) return;
-  const swipeThreshold = 50; // ৫০ পিক্সেল স্লাইড করলেই কাজ করবে
-  
+  const swipeThreshold = 50;
   if (touchEndX < touchStartX - swipeThreshold) {
-    // বাম দিকে স্লাইড (পরের ছবি)
     currentImageIndex = (currentImageIndex + 1) % currentImages.length;
     updateImageViewer();
   } else if (touchEndX > touchStartX + swipeThreshold) {
-    // ডান দিকে স্লাইড (আগের ছবি)
     currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
     updateImageViewer();
   }
