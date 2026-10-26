@@ -4,8 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - নতুন লেনদেন</title>
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/style.css?v=12">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+  <style>
+    /* মোডাল স্টাইল */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: flex-end; flex-direction: column; }
+    .modal-content { background: #fff; border-radius: 20px 20px 0 0; padding: 20px; text-align: center; }
+    .modal-buttons { display: flex; gap: 16px; margin-top: 20px; }
+    .modal-btn { flex: 1; padding: 16px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+    .btn-camera-modal { background: #E8F5E9; color: #2E7D32; }
+    .btn-gallery-modal { background: #E3F2FD; color: #1565C0; }
+    
+    /* ইমেজ প্রিভিউ গ্রিড */
+    .image-preview-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-top: 10px; }
+    .preview-item { position: relative; width: 70px; height: 70px; border-radius: 8px; overflow: hidden; flex-shrink: 0; border: 1px solid #ddd; }
+    .preview-item img { width: 100%; height: 100%; object-fit: cover; }
+    .preview-item .remove-img { position: absolute; top: 2px; right: 2px; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; }
+  </style>
 </head>
 <body style="display: block; background: var(--bg-color);">
   
@@ -16,45 +31,58 @@
   </div>
 
   <div style="padding: 20px; background: #fff; margin: 16px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
-    
-    <!-- ট্রানজেকশনের ধরন -->
-    <div id="tx-type-header" style="text-align: center; margin-bottom: 20px; font-size: 20px; font-weight: 700;">
-      প্রদেয় (Given)
-    </div>
+    <div id="tx-type-header" style="text-align: center; margin-bottom: 20px; font-size: 20px; font-weight: 700;">প্রদেয় (Given)</div>
 
-    <!-- পাকা অ্যামাউন্ট -->
     <input type="number" id="visible-amount" placeholder="পাকা অ্যামাউন্ট (₹)" required style="font-size: 24px; text-align: center; font-weight: bold; padding: 20px;">
     
-    <!-- ডেট পিকার (এখানে কাঁচা অ্যামাউন্টের জায়গায়) -->
     <div style="margin-bottom: 12px;">
       <label style="display:block; margin-bottom:5px; font-size:14px; color:#666;">তারিখ (Date)</label>
       <input type="date" id="tx-date" style="width: 100%; padding: 12px; border: 1.5px solid #E0E0E0; border-radius: 12px; font-size: 16px; background: #FAFAFA;">
     </div>
 
-    <!-- নোট -->
     <input type="text" id="note" placeholder="নোট (ঐচ্ছিক)">
     
     <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--primary);">ইমেজ প্রুফ (বাধ্যতামূলক)</label>
     
-    <!-- ক্যামেরা ও গ্যালারি বাটন -->
-    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-      <button type="button" onclick="document.getElementById('camera-input').click()" style="background: #f0f0f0; color: #333; padding: 12px; font-size: 15px; border: 1px solid #ddd;">📷 ক্যামেরা</button>
-      <button type="button" onclick="document.getElementById('gallery-input').click()" style="background: #f0f0f0; color: #333; padding: 12px; font-size: 15px; border: 1px solid #ddd;">🖼️ গ্যালারি</button>
-    </div>
+    <!-- ইমেজ অ্যাড বাটন -->
+    <button type="button" id="open-media-modal" style="background: #f0f0f0; color: #333; padding: 14px; border: 1px dashed #999; font-size: 15px; width: 100%; border-radius: 12px;">
+      + ছবি যোগ করুন (একাধিক হতে পারে)
+    </button>
 
-    <!-- হিডেন ইনপুট -->
+    <!-- সিলেক্ট করা ছবির প্রিভিউ -->
+    <div class="image-preview-grid" id="preview-grid"></div>
+
+    <!-- ক্যামেরা এবং গ্যালারি হিডেন ইনপুট -->
     <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
-    <input type="file" id="gallery-input" accept="image/*" style="display: none;">
+    <!-- multiple অ্যাট্রিবিউট যুক্ত করা হলো একাধিক ছবির জন্য -->
+    <input type="file" id="gallery-input" accept="image/*" multiple style="display: none;">
     
-    <!-- Cropper Image Preview -->
-    <div id="cropper-container" style="display: none; margin-bottom: 12px; max-height: 300px;">
+    <!-- Cropper Preview (শুধু একক ছবির জন্য) -->
+    <div id="cropper-container" style="display: none; margin-bottom: 12px; max-height: 250px; overflow: hidden;">
       <img id="image-preview" style="max-width: 100%;">
+      <button id="confirm-crop-btn" style="margin-top: 8px; background: #2E7D32;">✓ এই ছবিটি ক্রপ করুন</button>
     </div>
 
-    <button id="save-tx-btn" style="margin-top: 12px;">সেভ করুন</button>
+    <button id="save-tx-btn" style="margin-top: 20px;">সেভ করুন</button>
+  </div>
+
+  <!-- মিডিয়া সিলেক্ট মোডাল -->
+  <div class="modal-overlay" id="media-modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 16px; color: #333;">ছবি যোগ করুন</h3>
+      <div class="modal-buttons">
+        <button class="modal-btn btn-camera-modal" id="btn-camera">
+          <span style="font-size: 24px;">📷</span> Camera
+        </button>
+        <button class="modal-btn btn-gallery-modal" id="btn-gallery">
+          <span style="font-size: 24px;">🖼️</span> Gallery
+        </button>
+      </div>
+      <button id="close-modal" style="margin-top: 16px; background: #f0f0f0; color: #333;">বাতিল করুন</button>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-  <script type="module" src="js/transaction.js?v=10"></script>
+  <script type="module" src="js/transaction.js?v=12"></script>
 </body>
 </html>
