@@ -44,9 +44,14 @@
       </div>
     </div>
 
-    <!-- ডাউনলোড রিপোর্ট বাটন -->
-    <div style="margin: 0 16px 16px 16px; text-align: right;">
-       <button onclick="downloadReport()" style="background: #E8F5E9; color: #2E7D32; padding: 8px 16px; border-radius: 8px; border: 1px solid #2E7D32; width: auto;">📥 রিপোর্ট ডাউনলোড</button>
+       <!-- রিপোর্ট ডাউনলোড আইকন -->
+    <div style="margin: 0 16px 16px 16px; display: flex; justify-content: flex-end; gap: 10px;">
+       <button onclick="downloadReport('excel')" style="background: #E8F5E9; color: #2E7D32; padding: 6px 12px; border-radius: 8px; border: 1px solid #2E7D32; font-size: 14px; width: auto; display: flex; align-items: center; gap: 5px;">
+         📊 Excel
+       </button>
+       <button onclick="downloadReport('pdf')" style="background: #FFEBEE; color: #D32F2F; padding: 6px 12px; border-radius: 8px; border: 1px solid #D32F2F; font-size: 14px; width: auto; display: flex; align-items: center; gap: 5px;">
+         📄 PDF
+       </button>
     </div>
 
     <!-- পার্টি যোগ করার ফর্ম -->
