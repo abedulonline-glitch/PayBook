@@ -56,6 +56,36 @@ window.openProfileModal = function() {
 window.closeProfileModal = function() { document.getElementById("profile-modal").style.display = "none"; };
 window.zoomProfileImage = function() { if (partyData.profilePic) window.viewImages([partyData.profilePic]); };
 
+// 🌟 নতুন যুক্ত করা নাম এডিট করার ফাংশন 🌟
+window.editPartyName = async function() {
+  const currentName = partyData.name;
+  const newName = prompt("পার্টির নতুন নাম লিখুন:", currentName);
+  
+  if (newName && newName.trim() !== "" && newName.trim() !== currentName) {
+    try {
+      // ডেটাবেসে আপডেট
+      await updateDoc(doc(db, "parties", partyId), { name: newName.trim() });
+      
+      // লোকাল ভেরিয়েবল আপডেট
+      partyData.name = newName.trim();
+      
+      // UI আপডেট (হেডার এবং মোডাল)
+      document.getElementById("party-name").innerText = partyData.name;
+      document.getElementById("modal-party-name").innerText = partyData.name;
+      
+      const initial = partyData.name.charAt(0).toUpperCase();
+      if (!partyData.profilePic) {
+        document.getElementById("avatar-text").innerText = initial;
+        document.getElementById("modal-avatar-text").innerText = initial;
+      }
+      
+      alert("নাম সফলভাবে আপডেট হয়েছে!");
+    } catch (e) {
+      alert("নাম আপডেট করতে সমস্যা: " + e.message);
+    }
+  }
+};
+
 document.getElementById("avatar-upload").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
