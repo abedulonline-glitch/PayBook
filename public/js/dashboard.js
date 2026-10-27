@@ -14,7 +14,7 @@ let isPanicActive = sessionStorage.getItem("panic_unlock_until") && Date.now() <
 const partyContainer = document.getElementById("party-container");
 const addPartyForm = document.getElementById("add-party-form");
 
-// ১. মিররিং ও সিঙ্ক (সবচেয়ে গুরুত্বপূর্ণ)
+// ১. মিররিং ও সিঙ্ক (ডুপ্লিকেট ফিক্স সহ)
 async function syncCrossPartyData() {
   try {
     // ১. আমার নম্বরটি কার কার লিস্টে আছে খুঁজি
@@ -23,7 +23,7 @@ async function syncCrossPartyData() {
     
     for (const d of snap.docs) {
       const otherParty = d.data();
-      if (otherParty.ownerMobile === mobile) continue; // নিজেরটা বাদ
+      if (otherParty.ownerMobile === mobile) continue; 
 
       // ২. আমার লিস্টে ওই পার্টি আছে কি?
       const myPartiesQuery = query(collection(db, "parties"), where("ownerMobile", "==", mobile), where("mobile", "==", otherParty.ownerMobile));
@@ -31,12 +31,11 @@ async function syncCrossPartyData() {
       let myPartyId = null;
 
       if (myPartiesSnap.empty) {
-        // না থাকলে অটো অ্যাড করব
         const newType = otherParty.partyType === "customer" ? "supplier" : "customer";
-        const newDocRef = doc(collection(db, "parties")); // কাস্টম আইডি
+        const newDocRef = doc(collection(db, "parties")); 
         await setDoc(newDocRef, {
           ownerMobile: mobile,
-          name: otherParty.ownerMobile, // ওয়েবে নাম না থাকায় নম্বরই নাম
+          name: otherParty.ownerMobile, 
           mobile: otherParty.ownerMobile,
           partyType: newType,
           isAutoSynced: true,
@@ -47,48 +46,40 @@ async function syncCrossPartyData() {
         myPartyId = myPartiesSnap.docs[0].id;
       }
 
-      // ৩. ট্রানজেকশন মিররিং (অপর পক্ষের লেনদেন আমার কাছে আনা)
+      // ৩. ট্রানজেকশন মিররিং
       const txQuery = query(collection(db, "transactions"), where("ownerMobile", "==", otherParty.ownerMobile), where("counterpartyMobile", "==", mobile));
       const txSnap = await getDocs(txQuery);
 
       for (const txDoc of txSnap.docs) {
         const tx = txDoc.data();
         
-        // আমি কি এই ট্রানজেকশনটি আগে পেয়েছি? (originalTxId দিয়ে চেক)
+        // 🛑 ডুপ্লিকেট চেক (originalTxId দিয়ে)
         const checkMirrored = query(collection(db, "transactions"), where("ownerMobile", "==", mobile), where("originalTxId", "==", txDoc.id));
         const mirrorSnap = await getDocs(checkMirrored);
 
-         if (mirrorSnap.empty) {
-          // 🛑 ডুপ্লিকেট চেক: এই অরিজিনাল ট্রানজেকশনটি আমার কাছে আগে থেকেই আছে কি না
-          const alreadyExists = query(
-            collection(db, "transactions"), 
-            where("ownerMobile", "==", mobile), 
-            where("originalTxId", "==", txDoc.id)
-          );
-          const existsSnap = await getDocs(alreadyExists);
-
-          if (existsSnap.empty) {
-            // মিরর করব (উল্টো দিক)
-            await addDoc(collection(db, "transactions"), {
-              ownerMobile: mobile,
-              partyId: myPartyId,
-              counterpartyMobile: otherParty.ownerMobile,
-              accountType: tx.accountType,
-              direction: tx.direction === "given" ? "received" : "given", 
-              visibleAmount: tx.visibleAmount,
-              imageUrls: tx.imageUrls || [],
-              note: tx.note,
-              date: tx.date,
-              isDeleted: false,
-              isMirrored: true,
-              originalTxId: txDoc.id, // 🎯 অরিজিনাল আইডি সেভ করা হলো
-              deletedBy: [],
-              verifiedBy: []
-            });
-          }
+        if (mirrorSnap.empty) {
+          await addDoc(collection(db, "transactions"), {
+            ownerMobile: mobile,
+            partyId: myPartyId,
+            counterpartyMobile: otherParty.ownerMobile,
+            accountType: tx.accountType,
+            direction: tx.direction === "given" ? "received" : "given", 
+            visibleAmount: tx.visibleAmount,
+            imageUrls: tx.imageUrls || [],
+            note: tx.note,
+            date: tx.date,
+            isDeleted: false,
+            isMirrored: true,
+            originalTxId: txDoc.id, 
+            deletedBy: [],
+            verifiedBy: []
+          });
         }
+      }
     }
-  } catch (err) { console.error("Sync error", err); }
+  } catch (err) { 
+    console.error("Sync error", err); 
+  }
 }
 
 // ২. ডেটা লোড
@@ -111,10 +102,30 @@ async function loadData() {
     }
     renderDashboard();
     loadProfile();
-  } catch (err) { partyContainer.innerHTML = `<p style='color:red; text-align:center;'>লোড সমস্যা: ${err.message}</p>`; }
+    loadGlobalSettingsAndBalance();
+  } catch (err) { 
+    partyContainer.innerHTML = `<p style='color:red; text-align:center;'>লোড সমস্যা: ${err.message}</p>`; 
+  }
 }
 
-// ৩. রেন্ডার ও ফিল্টার
+// ৩. গ্লোবাল সেটিংস ও ব্যালেন্স লোড
+async function loadGlobalSettingsAndBalance() {
+  try {
+    const settingsSnap = await getDoc(doc(db, "settings", "global"));
+    if (settingsSnap.exists()) {
+      window.appSettings = settingsSnap.data();
+    }
+
+    const userSnap = await getDoc(doc(db, "users", mobile));
+    if (userSnap.exists()) {
+      const bal = userSnap.data().walletBalance || 0;
+      document.getElementById("header-balance").innerText = `₹${bal}`;
+      window.userWalletBalance = bal;
+    }
+  } catch (e) { console.log("Settings error", e); }
+}
+
+// ৪. রেন্ডার ও ফিল্টার
 function renderDashboard() {
   const filteredParties = allParties.filter(p => p.partyType === currentTab);
   const filteredPartyIds = new Set(filteredParties.map(p => p.id));
@@ -188,6 +199,7 @@ function renderDashboard() {
   });
 }
 
+// ৫. ট্যাব সুইচ
 window.switchTab = function(tab) {
   currentTab = tab;
   document.getElementById("tab-customer").classList.remove("active");
@@ -207,7 +219,7 @@ window.switchAccountType = function(type) {
   renderDashboard();
 };
 
-// ৪. রিপোর্ট ডাউনলোড (Excel এবং PDF)
+// ৬. রিপোর্ট ডাউনলোড
 window.downloadReport = async function(format) {
   if (allParties.length === 0) return alert("ডেটা নেই!");
   
@@ -222,12 +234,11 @@ window.downloadReport = async function(format) {
     const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(user.salt), iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
     if (btoa(String.fromCharCode(...new Uint8Array(bits))) !== user.panicPinHash) return alert("ভুল প্যানিক পিন!");
 
-    // ডেটা প্রসেস
     let csvContent = "data:text/csv;charset=utf-8,";
-    let reportTitle = (isPanicActive && currentAccountType === 'both') ? "Both (Paka & Kacha)" : currentAccountType;
+    let reportTitle = (isPanicActive && currentAccountType === 'both') ? "Both" : currentAccountType;
     
     if (format === 'excel') {
-      csvContent += `Report Type: ${reportTitle}\nParty Name,Type,Paka Given,Paka Received,Kacha Given (Real),Kacha Received (Real)\n`;
+      csvContent += `Report Type: ${reportTitle}\nParty Name,Type,Paka Given,Paka Received,Kacha Given,Kacha Received\n`;
       allParties.forEach(p => {
         let pg=0, pr=0, kg=0, kr=0;
         allTransactions.forEach(tx => {
@@ -245,7 +256,6 @@ window.downloadReport = async function(format) {
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
     } 
     else if (format === 'pdf') {
-      // পিডিএফ এর জন্য নতুন উইন্ডো তৈরি করে প্রিন্ট অপশন দেখানো হবে (সবচেয়ে সহজ উপায়)
       let printWindow = window.open('', '_blank');
       let html = `<html><head><title>PayBook Report</title><style>body{font-family: sans-serif;} table{width:100%; border-collapse: collapse; margin-top:20px;} th,td{border:1px solid #ddd; padding:8px; text-align:left;} th{background:#f2f2f2;}</style></head><body>`;
       html += `<h2>PayBook Report - ${reportTitle}</h2>`;
@@ -268,7 +278,7 @@ window.downloadReport = async function(format) {
   } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ৫. পার্টি সেভ
+// ৭. পার্টি সেভ ও অন্যান্য
 document.getElementById("save-party-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-party-name").value.trim();
   const partyMobile = document.getElementById("new-party-mobile").value.trim();
@@ -291,7 +301,6 @@ document.getElementById("save-party-btn").addEventListener("click", async () => 
   } catch (err) { alert("সেভ সমস্যা: " + err.message); }
 });
 
-// অন্যান্য UI
 document.getElementById("show-add-party").addEventListener("click", () => {
   addPartyForm.style.display = addPartyForm.style.display === "none" ? "block" : "none";
 });
