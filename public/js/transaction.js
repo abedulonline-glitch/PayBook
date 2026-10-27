@@ -63,11 +63,8 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   const note = document.getElementById("note").value.trim();
 
   if (!visibleAmount || visibleAmount <= 0) return alert("সঠিক অ্যামাউন্ট দিন");
-  
-  // পাকা হলে ছবি বাধ্যতামূলক
   if (accType === "paka" && selectedFiles.length === 0) return alert("পাকা হিসাবে ইমেজ প্রুফ বাধ্যতামূলক");
 
-  // কাঁচা হলে পিন চেক
   if (accType === "kacha") {
     let pin = prompt("কাঁচা এন্ট্রি করতে প্যানিক পিন দিন:");
     if (!pin) return;
@@ -83,36 +80,56 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   }
 
   const btn = document.getElementById("save-tx-btn");
-  btn.innerText = "প্রসেস হচ্ছে..."; btn.disabled = true;
+  btn.innerText = "সেভ হচ্ছে..."; btn.disabled = true;
 
   try {
-    const imageUrls = [];
-    for (let i = 0; i < selectedFiles.length; i++) {
-      btn.innerText = `আপলোড হচ্ছে (${i + 1}/${selectedFiles.length})...`;
-      imageUrls.push(await uploadToImgBB(selectedFiles[i]));
-    }
-
-        // সেভ করার আগে পার্টির মোবাইল নম্বরটি নিয়ে নিন
     const partySnap = await getDoc(doc(db, "parties", partyId));
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
 
-    await addDoc(collection(db, "transactions"), {
+    // ১. সাথে সাথে ডেটাবেসে সেভ করা (ছবি ছাড়া)
+    const txRef = await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
       partyId: partyId,
-      counterpartyMobile: partyMobile, // <-- এই লাইনটি নতুন যোগ করুন
+      counterpartyMobile: partyMobile,
       accountType: accType,
       direction: selectedDirection,
       visibleAmount: visibleAmount,
-      imageUrls: imageUrls, 
+      imageUrls: [], // শুরুতে খালি থাকবে
+      isUploadingImages: selectedFiles.length > 0, // আপলোড স্ট্যাটাস
       note: note,
       date: new Date(dateInput.value),
       isDeleted: false,
-      isMirrored: false, // নতুন
+      isMirrored: false,
       deletedBy: [],
       verifiedBy: []
     });
 
-    alert("সফলভাবে সেভ হয়েছে!");
+    // ২. ইউজারকে সাথে সাথে ফেরত পাঠানো
+    alert("লেনদেন সেভ হয়েছে! ছবি ব্যাকগ্রাউন্ডে আপলোড হচ্ছে।");
     history.back();
-  } catch (err) { alert("সমস্যা: " + err.message); btn.innerText = "সেভ করুন"; btn.disabled = false; }
+
+    // ৩. ব্যাকগ্রাউন্ডে ছবি আপলোড করা (ইউজার এই সময় অন্য কাজ করতে পারবে)
+    if (selectedFiles.length > 0) {
+      let uploadedUrls = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        try {
+          const url = await uploadToImgBB(selectedFiles[i]);
+          uploadedUrls.push(url);
+        } catch (e) {
+          console.error("Image upload failed", e);
+        }
+      }
+      
+      // ৪. আপলোড শেষ হলে ডেটাবেস আপডেট করা
+      await updateDoc(doc(db, "transactions", txRef.id), {
+        imageUrls: uploadedUrls,
+        isUploadingImages: false
+      });
+    }
+
+  } catch (err) { 
+    alert("সমস্যা: " + err.message); 
+    btn.innerText = "সেভ করুন"; 
+    btn.disabled = false; 
+  }
 });
