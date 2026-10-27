@@ -4,16 +4,35 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - ড্যাশবোর্ড</title>
-  <link rel="stylesheet" href="css/style.css?v=30">
+  <link rel="stylesheet" href="css/style.css?v=42">
 </head>
 <body style="display: block; background: var(--bg-color);">
 
-  <div class="header" style="padding: 12px 16px;">
-    <h1 id="app-logo" style="cursor: pointer; color: var(--primary); margin: 0;">PayBook</h1>
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <img id="profile-pic" src="https://via.placeholder.com/40" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: pointer;">
+  <!-- হেডার (ওয়ালেট, রিপোর্ট আইকন, প্রোফাইল ও লগআউট) -->
+  <div class="header" style="padding: 10px 12px;">
+    <h1 id="app-logo" style="cursor: pointer; color: var(--primary); margin: 0; font-size: 22px;">PayBook</h1>
+    
+    <div style="display: flex; align-items: center; gap: 8px;">
+      
+      <!-- ওয়ালেট ব্যালেন্স বাটন -->
+      <div onclick="window.location.href='wallet.html'" style="background: #E8F5E9; color: #2E7D32; padding: 6px 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center;">
+        💰 <span id="header-balance">₹0</span>
+      </div>
+
+      <!-- রিপোর্ট ডাউনলোড আইকন (Excel এবং PDF) -->
+      <button onclick="downloadReport('excel')" style="background: #f0f0f0; border: none; border-radius: 8px; padding: 6px; font-size: 16px; cursor: pointer; color: #2E7D32;" title="Excel ডাউনলোড">
+        📊
+      </button>
+      <button onclick="downloadReport('pdf')" style="background: #f0f0f0; border: none; border-radius: 8px; padding: 6px; font-size: 16px; cursor: pointer; color: #D32F2F;" title="PDF ডাউনলোড">
+        📄
+      </button>
+
+      <!-- প্রোফাইল ছবি (ক্লিক করলে আপলোড হবে) -->
+      <img id="profile-pic" src="https://via.placeholder.com/40" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: pointer;">
       <input type="file" id="profile-upload" accept="image/*" style="display: none;">
-      <button class="logout-btn" id="logout-btn" style="padding: 6px 12px;">লগআউট</button>
+      
+      <!-- লগআউট বাটন -->
+      <button class="logout-btn" id="logout-btn" style="padding: 6px 10px; font-size: 13px;">লগআউট</button>
     </div>
   </div>
 
@@ -44,16 +63,6 @@
       </div>
     </div>
 
-       <!-- রিপোর্ট ডাউনলোড আইকন -->
-    <div style="margin: 0 16px 16px 16px; display: flex; justify-content: flex-end; gap: 10px;">
-       <button onclick="downloadReport('excel')" style="background: #E8F5E9; color: #2E7D32; padding: 6px 12px; border-radius: 8px; border: 1px solid #2E7D32; font-size: 14px; width: auto; display: flex; align-items: center; gap: 5px;">
-         📊 Excel
-       </button>
-       <button onclick="downloadReport('pdf')" style="background: #FFEBEE; color: #D32F2F; padding: 6px 12px; border-radius: 8px; border: 1px solid #D32F2F; font-size: 14px; width: auto; display: flex; align-items: center; gap: 5px;">
-         📄 PDF
-       </button>
-    </div>
-
     <!-- পার্টি যোগ করার ফর্ম -->
     <div class="add-party-form" id="add-party-form" style="display: none; margin: 0 0 16px 0;">
       <h3 id="add-party-heading" style="color: var(--primary); margin-bottom: 12px;">নতুন কাস্টমার যোগ করুন</h3>
@@ -62,6 +71,7 @@
       <button id="save-party-btn">সেভ করুন</button>
     </div>
 
+    <!-- পার্টি লিস্ট -->
     <div class="party-list">
       <h3 id="list-title">কাস্টমার লিস্ট</h3>
       <div id="party-container">
@@ -70,8 +80,9 @@
     </div>
   </div>
 
+  <!-- নতুন পার্টি যোগ করার ফ্লোটিং বাটন -->
   <button class="add-btn" id="show-add-party">+</button>
 
-  <script type="module" src="js/dashboard.js?v=30"></script>
+  <script type="module" src="js/dashboard.js?v=42"></script>
 </body>
 </html>
