@@ -143,8 +143,17 @@ async function loadTransactions() {
       
       if (!isPanicActive && tx.accountType === "kacha") return;
 
+      // ✅ নতুন টাইম ফরম্যাটিং (ভারতীয় সময়ের জন্য)
       const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date);
-      const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      
+      // ভারতীয় টাইমজোন (IST) সেট করা হলো
+      const options = { 
+        timeZone: 'Asia/Kolkata', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true // AM/PM দেখানোর জন্য
+      };
+      const timeStr = dateObj.toLocaleTimeString('en-IN', options);
       const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
