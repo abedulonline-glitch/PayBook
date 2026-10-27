@@ -58,26 +58,35 @@ async function syncCrossPartyData() {
         const checkMirrored = query(collection(db, "transactions"), where("ownerMobile", "==", mobile), where("originalTxId", "==", txDoc.id));
         const mirrorSnap = await getDocs(checkMirrored);
 
-        if (mirrorSnap.empty) {
-          // মিরর করব (উল্টো দিক)
-          await addDoc(collection(db, "transactions"), {
-            ownerMobile: mobile,
-            partyId: myPartyId,
-            counterpartyMobile: otherParty.ownerMobile,
-            accountType: tx.accountType,
-            direction: tx.direction === "given" ? "received" : "given", // উল্টো
-            visibleAmount: tx.visibleAmount,
-            imageUrls: tx.imageUrls || [],
-            note: tx.note,
-            date: tx.date,
-            isDeleted: false,
-            isMirrored: true,
-            originalTxId: txDoc.id, // অরিজিনাল আইডি ট্র্যাকিং
-            deletedBy: [],
-            verifiedBy: []
-          });
+         if (mirrorSnap.empty) {
+          // 🛑 ডুপ্লিকেট চেক: এই অরিজিনাল ট্রানজেকশনটি আমার কাছে আগে থেকেই আছে কি না
+          const alreadyExists = query(
+            collection(db, "transactions"), 
+            where("ownerMobile", "==", mobile), 
+            where("originalTxId", "==", txDoc.id)
+          );
+          const existsSnap = await getDocs(alreadyExists);
+
+          if (existsSnap.empty) {
+            // মিরর করব (উল্টো দিক)
+            await addDoc(collection(db, "transactions"), {
+              ownerMobile: mobile,
+              partyId: myPartyId,
+              counterpartyMobile: otherParty.ownerMobile,
+              accountType: tx.accountType,
+              direction: tx.direction === "given" ? "received" : "given", 
+              visibleAmount: tx.visibleAmount,
+              imageUrls: tx.imageUrls || [],
+              note: tx.note,
+              date: tx.date,
+              isDeleted: false,
+              isMirrored: true,
+              originalTxId: txDoc.id, // 🎯 অরিজিনাল আইডি সেভ করা হলো
+              deletedBy: [],
+              verifiedBy: []
+            });
+          }
         }
-      }
     }
   } catch (err) { console.error("Sync error", err); }
 }
