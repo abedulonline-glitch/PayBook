@@ -92,16 +92,22 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       imageUrls.push(await uploadToImgBB(selectedFiles[i]));
     }
 
+        // সেভ করার আগে পার্টির মোবাইল নম্বরটি নিয়ে নিন
+    const partySnap = await getDoc(doc(db, "parties", partyId));
+    const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
+
     await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
       partyId: partyId,
-      accountType: accType, // paka / kacha
+      counterpartyMobile: partyMobile, // <-- এই লাইনটি নতুন যোগ করুন
+      accountType: accType,
       direction: selectedDirection,
       visibleAmount: visibleAmount,
       imageUrls: imageUrls, 
       note: note,
       date: new Date(dateInput.value),
       isDeleted: false,
+      isMirrored: false, // নতুন
       deletedBy: [],
       verifiedBy: []
     });
