@@ -53,23 +53,34 @@
     <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
   </div>
 
-  <!-- প্রোফাইল ডিটেইলস মোডাল -->
+      <!-- প্রোফাইল ডিটেইলস মোডাল -->
   <div id="profile-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; justify-content: center; align-items: center;">
     <div style="background: #fff; width: 90%; max-width: 350px; border-radius: 16px; padding: 24px; text-align: center; position: relative;">
       <button onclick="closeProfileModal()" style="position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; color: #999; width: auto;">✕</button>
       
-      <!-- মোডালের ভেতরের বড় ছবি (ক্লিক করলে জুম হবে) -->
+      <!-- মোডালের ভেতরের বড় ছবি -->
       <div id="modal-avatar-box" style="width: 100px; height: 100px; border-radius: 50%; background: #E8F5E9; color: #2E7D32; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; margin: 0 auto 16px auto; border: 3px solid var(--primary); overflow: hidden; cursor: pointer;">
         <span id="modal-avatar-text">M</span>
         <img id="modal-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;" onclick="zoomProfileImage()">
       </div>
 
-      <h3 id="modal-party-name" style="margin-bottom: 8px; font-size: 22px; color: #333;">Name</h3>
+      <!-- পার্টির নাম (ক্লিক করলে এডিট হবে) -->
+      <h3 id="modal-party-name" onclick="editPartyName()" style="margin-bottom: 8px; font-size: 22px; color: #333; cursor: pointer; display: inline-block;">
+        Name ✏️
+      </h3>
+      
+      <!-- মোবাইল নম্বর (ক্লিক করলে এডিট হবে) -->
       <p style="margin-bottom: 8px; color: #666; font-size: 16px;">
-        📞 মোবাইল: <strong id="modal-party-mobile">01700000000</strong>
+        📞 মোবাইল: <strong id="modal-party-mobile" onclick="editPartyName()" style="color: var(--primary); cursor: pointer; text-decoration: underline;">01700000000</strong>
       </p>
+      
       <p style="margin-bottom: 20px; color: #666; font-size: 14px; background: #f0f0f0; display: inline-block; padding: 4px 12px; border-radius: 12px;" id="modal-party-type">Customer</p>
 
+      <!-- ছবি পরিবর্তন করার ইনপুট -->
+      <button onclick="document.getElementById('avatar-upload').click()" style="background: #f0f0f0; color: #333; border: 1px solid #ddd; padding: 10px; border-radius: 8px; width: 100%; margin-top: 10px;">📷 প্রোফাইল ছবি পরিবর্তন করুন</button>
+      <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+    </div>
+  </div>
       <!-- ছবি পরিবর্তন করার ইনপুট -->
       <button onclick="document.getElementById('avatar-upload').click()" style="background: #f0f0f0; color: #333; border: 1px solid #ddd; padding: 10px; border-radius: 8px; width: 100%; margin-top: 10px;">📷 প্রোফাইল ছবি পরিবর্তন করুন</button>
       <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
