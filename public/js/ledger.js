@@ -53,23 +53,20 @@ window.openProfileModal = function() {
   }
   document.getElementById("profile-modal").style.display = "flex";
 };
+
 window.closeProfileModal = function() { document.getElementById("profile-modal").style.display = "none"; };
 window.zoomProfileImage = function() { if (partyData.profilePic) window.viewImages([partyData.profilePic]); };
 
-// 🌟 নতুন যুক্ত করা নাম এডিট করার ফাংশন 🌟
+// নাম এডিট করার ফাংশন
 window.editPartyName = async function() {
   const currentName = partyData.name;
   const newName = prompt("পার্টির নতুন নাম লিখুন:", currentName);
   
   if (newName && newName.trim() !== "" && newName.trim() !== currentName) {
     try {
-      // ডেটাবেসে আপডেট
       await updateDoc(doc(db, "parties", partyId), { name: newName.trim() });
       
-      // লোকাল ভেরিয়েবল আপডেট
       partyData.name = newName.trim();
-      
-      // UI আপডেট (হেডার এবং মোডাল)
       document.getElementById("party-name").innerText = partyData.name;
       document.getElementById("modal-party-name").innerText = partyData.name;
       
@@ -78,7 +75,6 @@ window.editPartyName = async function() {
         document.getElementById("avatar-text").innerText = initial;
         document.getElementById("modal-avatar-text").innerText = initial;
       }
-      
       alert("নাম সফলভাবে আপডেট হয়েছে!");
     } catch (e) {
       alert("নাম আপডেট করতে সমস্যা: " + e.message);
@@ -98,13 +94,21 @@ document.getElementById("avatar-upload").addEventListener("change", async (e) =>
     if (data.success) {
       await updateDoc(doc(db, "parties", partyId), { profilePic: data.data.url });
       partyData.profilePic = data.data.url;
-      document.getElementById("avatar-img").src = data.data.url; document.getElementById("avatar-img").style.display = "block"; document.getElementById("avatar-text").style.display = "none";
-      document.getElementById("modal-avatar-img").src = data.data.url; document.getElementById("modal-avatar-img").style.display = "block"; document.getElementById("modal-avatar-text").style.display = "none";
+      document.getElementById("avatar-img").src = data.data.url; 
+      document.getElementById("avatar-img").style.display = "block"; 
+      document.getElementById("avatar-text").style.display = "none";
+      document.getElementById("modal-avatar-img").src = data.data.url; 
+      document.getElementById("modal-avatar-img").style.display = "block"; 
+      document.getElementById("modal-avatar-text").style.display = "none";
     }
-  } catch (err) { alert("ছবি আপলোডে সমস্যা: " + err.message); } finally { btn.innerText = "📷 প্রোফাইল ছবি পরিবর্তন করুন"; }
+  } catch (err) { 
+    alert("ছবি আপলোডে সমস্যা: " + err.message); 
+  } finally { 
+    btn.innerText = "📷 প্রোফাইল ছবি পরিবর্তন করুন"; 
+  }
 });
 
-// লেনদেন লোড (কাঁচা ১০০ দিয়ে ভাগ)
+// লেনদেন লোড
 async function loadTransactions() {
   const txRef = collection(db, "transactions");
   const q = query(txRef, where("ownerMobile", "==", mobile), where("partyId", "==", partyId));
@@ -122,12 +126,11 @@ async function loadTransactions() {
     // নতুন আগে আসবে
     const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
-       // 🛑 একই ট্রানজেকশন একাধিকবার আসলে ফিল্টার করে ফেলবে
+    // ডুপ্লিকেট ফিল্টার
     const uniqueDocs = [];
     const seenIds = new Set();
     docs.forEach(d => {
       const data = d.data();
-      // যদি মিরর করা ট্রানজেকশন হয়, তবে originalTxId দেখে চেক করব
       const uniqueId = data.originalTxId || d.id; 
       if (!seenIds.has(uniqueId)) {
         seenIds.add(uniqueId);
@@ -135,29 +138,33 @@ async function loadTransactions() {
       }
     });
 
-    // এবার docs এর জায়গায় uniqueDocs দিয়ে লুপ চালান
     uniqueDocs.forEach((txDoc) => {
-        // ... ভেতরের আগের কোড
-    
-    docs.forEach((txDoc) => {
       const tx = txDoc.data();
       
-      // প্যানিক মোড না থাকলে কাঁচা লুকাবে
       if (!isPanicActive && tx.accountType === "kacha") return;
 
-      // আগে ছিল: const dateObj = new Date(tx.date.toDate());
-// এখন হবে:
-const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date);
+      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date);
       const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
-      let imgHtml = images.length > 0 ? `<div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'><img src="${images[0]}">${images.length>1?`<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>`:''}</div>` : "";
+      let imgHtml = "";
+      
+      if (images.length > 0) {
+        let overlay = images.length > 1 
+          ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
+        
+        imgHtml = `
+          <div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'>
+            <img src="${images[0]}">
+            ${overlay}
+          </div>
+        `;
+      }
 
       const isGiven = tx.direction === "given";
       const colorClass = isGiven ? "given" : "received";
       
-      // কাঁচা অ্যামাউন্ট ফেক করা
       let displayAmount = tx.visibleAmount;
       let typeLabel = "";
       if (tx.accountType === "kacha") {
@@ -168,7 +175,6 @@ const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date)
       const card = document.createElement("div");
       card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
       
-      // ডিলিট করা থাকলে স্ট্রাইকথ্রু
       const isDeleted = tx.isDeleted ? "opacity: 0.5; text-decoration: line-through;" : "";
 
       card.innerHTML = `
@@ -184,12 +190,15 @@ const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date)
       `;
       timeline.appendChild(card);
     });
-  } catch (err) { alert("লেনদেন লোড করতে সমস্যা: " + err.message); }
+  } catch (err) { 
+    alert("লেনদেন লোড করতে সমস্যা: " + err.message); 
+  }
 }
 
 // ইমেজ ভিউয়ার
 window.viewImages = function(imagesArray) {
-  currentImages = imagesArray; currentImageIndex = 0;
+  currentImages = imagesArray; 
+  currentImageIndex = 0;
   document.getElementById('full-image').src = currentImages[0];
   document.getElementById('image-counter').innerText = `1 / ${currentImages.length}`;
   document.getElementById('image-viewer').style.display = 'flex';
