@@ -122,13 +122,32 @@ async function loadTransactions() {
     // নতুন আগে আসবে
     const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
+       // 🛑 একই ট্রানজেকশন একাধিকবার আসলে ফিল্টার করে ফেলবে
+    const uniqueDocs = [];
+    const seenIds = new Set();
+    docs.forEach(d => {
+      const data = d.data();
+      // যদি মিরর করা ট্রানজেকশন হয়, তবে originalTxId দেখে চেক করব
+      const uniqueId = data.originalTxId || d.id; 
+      if (!seenIds.has(uniqueId)) {
+        seenIds.add(uniqueId);
+        uniqueDocs.push(d);
+      }
+    });
+
+    // এবার docs এর জায়গায় uniqueDocs দিয়ে লুপ চালান
+    uniqueDocs.forEach((txDoc) => {
+        // ... ভেতরের আগের কোড
+    
     docs.forEach((txDoc) => {
       const tx = txDoc.data();
       
       // প্যানিক মোড না থাকলে কাঁচা লুকাবে
       if (!isPanicActive && tx.accountType === "kacha") return;
 
-      const dateObj = new Date(tx.date.toDate());
+      // আগে ছিল: const dateObj = new Date(tx.date.toDate());
+// এখন হবে:
+const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date);
       const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       
