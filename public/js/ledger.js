@@ -159,7 +159,15 @@ async function loadTransactions() {
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
       let imgHtml = "";
       
-      if (images.length > 0) {
+      if (tx.isUploadingImages) {
+        // যদি আপলোড চলমান থাকে
+        imgHtml = `
+          <div class="tx-img-wrapper" style="display: flex; justify-content: center; align-items: center; background: #f0f0f0; height: 150px; color: #666; font-weight: bold;">
+            ⏳ ইমেজ আপলোড হচ্ছে...
+          </div>
+        `;
+      } else if (images.length > 0) {
+        // যদি আপলোড শেষ হয়ে ছবি থাকে
         let overlay = images.length > 1 
           ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
         
