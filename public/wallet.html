@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayBook - ওয়ালেট রিচার্জ</title>
+  <link rel="stylesheet" href="css/style.css?v=41">
+  <style>
+    .qr-box { text-align: center; padding: 20px; background: #f9f9f9; border-radius: 12px; margin-bottom: 20px; border: 2px dashed #ccc; }
+    .qr-img { width: 200px; height: 200px; object-fit: contain; margin-bottom: 10px; border-radius: 8px; }
+    .upi-id { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 1px; }
+    .copy-btn { background: #e0e0e0; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; margin-top: 5px; cursor: pointer; }
+  </style>
+</head>
+<body style="display: block; background: var(--bg-color);">
+  
+  <div class="header">
+    <button onclick="history.back()" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
+    <h2 style="flex-grow: 1; text-align: center; margin: 0;">ওয়ালেট রিচার্জ</h2>
+    <div style="width: 24px;"></div>
+  </div>
+
+  <div style="padding: 20px; background: #fff; margin: 16px; border-radius: var(--border-radius); box-shadow: var(--shadow);">
+    
+    <!-- বর্তমান ব্যালেন্স -->
+    <div style="text-align: center; margin-bottom: 20px; background: #E8F5E9; padding: 15px; border-radius: 12px;">
+      <p style="margin: 0; font-size: 14px; color: #555;">বর্তমান ব্যালেন্স</p>
+      <h2 id="current-balance" style="margin: 5px 0 0 0; color: #2E7D32;">₹0</h2>
+    </div>
+
+    <!-- UPI QR সেকশন -->
+    <div class="qr-box">
+      <p style="margin-bottom: 10px; font-weight: bold;">নিচের UPI-তে টাকা পাঠান</p>
+      <!-- আপনার QR কোডের ছবি এখানে দিন (public/img/qr.png ফোল্ডারে রাখতে পারেন) -->
+      <img src="img/qr.png" alt="Admin QR Code" class="qr-img" onerror="this.style.display='none'">
+      <div class="upi-id" id="admin-upi">লোড হচ্ছে...</div>
+      <button class="copy-btn" onclick="copyUpi()">📋 UPI কপি করুন</button>
+    </div>
+
+    <!-- রিচার্জ ফর্ম -->
+    <label style="font-weight: bold; display: block; margin-bottom: 8px;">পেমেন্টের তথ্য দিন</label>
+    <input type="text" id="utr-input" placeholder="UTR / Transaction ID দিন" required>
+    
+    <label style="font-weight: bold; display: block; margin-bottom: 8px; margin-top: 12px;">পেমেন্ট স্ক্রিনশট (ঐচ্ছিক কিন্তু সুপারিশকৃত)</label>
+    <input type="file" id="proof-input" accept="image/*" style="background: #f0f0f0;">
+    
+    <button id="submit-recharge-btn" style="margin-top: 16px;">রিচার্জ রিকোয়েস্ট পাঠান</button>
+  </div>
+
+  <script type="module" src="js/wallet.js?v=41"></script>
+</body>
+</html>
