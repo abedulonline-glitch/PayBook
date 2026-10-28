@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=61">
+  <link rel="stylesheet" href="css/style.css?v=62">
 </head>
 <body style="display: block; background: var(--bg-color); padding-bottom: 90px;">
   
@@ -44,7 +44,7 @@
     <button class="btn-given" onclick="goToNewTx('given', 'paka')">↑ Given (পাকা)</button>
   </div>
 
-  <script type="module" src="js/ledger.js?v=61"></script>
+  <script type="module" src="js/ledger.js?v=62"></script>
   <script>
     function goToNewTx(type, accType) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -52,6 +52,41 @@
       const name = urlParams.get("name");
       window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}&accountType=${accType}`;
     }
+// এডিট ফাংশন
+window.editTransaction = async function(txId, currentAmount, accType) {
+  const newAmount = prompt("নতুন অ্যামাউন্ট লিখুন (₹):", currentAmount);
+  if (newAmount && !isNaN(newAmount)) {
+    try {
+      await updateDoc(doc(db, "transactions", txId), { visibleAmount: parseFloat(newAmount) });
+      alert("এডিট সফল হয়েছে!");
+    } catch (e) { alert("সমস্যা: " + e.message); }
+  }
+};
+
+// সাবস্ক্রিপশন চেক করে এডিট
+window.checkSubscriptionToEdit = async function(txId) {
+  const userSnap = await getDoc(doc(db, "users", mobile));
+  const user = userSnap.data();
+  if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
+    window.editTransaction(txId); // সাবস্ক্রিপশন আছে, এডিট করতে দাও
+  } else {
+    alert("২৪ ঘণ্টা পার হয়ে গেছে। এডিট করতে সাবস্ক্রিপশন নিতে হবে। (ওয়ালেট মেনু থেকে রিচার্জ করুন)");
+  }
+};
+
+// এপ্রুভ/রিজেক্ট (আগের মতো)
+window.approveTransaction = async function(txId) {
+  if(!confirm("এপ্রুভ করবেন?")) return;
+  await updateDoc(doc(db, "transactions", txId), { isPending: false });
+  alert("এপ্রুভ হয়েছে!");
+};
+
+window.rejectTransaction = async function(txId) {
+  if(!confirm("রিজেক্ট করবেন?")) return;
+  await updateDoc(doc(db, "transactions", txId), { isDeleted: true, isPending: false });
+  alert("রিজেক্ট হয়েছে!");
+};
+    
   </script>
 </body>
 </html>
