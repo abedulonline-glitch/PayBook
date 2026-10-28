@@ -1,10 +1,9 @@
 import { db } from "./firebase-init.js";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { IMGBB_API_KEY } from "./config.js";
 
 const urlParams = new URLSearchParams(window.location.search);
 const partyId = urlParams.get("partyId");
-const partyNameParam = urlParams.get("name");
 const mobile = localStorage.getItem("paybook_mobile");
 
 if (!partyId || !mobile) window.location.href = "dashboard.html";
@@ -57,28 +56,23 @@ window.openProfileModal = function() {
 window.closeProfileModal = function() { document.getElementById("profile-modal").style.display = "none"; };
 window.zoomProfileImage = function() { if (partyData.profilePic) window.viewImages([partyData.profilePic]); };
 
-// নাম এডিট করার ফাংশন
+// নাম এডিট
 window.editPartyName = async function() {
   const currentName = partyData.name;
   const newName = prompt("পার্টির নতুন নাম লিখুন:", currentName);
-  
   if (newName && newName.trim() !== "" && newName.trim() !== currentName) {
     try {
       await updateDoc(doc(db, "parties", partyId), { name: newName.trim() });
-      
       partyData.name = newName.trim();
       document.getElementById("party-name").innerText = partyData.name;
       document.getElementById("modal-party-name").innerText = partyData.name;
-      
       const initial = partyData.name.charAt(0).toUpperCase();
       if (!partyData.profilePic) {
         document.getElementById("avatar-text").innerText = initial;
         document.getElementById("modal-avatar-text").innerText = initial;
       }
       alert("নাম সফলভাবে আপডেট হয়েছে!");
-    } catch (e) {
-      alert("নাম আপডেট করতে সমস্যা: " + e.message);
-    }
+    } catch (e) { alert("নাম আপডেটে সমস্যা: " + e.message); }
   }
 };
 
@@ -94,27 +88,21 @@ document.getElementById("avatar-upload").addEventListener("change", async (e) =>
     if (data.success) {
       await updateDoc(doc(db, "parties", partyId), { profilePic: data.data.url });
       partyData.profilePic = data.data.url;
-      document.getElementById("avatar-img").src = data.data.url; 
-      document.getElementById("avatar-img").style.display = "block"; 
-      document.getElementById("avatar-text").style.display = "none";
-      document.getElementById("modal-avatar-img").src = data.data.url; 
-      document.getElementById("modal-avatar-img").style.display = "block"; 
-      document.getElementById("modal-avatar-text").style.display = "none";
+      document.getElementById("avatar-img").src = data.data.url; document.getElementById("avatar-img").style.display = "block"; document.getElementById("avatar-text").style.display = "none";
+      document.getElementById("modal-avatar-img").src = data.data.url; document.getElementById("modal-avatar-img").style.display = "block"; document.getElementById("modal-avatar-text").style.display = "none";
     }
-  } catch (err) { 
-    alert("ছবি আপলোডে সমস্যা: " + err.message); 
-  } finally { 
-    btn.innerText = "📷 প্রোফাইল ছবি পরিবর্তন করুন"; 
-  }
+  } catch (err) { alert("ছবি আপলোডে সমস্যা: " + err.message); } finally { btn.innerText = "📷 প্রোফাইল ছবি পরিবর্তন করুন"; }
 });
 
-// লেনদেন লোড
-async function loadTransactions() {
+// 🌟 লেনদেন লোড (রিয়েল-টাইম onSnapshot সহ)
+let unsubscribe = null;
+
+function loadTransactions() {
   const txRef = collection(db, "transactions");
   const q = query(txRef, where("ownerMobile", "==", mobile), where("partyId", "==", partyId));
   
-  try {
-    const snapshot = await getDocs(q);
+  // onSnapshot ব্যবহার করায় ডেটা চেঞ্জ হলে সাথে সাথে UI আপডেট হবে
+  unsubscribe = onSnapshot(q, (snapshot) => {
     const timeline = document.getElementById("timeline-container");
     
     if (snapshot.empty) {
@@ -123,21 +111,13 @@ async function loadTransactions() {
     }
     
     timeline.innerHTML = "";
-    
-    // ১. ডুপ্লিকেট ফিল্টার (originalTxId চেক করে)
+    const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
+
+    // ডুপ্লিকেট ফিল্টার
     const uniqueDocs = [];
     const seenIds = new Set();
-    
-    // নতুন আগে আসবে
-    const sortedDocs = snapshot.docs.sort((a, b) => {
-      const dateA = a.data().date?.toDate ? a.data().date.toDate() : new Date(a.data().date || 0);
-      const dateB = b.data().date?.toDate ? b.data().date.toDate() : new Date(b.data().date || 0);
-      return dateB - dateA;
-    });
-
-    sortedDocs.forEach(d => {
+    docs.forEach(d => {
       const data = d.data();
-      // মিরর ট্রানজেকশন হলে originalTxId, না হলে নিজের ID
       const uniqueId = data.originalTxId || d.id; 
       if (!seenIds.has(uniqueId)) {
         seenIds.add(uniqueId);
@@ -145,20 +125,14 @@ async function loadTransactions() {
       }
     });
 
-    // ২. লুপ চালিয়ে কার্ড তৈরি
     uniqueDocs.forEach((txDoc) => {
       const tx = txDoc.data();
-      
-      // প্যানিক মোড না থাকলে কাঁচা লুকাবে
       if (!isPanicActive && tx.accountType === "kacha") return;
 
-      // ৩. সঠিক টাইম (ভারতীয় সময়)
       const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date || Date.now());
-      
       const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
       const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
       
-      // ৪. ইমেজ হ্যান্ডলিং
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
       let imgHtml = "";
       
@@ -204,15 +178,15 @@ async function loadTransactions() {
       `;
       timeline.appendChild(card);
     });
-  } catch (err) { 
-    alert("লেনদেন লোড করতে সমস্যা: " + err.message); 
-  }
+    
+    // সর্বশেষ লেনদেনে অটো-স্ক্রল
+    setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 300);
+  });
 }
 
 // ইমেজ ভিউয়ার
 window.viewImages = function(imagesArray) {
-  currentImages = imagesArray; 
-  currentImageIndex = 0;
+  currentImages = imagesArray; currentImageIndex = 0;
   document.getElementById('full-image').src = currentImages[0];
   document.getElementById('image-counter').innerText = `1 / ${currentImages.length}`;
   document.getElementById('image-viewer').style.display = 'flex';
