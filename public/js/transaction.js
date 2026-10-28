@@ -138,23 +138,37 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   }
 
   const btn = document.getElementById("save-tx-btn");
-  btn.innerText = "সেভ হচ্ছে..."; btn.disabled = true;
+  btn.innerText = "ইমেজ আপলোড হচ্ছে..."; 
+  btn.disabled = true;
 
   try {
+    // ১. প্রথমে সব ছবি আপলোড করা (রিট্রাই লজিকসহ)
+    let uploadedUrls = [];
+    for (let i = 0; i < selectedFiles.length; i++) {
+      btn.innerText = `আপলোড হচ্ছে (${i+1}/${selectedFiles.length})...`;
+      try {
+        const url = await uploadToImgBB(selectedFiles[i]);
+        uploadedUrls.push(url);
+      } catch (err) {
+        throw new Error("ইমেজ আপলোড ব্যর্থ! ইন্টারনেট চেক করে আবার চেষ্টা করুন।");
+      }
+    }
+
+    btn.innerText = "সেভ হচ্ছে...";
     const partySnap = await getDoc(doc(db, "parties", partyId));
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
     const selectedDate = dateInput.value ? new Date(dateInput.value + 'T' + new Date().toTimeString().split(' ')[0]) : new Date();
 
-    // ১. সাথে সাথে ডেটাবেসে সেভ (ছবি ছাড়া)
-    const txRef = await addDoc(collection(db, "transactions"), {
+    // ২. সব ছবি আপলোড শেষ হলে ডেটাবেসে সেভ করা
+    await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
       partyId: partyId,
       counterpartyMobile: partyMobile,
       accountType: accType,
       direction: selectedDirection,
       visibleAmount: visibleAmount,
-      imageUrls: [], 
-      isUploadingImages: selectedFiles.length > 0, 
+      imageUrls: uploadedUrls, // এখানে সরাসরি লিংকগুলো যাচ্ছে
+      isUploadingImages: false, // আর পেন্ডিং থাকবে না
       note: note,
       date: selectedDate,
       isDeleted: false,
@@ -163,26 +177,8 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       verifiedBy: []
     });
 
-    // ২. ইউজারকে সাথে সাথে ফেরত পাঠানো
-    alert("লেনদেন সেভ হয়েছে! ছবি ব্যাকগ্রাউন্ডে আপলোড হচ্ছে।");
+    alert("সফলভাবে সেভ হয়েছে!");
     history.back();
-
-    // ৩. ব্যাকগ্রাউন্ডে ছবি আপলোড (রিট্রাই লজিকসহ)
-    if (selectedFiles.length > 0) {
-      let uploadedUrls = [];
-      for (let i = 0; i < selectedFiles.length; i++) {
-        try {
-          const url = await uploadToImgBB(selectedFiles[i]); // ৩ বার চেষ্টা করবে
-          uploadedUrls.push(url);
-        } catch (e) { console.error("Image upload failed", e); }
-      }
-      
-      // ৪. আপলোড শেষ হলে ডেটাবেস আপডেট
-      await updateDoc(doc(db, "transactions", txRef.id), {
-        imageUrls: uploadedUrls,
-        isUploadingImages: false
-      });
-    }
 
   } catch (err) { 
     alert("সমস্যা: " + err.message); 
