@@ -46,42 +46,38 @@ async function syncCrossPartyData() {
         myPartyId = myPartiesSnap.docs[0].id;
       }
 
-      // ৩. ট্রানজেকশন মিররিং
-      const txQuery = query(collection(db, "transactions"), where("ownerMobile", "==", otherParty.ownerMobile), where("counterpartyMobile", "==", mobile));
-      const txSnap = await getDocs(txQuery);
+    // ৩. ট্রানজেকশন মিররিং
+const txQuery = query(collection(db, "transactions"), where("ownerMobile", "==", otherParty.ownerMobile), where("counterpartyMobile", "==", mobile));
+const txSnap = await getDocs(txQuery);
 
-      for (const txDoc of txSnap.docs) {
-        const tx = txDoc.data();
-        
-        // 🛑 ডুপ্লিকেট চেক (originalTxId দিয়ে)
-         // 🛑 ডুপ্লিকেট চেক (originalTxId এবং amount চেক করে)
-        const checkMirrored = query(
-          collection(db, "transactions"), 
-          where("ownerMobile", "==", mobile), 
-          where("originalTxId", "==", txDoc.id)
-        );
-        const mirrorSnap = await getDocs(checkMirrored);
+for (const txDoc of txSnap.docs) {
+  const tx = txDoc.data();
+  
+  // 🛑 ডুপ্লিকেট চেক (অরিজিনাল আইডি এবং মিরর আইডি দুটোই চেক)
+  const checkMirrored = query(collection(db, "transactions"), where("ownerMobile", "==", mobile), where("originalTxId", "==", txDoc.id));
+  const mirrorSnap = await getDocs(checkMirrored);
 
-        // যদি আগে থেকে মিরর করা না থাকে, তবেই নতুন করে যোগ হবে
-        if (mirrorSnap.empty) {
-          await addDoc(collection(db, "transactions"), {
-            ownerMobile: mobile,
-            partyId: myPartyId,
-            counterpartyMobile: otherParty.ownerMobile,
-            accountType: tx.accountType,
-            direction: tx.direction === "given" ? "received" : "given", 
-            visibleAmount: tx.visibleAmount,
-            imageUrls: tx.imageUrls || [],
-            note: tx.note,
-            date: tx.date,
-            isDeleted: false,
-            isMirrored: true,
-            originalTxId: txDoc.id, 
-            deletedBy: [],
-            verifiedBy: []
-          });
-        }
-      }
+  if (mirrorSnap.empty) {
+    await addDoc(collection(db, "transactions"), {
+      ownerMobile: mobile,
+      partyId: myPartyId,
+      counterpartyMobile: otherParty.ownerMobile,
+      accountType: tx.accountType,
+      direction: tx.direction === "given" ? "received" : "given", 
+      visibleAmount: tx.visibleAmount,
+      imageUrls: tx.imageUrls || [],
+      note: tx.note,
+      date: tx.date,
+      isDeleted: false,
+      isMirrored: true,
+      isPending: true, // 👁️ মিরর ট্রানজেকশনে পেন্ডিং সেট করা হলো
+      originalTxId: txDoc.id, 
+      deletedBy: [],
+      verifiedBy: []
+    });
+  }
+}
+   
     }
   } catch (err) { 
     console.error("Sync error", err); 
