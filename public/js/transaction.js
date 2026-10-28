@@ -1,5 +1,5 @@
 import { db } from "./firebase-init.js";
-import { collection, addDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { IMGBB_API_KEY } from "./config.js";
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -31,7 +31,7 @@ document.getElementById("btn-cancel").onclick = () => modal.style.display = "non
 document.getElementById("btn-camera").onclick = () => { cameraInput.click(); modal.style.display = "none"; };
 document.getElementById("btn-gallery").onclick = () => { galleryInput.click(); modal.style.display = "none"; };
 
-// ✅ ইমেজ কম্প্রেস করার ফাংশন (ImgBB-তে দ্রুত আপলোডের জন্য)
+// ✅ ইমেজ কম্প্রেস করার ফাংশন (সাইজ ছোট করে, যাতে দ্রুত আপলোড হয়)
 function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -41,7 +41,7 @@ function compressImage(file) {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 800; // ম্যাক্স ৮০০ পিক্সেল
+        const MAX_WIDTH = 600; // সাইজ আরও কমিয়ে ৬০০ করা হলো
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
@@ -50,7 +50,7 @@ function compressImage(file) {
         canvas.toBlob((blob) => {
           const compressedFile = new File([blob], "compressed_" + file.name, { type: "image/jpeg" });
           resolve(compressedFile);
-        }, "image/jpeg", 0.7); // ৭০% কোয়ালিটি
+        }, "image/jpeg", 0.6); // ৬০% কোয়ালিটি
       };
     };
   });
@@ -98,22 +98,38 @@ function refreshPreviews() {
   selectedFiles.forEach((f, i) => renderPreview(f, i)); 
 }
 
-// ✅ ImgBB আপলোড ফাংশন (রিট্রাই লজিকসহ)
-async function uploadToImgBB(file, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const formData = new FormData(); 
-      formData.append("image", file);
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.success) return data.data.url;
-    } catch (e) {
-      console.warn(`Upload attempt ${i + 1} failed. Retrying...`);
-    }
-    // ২ সেকেন্ড অপেক্ষা করে আবার চেষ্টা করবে
-    await new Promise(r => setTimeout(r, 2000));
+// ✅ Base64 রূপান্তর (যদি ImgBB ফেইল করে)
+function getBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+
+// ✅ স্মার্ট আপলোড ফাংশন: আগে ImgBB চেষ্টা করবে, ফেইল করলে Base64 করবে
+async function smartImageUpload(file) {
+  try {
+    const formData = new FormData(); 
+    formData.append("image", file);
+    // টাইমআউট সেট করা হলো ৫ সেকেন্ড
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { 
+      method: "POST", body: formData, signal: controller.signal 
+    });
+    clearTimeout(timeoutId);
+    
+    const data = await res.json();
+    if (data.success) return data.data.url;
+    throw new Error("ImgBB failed");
+  } catch (e) {
+    console.warn("ImgBB failed, using Base64 fallback...");
+    // ImgBB ফেইল করলে Base64 রিটার্ন করবে
+    return await getBase64(file);
   }
-  throw new Error("ইমেজ আপলোড ব্যর্থ হয়েছে (৩ বার চেষ্টা করা হয়েছে)");
 }
 
 // সেভ বাটন
@@ -138,28 +154,23 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   }
 
   const btn = document.getElementById("save-tx-btn");
-  btn.innerText = "ইমেজ আপলোড হচ্ছে..."; 
+  btn.innerText = "প্রসেস হচ্ছে..."; 
   btn.disabled = true;
 
   try {
-    // ১. প্রথমে সব ছবি আপলোড করা (রিট্রাই লজিকসহ)
     let uploadedUrls = [];
     for (let i = 0; i < selectedFiles.length; i++) {
-      btn.innerText = `আপলোড হচ্ছে (${i+1}/${selectedFiles.length})...`;
-      try {
-        const url = await uploadToImgBB(selectedFiles[i]);
-        uploadedUrls.push(url);
-      } catch (err) {
-        throw new Error("ইমেজ আপলোড ব্যর্থ! ইন্টারনেট চেক করে আবার চেষ্টা করুন।");
-      }
+      btn.innerText = `আপলোড (${i+1}/${selectedFiles.length})...`;
+      // স্মার্ট আপলোড (ImgBB অথবা Base64)
+      const url = await smartImageUpload(selectedFiles[i]);
+      uploadedUrls.push(url);
     }
 
-    btn.innerText = "সেভ হচ্ছে...";
     const partySnap = await getDoc(doc(db, "parties", partyId));
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
     const selectedDate = dateInput.value ? new Date(dateInput.value + 'T' + new Date().toTimeString().split(' ')[0]) : new Date();
 
-    // ২. সব ছবি আপলোড শেষ হলে ডেটাবেসে সেভ করা
+    // ডেটাবেসে সেভ
     await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
       partyId: partyId,
@@ -167,8 +178,8 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       accountType: accType,
       direction: selectedDirection,
       visibleAmount: visibleAmount,
-      imageUrls: uploadedUrls, // এখানে সরাসরি লিংকগুলো যাচ্ছে
-      isUploadingImages: false, // আর পেন্ডিং থাকবে না
+      imageUrls: uploadedUrls,
+      isUploadingImages: false,
       note: note,
       date: selectedDate,
       isDeleted: false,
