@@ -112,6 +112,66 @@ uniqueDocs.forEach((txDoc) => {
     approvalHtml = `
       <button onclick="approveTransaction('${txDoc.id}')" style="background: var(--success); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px;">👁️ Approve</button>
       <button onclick="rejectTransaction('${txDoc.id}')" style="background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px;">❌ Reject</button>
+uniqueDocs.forEach((txDoc) => {
+  const tx = txDoc.data();
+  if (!isPanicActive && tx.accountType === "kacha") return;
+
+  const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date || Date.now());
+  const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+  const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+  
+  let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
+  let imgHtml = "";
+  
+  if (images.length > 0) {
+    let overlay = images.length > 1 
+      ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
+    
+    imgHtml = `
+      <div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'>
+        <img src="${images[0]}">
+        ${overlay}
+      </div>
+    `;
+  }
+
+  const isGiven = tx.direction === "given";
+  const colorClass = isGiven ? "given" : "received";
+  
+  let displayAmount = tx.visibleAmount;
+  let typeLabel = "";
+  if (tx.accountType === "kacha") {
+    displayAmount = (tx.visibleAmount / 100).toFixed(2);
+    typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
+  }
+
+  // ✅ WhatsApp মেসেজ ফরম্যাট
+  const waMessage = `*PayBook Ledger - ${partyData.name}*\n\nতারিখ: ${dateStr} (${timeStr})\nটাইপ: ${isGiven ? '↑ Given (প্রদেয়)' : '↓ Received (প্রাপ্য)'}\nপরিমাণ: ₹${displayAmount}\n${tx.note ? `নোট: ${tx.note}\n` : ''}\n_এই মেসেজটি PayBook অ্যাপ থেকে পাঠানো হয়েছে।_`;
+  const waText = encodeURIComponent(waMessage);
+  
+  // ফোন নম্বর ফরম্যাট (91 যুক্ত করা)
+  let waNumber = partyData.mobile;
+  if (waNumber && !waNumber.startsWith('91')) waNumber = '91' + waNumber;
+
+  const waBtn = `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; margin-left: 8px;" title="Share on WhatsApp">🟢</button>`;
+
+  // ✅ ২৪ ঘণ্টার এডিট বাটন
+  const hoursDiff = (new Date() - dateObj) / (1000 * 60 * 60);
+  let editBtn = "";
+  if (hoursDiff <= 24) {
+    editBtn = `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}', '${tx.accountType}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Edit">✏️</button>`;
+  } else {
+    editBtn = `<button onclick="checkSubscriptionToEdit('${txDoc.id}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px; opacity: 0.5;" title="Locked">🔒</button>`;
+  }
+
+  // ✅ 👁️ এপ্রুভাল বাটন (শুধুমাত্র পেন্ডিং হলে দেখাবে)
+  let approvalHtml = "";
+  if (tx.isPending) {
+    approvalHtml = `
+      <div style="margin-top: 8px; display: flex; gap: 5px; width: 100%;">
+        <button onclick="approveTransaction('${txDoc.id}')" style="flex: 1; background: var(--success); color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold;">👁️ Approve</button>
+        <button onclick="rejectTransaction('${txDoc.id}')" style="flex: 1; background: var(--danger); color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold;">❌ Reject</button>
+      </div>
     `;
   }
 
@@ -124,17 +184,15 @@ uniqueDocs.forEach((txDoc) => {
     <div class="tx-card-inner" style="${isDeleted}">
       <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="flex-wrap: wrap;">
         
-        <div style="display: flex; align-items: center;">
-          <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
-          ${waBtn}
-          ${editBtn}
+        <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
+          <div>
+            <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
+            ${waBtn}
+            ${editBtn}
+          </div>
+          <span class="tx-time">${timeStr}</span>
         </div>
-        
-        <div style="display: flex; flex-direction: column; align-items: flex-end;">
-           <span class="tx-time">${timeStr}</span>
-           ${approvalHtml}
-        </div>
-
+        ${approvalHtml}
       </div>
       ${imgHtml}
       ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
