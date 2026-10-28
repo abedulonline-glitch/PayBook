@@ -5,21 +5,19 @@ import { IMGBB_API_KEY } from "./config.js";
 const urlParams = new URLSearchParams(window.location.search);
 const partyId = urlParams.get("partyId");
 const partyName = urlParams.get("name");
-const txType = urlParams.get("type") || "given"; // given / received
-const accType = urlParams.get("accountType") || "paka"; // paka / kacha
+const txType = urlParams.get("type") || "given";
+const accType = urlParams.get("accountType") || "paka";
 const mobile = localStorage.getItem("paybook_mobile");
 
 if (!partyId || !mobile) window.location.href = "dashboard.html";
 document.getElementById("tx-party-name").innerText = partyName;
 
-// হেডার সেট (পাকা নাকি কাঁচা)
 const typeHeader = document.getElementById("tx-type-header");
 let selectedDirection = txType;
 typeHeader.innerText = (selectedDirection === "received" ? "↓ প্রাপ্য" : "↑ প্রদেয়") + ` (${accType === 'paka' ? 'পাকা' : 'কাঁচা'})`;
 typeHeader.style.color = selectedDirection === "received" ? "var(--success)" : "var(--danger)";
 
 const dateInput = document.getElementById("tx-date");
-// আজকের তারিখ ডিফল্ট সেট করা (YYYY-MM-DD)
 dateInput.value = new Date().toISOString().split('T')[0];
 
 let selectedFiles = [];
@@ -33,26 +31,7 @@ document.getElementById("btn-cancel").onclick = () => modal.style.display = "non
 document.getElementById("btn-camera").onclick = () => { cameraInput.click(); modal.style.display = "none"; };
 document.getElementById("btn-gallery").onclick = () => { galleryInput.click(); modal.style.display = "none"; };
 
-cameraInput.addEventListener("change", async (e) => { 
-  if (e.target.files[0]) { 
-    const compressed = await compressImage(e.target.files[0]); // কম্প্রেস করা হলো
-    selectedFiles.push(compressed); 
-    renderPreview(compressed, selectedFiles.length - 1); 
-  } 
-  cameraInput.value = ""; 
-});
-
-galleryInput.addEventListener("change", async (e) => { 
-  const files = Array.from(e.target.files);
-  for (const file of files) {
-    const compressed = await compressImage(file); // প্রতিটি ছবি কম্প্রেস করা হলো
-    selectedFiles.push(compressed); 
-    renderPreview(compressed, selectedFiles.length - 1); 
-  }
-  galleryInput.value = ""; 
-});
-
-// ✅ ইমেজ কম্প্রেস করার ফাংশন (ক্যানভাস ব্যবহার করে)
+// ✅ ইমেজ কম্প্রেস করার ফাংশন (ImgBB-তে দ্রুত আপলোডের জন্য)
 function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -62,23 +41,39 @@ function compressImage(file) {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 800; // ম্যাক্সিমাম চওড়া ৮০০ পিক্সেল (কমিয়ে দিলে সাইজ কমবে)
+        const MAX_WIDTH = 800; // ম্যাক্স ৮০০ পিক্সেল
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
-        
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
         canvas.toBlob((blob) => {
-          // নতুন কম্প্রেস করা ফাইল তৈরি
           const compressedFile = new File([blob], "compressed_" + file.name, { type: "image/jpeg" });
           resolve(compressedFile);
-        }, "image/jpeg", 0.7); // ৭০% কোয়ালিটি (ফাইল সাইজ অনেক কমে যাবে)
+        }, "image/jpeg", 0.7); // ৭০% কোয়ালিটি
       };
     };
   });
 }
+
+cameraInput.addEventListener("change", async (e) => { 
+  if (e.target.files[0]) { 
+    const compressed = await compressImage(e.target.files[0]);
+    selectedFiles.push(compressed); 
+    renderPreview(compressed, selectedFiles.length - 1); 
+  } 
+  cameraInput.value = ""; 
+});
+
+galleryInput.addEventListener("change", async (e) => { 
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const compressed = await compressImage(file);
+    selectedFiles.push(compressed); 
+    renderPreview(compressed, selectedFiles.length - 1); 
+  }
+  galleryInput.value = ""; 
+});
 
 function renderPreview(file, index) {
   const reader = new FileReader();
@@ -90,7 +85,6 @@ function renderPreview(file, index) {
       <button type="button" class="remove-btn" data-index="${index}" style="position:absolute;top:-5px;right:-5px;background:red;color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;">✕</button>
     `;
     previewContainer.appendChild(div);
-    
     div.querySelector('.remove-btn').onclick = function() { 
       selectedFiles.splice(parseInt(this.dataset.index), 1); 
       refreshPreviews(); 
@@ -104,13 +98,22 @@ function refreshPreviews() {
   selectedFiles.forEach((f, i) => renderPreview(f, i)); 
 }
 
-async function uploadToImgBB(file) {
-  const formData = new FormData(); 
-  formData.append("image", file);
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-  const data = await res.json();
-  if (!data.success) throw new Error("ইমেজ আপলোড ব্যর্থ");
-  return data.data.url;
+// ✅ ImgBB আপলোড ফাংশন (রিট্রাই লজিকসহ)
+async function uploadToImgBB(file, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const formData = new FormData(); 
+      formData.append("image", file);
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.success) return data.data.url;
+    } catch (e) {
+      console.warn(`Upload attempt ${i + 1} failed. Retrying...`);
+    }
+    // ২ সেকেন্ড অপেক্ষা করে আবার চেষ্টা করবে
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  throw new Error("ইমেজ আপলোড ব্যর্থ হয়েছে (৩ বার চেষ্টা করা হয়েছে)");
 }
 
 // সেভ বাটন
@@ -121,11 +124,9 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   if (!visibleAmount || visibleAmount <= 0) return alert("সঠিক অ্যামাউন্ট দিন");
   if (accType === "paka" && selectedFiles.length === 0) return alert("পাকা হিসাবে ইমেজ প্রুফ বাধ্যতামূলক");
 
-  // কাঁচা হলে প্যানিক পিন চেক
   if (accType === "kacha") {
     let pin = prompt("কাঁচা এন্ট্রি করতে প্যানিক পিন দিন:");
     if (!pin) return;
-    
     try {
       const userSnap = await getDoc(doc(db, "users", mobile));
       const user = userSnap.data();
@@ -142,12 +143,9 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   try {
     const partySnap = await getDoc(doc(db, "parties", partyId));
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
-
-    // ✅ তারিখ (Date) সঠিকভাবে তৈরি করা (ভারতীয় সময় Zone সহ)
-    // dateInput.value (যেমন "2026-10-28") এর সাথে বর্তমান সময় যুক্ত করে Date অবজেক্ট বানানো
     const selectedDate = dateInput.value ? new Date(dateInput.value + 'T' + new Date().toTimeString().split(' ')[0]) : new Date();
 
-    // ১. সাথে সাথে ডেটাবেসে সেভ করা (ছবি ছাড়া)
+    // ১. সাথে সাথে ডেটাবেসে সেভ (ছবি ছাড়া)
     const txRef = await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
       partyId: partyId,
@@ -158,7 +156,7 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       imageUrls: [], 
       isUploadingImages: selectedFiles.length > 0, 
       note: note,
-      date: selectedDate, // ✅ সঠিক টাইমস্ট্যাম্প
+      date: selectedDate,
       isDeleted: false,
       isMirrored: false,
       deletedBy: [],
@@ -169,19 +167,17 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
     alert("লেনদেন সেভ হয়েছে! ছবি ব্যাকগ্রাউন্ডে আপলোড হচ্ছে।");
     history.back();
 
-    // ৩. ব্যাকগ্রাউন্ডে ছবি আপলোড করা
+    // ৩. ব্যাকগ্রাউন্ডে ছবি আপলোড (রিট্রাই লজিকসহ)
     if (selectedFiles.length > 0) {
       let uploadedUrls = [];
       for (let i = 0; i < selectedFiles.length; i++) {
         try {
-          const url = await uploadToImgBB(selectedFiles[i]);
+          const url = await uploadToImgBB(selectedFiles[i]); // ৩ বার চেষ্টা করবে
           uploadedUrls.push(url);
-        } catch (e) {
-          console.error("Image upload failed", e);
-        }
+        } catch (e) { console.error("Image upload failed", e); }
       }
       
-      // ৪. আপলোড শেষ হলে ডেটাবেস আপডেট করা
+      // ৪. আপলোড শেষ হলে ডেটাবেস আপডেট
       await updateDoc(doc(db, "transactions", txRef.id), {
         imageUrls: uploadedUrls,
         isUploadingImages: false
