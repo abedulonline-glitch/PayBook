@@ -33,19 +33,7 @@ async function loadPartyDetails() {
   }
 }
 
-// (প্রোফাইল ও এডিট মোডালের ফাংশনগুলো আগের মতোই থাকবে)
-window.openProfileModal = function() { /* ... আগের কোড ... */ };
-window.closeProfileModal = function() { document.getElementById("profile-modal").style.display = "none"; };
-window.zoomProfileImage = function() { if (partyData.profilePic) window.viewImages([partyData.profilePic]); };
-window.editPartyName = async function() { /* ... আগের কোড ... */ };
-
-document.getElementById("avatar-upload").addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  // ... আগের প্রোফাইল আপলোড লজিক ...
-});
-
-// ✅ রিয়েল-টাইম লেনদেন লোড (ছবি ঠিকমতো আসবে)
+// ✅ রিয়েল-টাইম লেনদেন লোড
 function loadTransactions() {
   const txRef = collection(db, "transactions");
   const q = query(txRef, where("ownerMobile", "==", mobile), where("partyId", "==", partyId));
@@ -61,6 +49,7 @@ function loadTransactions() {
     timeline.innerHTML = "";
     const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
+    // ডুপ্লিকেট ফিল্টার
     const uniqueDocs = [];
     const seenIds = new Set();
     docs.forEach(d => {
@@ -83,7 +72,6 @@ function loadTransactions() {
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
       let imgHtml = "";
       
-      // ব্যাকগ্রাউন্ড আপলোড লজিক বাদ দেওয়া হলো, এখন শুধু লিংক থাকলেই ছবি দেখাবে
       if (images.length > 0) {
         let overlay = images.length > 1 
           ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
@@ -106,6 +94,19 @@ function loadTransactions() {
         typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
       }
 
+      // 👁️ এপ্রুভাল আইকন চেক (যদি isPending থাকে)
+      let approvalHtml = "";
+      if (tx.isPending) {
+        approvalHtml = `
+          <button onclick="approveTransaction('${txDoc.id}', '${tx.partyId}')" style="background: var(--success); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px; cursor: pointer;">👁️ Approve</button>
+          <button onclick="rejectTransaction('${txDoc.id}')" style="background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px; cursor: pointer;">❌ Reject</button>
+        `;
+      }
+
+      // WhatsApp শেয়ার বাটন
+      const waText = encodeURIComponent(`PayBook Ledger:\n${partyData.name}\nAmount: ₹${displayAmount}\nType: ${isGiven ? 'Given' : 'Received'}\nDate: ${dateStr}`);
+      const waBtn = `<button onclick="window.open('https://wa.me/${partyData.mobile}?text=${waText}', '_blank')" style="background: #25D366; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px; cursor: pointer;">📱 Share</button>`;
+
       const card = document.createElement("div");
       card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
       
@@ -115,8 +116,12 @@ function loadTransactions() {
         <div class="timeline-date"><span>${dateStr}</span></div>
         <div class="tx-card-inner" style="${isDeleted}">
           <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}">
-            <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
-            <span class="tx-time">${timeStr} ${tx.isDeleted ? '(Deleted)' : ''}</span>
+            <div style="display: flex; align-items: center; flex-wrap: wrap;">
+              <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
+              ${waBtn}
+              ${approvalHtml}
+            </div>
+            <span class="tx-time">${timeStr}</span>
           </div>
           ${imgHtml}
           ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
@@ -128,6 +133,31 @@ function loadTransactions() {
     setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 300);
   });
 }
+
+// এপ্রুভ ও রিজেক্ট লজিক
+window.approveTransaction = async function(txId, partyId) {
+  if(!confirm("আপনি কি এই লেনদেনটি এপ্রুভ করতে চান?")) return;
+  await updateDoc(doc(db, "transactions", txId), { isPending: false });
+  // মিরর আপডেট করতে হবে
+  const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
+  const snap = await getDocs(q);
+  snap.forEach(async (d) => {
+    await updateDoc(doc(db, "transactions", d.id), { isPending: false });
+  });
+  alert("লেনদেন এপ্রুভ করা হয়েছে!");
+};
+
+window.rejectTransaction = async function(txId) {
+  if(!confirm("আপনি কি এই লেনদেনটি রিজেক্ট করতে চান?")) return;
+  await updateDoc(doc(db, "transactions", txId), { isDeleted: true, isPending: false });
+  // মিরর আপডেট
+  const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
+  const snap = await getDocs(q);
+  snap.forEach(async (d) => {
+    await updateDoc(doc(db, "transactions", d.id), { isDeleted: true, isPending: false });
+  });
+  alert("লেনদেন রিজেক্ট করা হয়েছে!");
+};
 
 // ইমেজ ভিউয়ার
 window.viewImages = function(imagesArray) {
