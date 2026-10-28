@@ -60,75 +60,88 @@ function loadTransactions() {
         uniqueDocs.push(d);
       }
     });
+uniqueDocs.forEach((txDoc) => {
+  const tx = txDoc.data();
+  if (!isPanicActive && tx.accountType === "kacha") return;
 
-    uniqueDocs.forEach((txDoc) => {
-      const tx = txDoc.data();
-      if (!isPanicActive && tx.accountType === "kacha") return;
+  const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date || Date.now());
+  const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+  const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+  
+  let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
+  let imgHtml = "";
+  
+  if (images.length > 0) {
+    let overlay = images.length > 1 
+      ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
+    
+    imgHtml = `
+      <div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'>
+        <img src="${images[0]}">
+        ${overlay}
+      </div>
+    `;
+  }
 
-      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date || Date.now());
-      const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
-      const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
-      
-      let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
-      let imgHtml = "";
-      
-      if (images.length > 0) {
-        let overlay = images.length > 1 
-          ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
+  const isGiven = tx.direction === "given";
+  const colorClass = isGiven ? "given" : "received";
+  
+  let displayAmount = tx.visibleAmount;
+  let typeLabel = "";
+  if (tx.accountType === "kacha") {
+    displayAmount = (tx.visibleAmount / 100).toFixed(2);
+    typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
+  }
+
+  // ✅ WhatsApp আইকন (শুধু আইকন)
+  const waText = encodeURIComponent(`PayBook Ledger:\n${partyData.name}\nAmount: ₹${displayAmount}\nType: ${isGiven ? 'Given' : 'Received'}\nDate: ${dateStr}`);
+  const waBtn = `<button onclick="window.open('https://wa.me/${partyData.mobile}?text=${waText}', '_blank')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 8px;" title="Share on WhatsApp">🟢</button>`;
+
+  // ✅ এডিট বাটন (২৪ ঘণ্টার ফ্রি লজিক)
+  const hoursDiff = (new Date() - dateObj) / (1000 * 60 * 60);
+  let editBtn = "";
+  if (hoursDiff <= 24) {
+    editBtn = `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}', '${tx.accountType}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Edit">✏️</button>`;
+  } else {
+    editBtn = `<button onclick="checkSubscriptionToEdit('${txDoc.id}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px; opacity: 0.5;" title="Locked (Requires Subscription)">🔒</button>`;
+  }
+
+  // 👁️ এপ্রুভাল আইকন
+  let approvalHtml = "";
+  if (tx.isPending) {
+    approvalHtml = `
+      <button onclick="approveTransaction('${txDoc.id}')" style="background: var(--success); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px;">👁️ Approve</button>
+      <button onclick="rejectTransaction('${txDoc.id}')" style="background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px;">❌ Reject</button>
+    `;
+  }
+
+  const card = document.createElement("div");
+  card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
+  const isDeleted = tx.isDeleted ? "opacity: 0.5; text-decoration: line-through;" : "";
+
+  card.innerHTML = `
+    <div class="timeline-date"><span>${dateStr}</span></div>
+    <div class="tx-card-inner" style="${isDeleted}">
+      <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="flex-wrap: wrap;">
         
-        imgHtml = `
-          <div class="tx-img-wrapper" style="position: relative; cursor: pointer;" onclick='viewImages(${JSON.stringify(images)})'>
-            <img src="${images[0]}">
-            ${overlay}
-          </div>
-        `;
-      }
-
-      const isGiven = tx.direction === "given";
-      const colorClass = isGiven ? "given" : "received";
-      
-      let displayAmount = tx.visibleAmount;
-      let typeLabel = "";
-      if (tx.accountType === "kacha") {
-        displayAmount = (tx.visibleAmount / 100).toFixed(2);
-        typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
-      }
-
-      // 👁️ এপ্রুভাল আইকন চেক (যদি isPending থাকে)
-      let approvalHtml = "";
-      if (tx.isPending) {
-        approvalHtml = `
-          <button onclick="approveTransaction('${txDoc.id}', '${tx.partyId}')" style="background: var(--success); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px; cursor: pointer;">👁️ Approve</button>
-          <button onclick="rejectTransaction('${txDoc.id}')" style="background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px; cursor: pointer;">❌ Reject</button>
-        `;
-      }
-
-      // WhatsApp শেয়ার বাটন
-      const waText = encodeURIComponent(`PayBook Ledger:\n${partyData.name}\nAmount: ₹${displayAmount}\nType: ${isGiven ? 'Given' : 'Received'}\nDate: ${dateStr}`);
-      const waBtn = `<button onclick="window.open('https://wa.me/${partyData.mobile}?text=${waText}', '_blank')" style="background: #25D366; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 5px; cursor: pointer;">📱 Share</button>`;
-
-      const card = document.createElement("div");
-      card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
-      
-      const isDeleted = tx.isDeleted ? "opacity: 0.5; text-decoration: line-through;" : "";
-
-      card.innerHTML = `
-        <div class="timeline-date"><span>${dateStr}</span></div>
-        <div class="tx-card-inner" style="${isDeleted}">
-          <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}">
-            <div style="display: flex; align-items: center; flex-wrap: wrap;">
-              <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
-              ${waBtn}
-              ${approvalHtml}
-            </div>
-            <span class="tx-time">${timeStr}</span>
-          </div>
-          ${imgHtml}
-          ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
+        <div style="display: flex; align-items: center;">
+          <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
+          ${waBtn}
+          ${editBtn}
         </div>
-      `;
-      timeline.appendChild(card);
-    });
+        
+        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+           <span class="tx-time">${timeStr}</span>
+           ${approvalHtml}
+        </div>
+
+      </div>
+      ${imgHtml}
+      ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
+    </div>
+  `;
+  timeline.appendChild(card);
+});
     
     setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 300);
   });
