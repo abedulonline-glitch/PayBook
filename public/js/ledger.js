@@ -201,3 +201,37 @@ function handleSwipe() {
 
 loadPartyDetails();
 loadTransactions();
+
+window.editTransaction = async function(txId, currentAmount, accType) {
+  const newAmount = prompt("নতুন অ্যামাউন্ট লিখুন (₹):", currentAmount);
+  if (newAmount && !isNaN(newAmount)) {
+    try {
+      await updateDoc(doc(db, "transactions", txId), { visibleAmount: parseFloat(newAmount) });
+      alert("এডিট সফল হয়েছে!");
+    } catch (e) { alert("সমস্যা: " + e.message); }
+  }
+};
+
+// সাবস্ক্রিপশন চেক করে এডিট
+window.checkSubscriptionToEdit = async function(txId) {
+  const userSnap = await getDoc(doc(db, "users", mobile));
+  const user = userSnap.data();
+  if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
+    window.editTransaction(txId); // সাবস্ক্রিপশন আছে, এডিট করতে দাও
+  } else {
+    alert("২৪ ঘণ্টা পার হয়ে গেছে। এডিট করতে সাবস্ক্রিপশন নিতে হবে। (ওয়ালেট মেনু থেকে রিচার্জ করুন)");
+  }
+};
+
+// এপ্রুভ/রিজেক্ট (আগের মতো)
+window.approveTransaction = async function(txId) {
+  if(!confirm("এপ্রুভ করবেন?")) return;
+  await updateDoc(doc(db, "transactions", txId), { isPending: false });
+  alert("এপ্রুভ হয়েছে!");
+};
+
+window.rejectTransaction = async function(txId) {
+  if(!confirm("রিজেক্ট করবেন?")) return;
+  await updateDoc(doc(db, "transactions", txId), { isDeleted: true, isPending: false });
+  alert("রিজেক্ট হয়েছে!");
+};
