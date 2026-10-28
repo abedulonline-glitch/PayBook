@@ -1,5 +1,5 @@
 import { db } from "./firebase-init.js";
-import { collection, addDoc, doc, getDoc ,updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { IMGBB_API_KEY } from "./config.js";
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -19,6 +19,7 @@ typeHeader.innerText = (selectedDirection === "received" ? "↓ প্রাপ�
 typeHeader.style.color = selectedDirection === "received" ? "var(--success)" : "var(--danger)";
 
 const dateInput = document.getElementById("tx-date");
+// আজকের তারিখ ডিফল্ট সেট করা (YYYY-MM-DD)
 dateInput.value = new Date().toISOString().split('T')[0];
 
 let selectedFiles = [];
@@ -32,32 +33,56 @@ document.getElementById("btn-cancel").onclick = () => modal.style.display = "non
 document.getElementById("btn-camera").onclick = () => { cameraInput.click(); modal.style.display = "none"; };
 document.getElementById("btn-gallery").onclick = () => { galleryInput.click(); modal.style.display = "none"; };
 
-cameraInput.addEventListener("change", (e) => { if (e.target.files[0]) { selectedFiles.push(e.target.files[0]); renderPreview(e.target.files[0], selectedFiles.length - 1); } cameraInput.value = ""; });
-galleryInput.addEventListener("change", (e) => { Array.from(e.target.files).forEach(file => { selectedFiles.push(file); renderPreview(file, selectedFiles.length - 1); }); galleryInput.value = ""; });
+cameraInput.addEventListener("change", (e) => { 
+  if (e.target.files[0]) { 
+    selectedFiles.push(e.target.files[0]); 
+    renderPreview(e.target.files[0], selectedFiles.length - 1); 
+  } 
+  cameraInput.value = ""; 
+});
+
+galleryInput.addEventListener("change", (e) => { 
+  Array.from(e.target.files).forEach(file => { 
+    selectedFiles.push(file); 
+    renderPreview(file, selectedFiles.length - 1); 
+  }); 
+  galleryInput.value = ""; 
+});
 
 function renderPreview(file, index) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const div = document.createElement("div");
     div.style.cssText = "position:relative; width:70px; height:70px;";
-    div.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #ddd;"><button type="button" class="remove-btn" data-index="${index}" style="position:absolute;top:-5px;right:-5px;background:red;color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;">✕</button>`;
+    div.innerHTML = `
+      <img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #ddd;">
+      <button type="button" class="remove-btn" data-index="${index}" style="position:absolute;top:-5px;right:-5px;background:red;color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;">✕</button>
+    `;
     previewContainer.appendChild(div);
-    div.querySelector('.remove-btn').onclick = function() { selectedFiles.splice(parseInt(this.dataset.index), 1); refreshPreviews(); };
+    
+    div.querySelector('.remove-btn').onclick = function() { 
+      selectedFiles.splice(parseInt(this.dataset.index), 1); 
+      refreshPreviews(); 
+    };
   };
   reader.readAsDataURL(file);
 }
 
-function refreshPreviews() { previewContainer.innerHTML = ""; selectedFiles.forEach((f, i) => renderPreview(f, i)); }
+function refreshPreviews() { 
+  previewContainer.innerHTML = ""; 
+  selectedFiles.forEach((f, i) => renderPreview(f, i)); 
+}
 
 async function uploadToImgBB(file) {
-  const formData = new FormData(); formData.append("image", file);
+  const formData = new FormData(); 
+  formData.append("image", file);
   const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
   const data = await res.json();
   if (!data.success) throw new Error("ইমেজ আপলোড ব্যর্থ");
   return data.data.url;
 }
 
-// সেভ বাটন (কাঁচা হলে পিন চাইবে, ছবি অপশনাল)
+// সেভ বাটন
 document.getElementById("save-tx-btn").addEventListener("click", async () => {
   const visibleAmount = parseFloat(document.getElementById("visible-amount").value);
   const note = document.getElementById("note").value.trim();
@@ -65,6 +90,7 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
   if (!visibleAmount || visibleAmount <= 0) return alert("সঠিক অ্যামাউন্ট দিন");
   if (accType === "paka" && selectedFiles.length === 0) return alert("পাকা হিসাবে ইমেজ প্রুফ বাধ্যতামূলক");
 
+  // কাঁচা হলে প্যানিক পিন চেক
   if (accType === "kacha") {
     let pin = prompt("কাঁচা এন্ট্রি করতে প্যানিক পিন দিন:");
     if (!pin) return;
@@ -86,6 +112,10 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
     const partySnap = await getDoc(doc(db, "parties", partyId));
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
 
+    // ✅ তারিখ (Date) সঠিকভাবে তৈরি করা (ভারতীয় সময় Zone সহ)
+    // dateInput.value (যেমন "2026-10-28") এর সাথে বর্তমান সময় যুক্ত করে Date অবজেক্ট বানানো
+    const selectedDate = dateInput.value ? new Date(dateInput.value + 'T' + new Date().toTimeString().split(' ')[0]) : new Date();
+
     // ১. সাথে সাথে ডেটাবেসে সেভ করা (ছবি ছাড়া)
     const txRef = await addDoc(collection(db, "transactions"), {
       ownerMobile: mobile,
@@ -94,10 +124,10 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       accountType: accType,
       direction: selectedDirection,
       visibleAmount: visibleAmount,
-      imageUrls: [], // শুরুতে খালি থাকবে
-      isUploadingImages: selectedFiles.length > 0, // আপলোড স্ট্যাটাস
+      imageUrls: [], 
+      isUploadingImages: selectedFiles.length > 0, 
       note: note,
-      date: new Date(dateInput.value),
+      date: selectedDate, // ✅ সঠিক টাইমস্ট্যাম্প
       isDeleted: false,
       isMirrored: false,
       deletedBy: [],
@@ -108,7 +138,7 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
     alert("লেনদেন সেভ হয়েছে! ছবি ব্যাকগ্রাউন্ডে আপলোড হচ্ছে।");
     history.back();
 
-    // ৩. ব্যাকগ্রাউন্ডে ছবি আপলোড করা (ইউজার এই সময় অন্য কাজ করতে পারবে)
+    // ৩. ব্যাকগ্রাউন্ডে ছবি আপলোড করা
     if (selectedFiles.length > 0) {
       let uploadedUrls = [];
       for (let i = 0; i < selectedFiles.length; i++) {
