@@ -54,9 +54,15 @@ async function syncCrossPartyData() {
         const tx = txDoc.data();
         
         // 🛑 ডুপ্লিকেট চেক (originalTxId দিয়ে)
-        const checkMirrored = query(collection(db, "transactions"), where("ownerMobile", "==", mobile), where("originalTxId", "==", txDoc.id));
+         // 🛑 ডুপ্লিকেট চেক (originalTxId এবং amount চেক করে)
+        const checkMirrored = query(
+          collection(db, "transactions"), 
+          where("ownerMobile", "==", mobile), 
+          where("originalTxId", "==", txDoc.id)
+        );
         const mirrorSnap = await getDocs(checkMirrored);
 
+        // যদি আগে থেকে মিরর করা না থাকে, তবেই নতুন করে যোগ হবে
         if (mirrorSnap.empty) {
           await addDoc(collection(db, "transactions"), {
             ownerMobile: mobile,
