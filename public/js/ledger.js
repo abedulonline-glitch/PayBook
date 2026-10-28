@@ -123,14 +123,21 @@ async function loadTransactions() {
     }
     
     timeline.innerHTML = "";
-    // নতুন আগে আসবে
-    const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
-
-    // ডুপ্লিকেট ফিল্টার
+    
+    // ১. ডুপ্লিকেট ফিল্টার (originalTxId চেক করে)
     const uniqueDocs = [];
     const seenIds = new Set();
-    docs.forEach(d => {
+    
+    // নতুন আগে আসবে
+    const sortedDocs = snapshot.docs.sort((a, b) => {
+      const dateA = a.data().date?.toDate ? a.data().date.toDate() : new Date(a.data().date || 0);
+      const dateB = b.data().date?.toDate ? b.data().date.toDate() : new Date(b.data().date || 0);
+      return dateB - dateA;
+    });
+
+    sortedDocs.forEach(d => {
       const data = d.data();
+      // মিরর ট্রানজেকশন হলে originalTxId, না হলে নিজের ID
       const uniqueId = data.originalTxId || d.id; 
       if (!seenIds.has(uniqueId)) {
         seenIds.add(uniqueId);
@@ -138,36 +145,26 @@ async function loadTransactions() {
       }
     });
 
+    // ২. লুপ চালিয়ে কার্ড তৈরি
     uniqueDocs.forEach((txDoc) => {
       const tx = txDoc.data();
       
+      // প্যানিক মোড না থাকলে কাঁচা লুকাবে
       if (!isPanicActive && tx.accountType === "kacha") return;
 
-      // ✅ নতুন টাইম ফরম্যাটিং (ভারতীয় সময়ের জন্য)
-      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date);
+      // ৩. সঠিক টাইম (ভারতীয় সময়)
+      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date || Date.now());
       
-      // ভারতীয় টাইমজোন (IST) সেট করা হলো
-      const options = { 
-        timeZone: 'Asia/Kolkata', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true // AM/PM দেখানোর জন্য
-      };
-      const timeStr = dateObj.toLocaleTimeString('en-IN', options);
-      const dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
       
+      // ৪. ইমেজ হ্যান্ডলিং
       let images = tx.imageUrls || (tx.imageUrl ? [tx.imageUrl] : []);
       let imgHtml = "";
       
       if (tx.isUploadingImages) {
-        // যদি আপলোড চলমান থাকে
-        imgHtml = `
-          <div class="tx-img-wrapper" style="display: flex; justify-content: center; align-items: center; background: #f0f0f0; height: 150px; color: #666; font-weight: bold;">
-            ⏳ ইমেজ আপলোড হচ্ছে...
-          </div>
-        `;
+        imgHtml = `<div class="tx-img-wrapper" style="display: flex; justify-content: center; align-items: center; background: #f0f0f0; height: 150px; color: #666; font-weight: bold;">⏳ ইমেজ আপলোড হচ্ছে...</div>`;
       } else if (images.length > 0) {
-        // যদি আপলোড শেষ হয়ে ছবি থাকে
         let overlay = images.length > 1 
           ? `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:13px;">+${images.length-1}</div>` : "";
         
