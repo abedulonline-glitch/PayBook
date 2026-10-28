@@ -33,21 +33,52 @@ document.getElementById("btn-cancel").onclick = () => modal.style.display = "non
 document.getElementById("btn-camera").onclick = () => { cameraInput.click(); modal.style.display = "none"; };
 document.getElementById("btn-gallery").onclick = () => { galleryInput.click(); modal.style.display = "none"; };
 
-cameraInput.addEventListener("change", (e) => { 
+cameraInput.addEventListener("change", async (e) => { 
   if (e.target.files[0]) { 
-    selectedFiles.push(e.target.files[0]); 
-    renderPreview(e.target.files[0], selectedFiles.length - 1); 
+    const compressed = await compressImage(e.target.files[0]); // কম্প্রেস করা হলো
+    selectedFiles.push(compressed); 
+    renderPreview(compressed, selectedFiles.length - 1); 
   } 
   cameraInput.value = ""; 
 });
 
-galleryInput.addEventListener("change", (e) => { 
-  Array.from(e.target.files).forEach(file => { 
-    selectedFiles.push(file); 
-    renderPreview(file, selectedFiles.length - 1); 
-  }); 
+galleryInput.addEventListener("change", async (e) => { 
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const compressed = await compressImage(file); // প্রতিটি ছবি কম্প্রেস করা হলো
+    selectedFiles.push(compressed); 
+    renderPreview(compressed, selectedFiles.length - 1); 
+  }
   galleryInput.value = ""; 
 });
+
+// ✅ ইমেজ কম্প্রেস করার ফাংশন (ক্যানভাস ব্যবহার করে)
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 800; // ম্যাক্সিমাম চওড়া ৮০০ পিক্সেল (কমিয়ে দিলে সাইজ কমবে)
+        const scaleSize = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+          // নতুন কম্প্রেস করা ফাইল তৈরি
+          const compressedFile = new File([blob], "compressed_" + file.name, { type: "image/jpeg" });
+          resolve(compressedFile);
+        }, "image/jpeg", 0.7); // ৭০% কোয়ালিটি (ফাইল সাইজ অনেক কমে যাবে)
+      };
+    };
+  });
+}
 
 function renderPreview(file, index) {
   const reader = new FileReader();
