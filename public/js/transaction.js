@@ -1,5 +1,5 @@
 import { db } from "./firebase-init.js";
-import { collection, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, addDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { IMGBB_API_KEY } from "./config.js";
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -31,7 +31,7 @@ document.getElementById("btn-cancel").onclick = () => modal.style.display = "non
 document.getElementById("btn-camera").onclick = () => { cameraInput.click(); modal.style.display = "none"; };
 document.getElementById("btn-gallery").onclick = () => { galleryInput.click(); modal.style.display = "none"; };
 
-// ✅ ইমেজ কম্প্রেস করার ফাংশন (সাইজ ছোট করে, যাতে দ্রুত আপলোড হয়)
+// ✅ ইমেজ কম্প্রেস করার ফাংশন
 function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -41,7 +41,7 @@ function compressImage(file) {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 600; // সাইজ আরও কমিয়ে ৬০০ করা হলো
+        const MAX_WIDTH = 800; 
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
@@ -50,7 +50,7 @@ function compressImage(file) {
         canvas.toBlob((blob) => {
           const compressedFile = new File([blob], "compressed_" + file.name, { type: "image/jpeg" });
           resolve(compressedFile);
-        }, "image/jpeg", 0.6); // ৬০% কোয়ালিটি
+        }, "image/jpeg", 0.7); 
       };
     };
   });
@@ -108,12 +108,12 @@ function getBase64(file) {
   });
 }
 
-// ✅ স্মার্ট আপলোড ফাংশন: আগে ImgBB চেষ্টা করবে, ফেইল করলে Base64 করবে
+// ✅ স্মার্ট আপলোড (ImgBB + Base64 Fallback)
 async function smartImageUpload(file) {
   try {
     const formData = new FormData(); 
     formData.append("image", file);
-    // টাইমআউট সেট করা হলো ৫ সেকেন্ড
+    // টাইমআউট ৫ সেকেন্ড
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
@@ -127,7 +127,6 @@ async function smartImageUpload(file) {
     throw new Error("ImgBB failed");
   } catch (e) {
     console.warn("ImgBB failed, using Base64 fallback...");
-    // ImgBB ফেইল করলে Base64 রিটার্ন করবে
     return await getBase64(file);
   }
 }
@@ -161,7 +160,7 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
     let uploadedUrls = [];
     for (let i = 0; i < selectedFiles.length; i++) {
       btn.innerText = `আপলোড (${i+1}/${selectedFiles.length})...`;
-      // স্মার্ট আপলোড (ImgBB অথবা Base64)
+      // স্মার্ট আপলোড
       const url = await smartImageUpload(selectedFiles[i]);
       uploadedUrls.push(url);
     }
@@ -170,25 +169,25 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
     const selectedDate = dateInput.value ? new Date(dateInput.value + 'T' + new Date().toTimeString().split(' ')[0]) : new Date();
 
-    // ২. ডেটাবেসে সেভ (ছবি ছাড়া)
-const txRef = await addDoc(collection(db, "transactions"), {
-  ownerMobile: mobile,
-  partyId: partyId,
-  counterpartyMobile: partyMobile,
-  accountType: accType,
-  direction: selectedDirection,
-  visibleAmount: visibleAmount,
-  imageUrls: [], 
-  isUploadingImages: selectedFiles.length > 0, 
-  note: note,
-  date: selectedDate, 
-  isDeleted: false,
-  isMirrored: false, // 🛑 এখানে false দিতে হবে
-  status: "pending", // 🛑 নতুন লেনদেন পেন্ডিং থাকবে
-  rejectReason: "",
-  deletedBy: [],
-  verifiedBy: []
-});
+    // ডেটাবেসে সেভ (সব ফিল্ড ঠিকমতো দেওয়া হলো)
+    await addDoc(collection(db, "transactions"), {
+      ownerMobile: mobile,
+      partyId: partyId,
+      counterpartyMobile: partyMobile,
+      accountType: accType,
+      direction: selectedDirection,
+      visibleAmount: visibleAmount,
+      imageUrls: uploadedUrls, 
+      isUploadingImages: false,
+      note: note,
+      date: selectedDate,
+      isDeleted: false,
+      isMirrored: false, 
+      status: "pending", 
+      rejectReason: "",
+      deletedBy: [],
+      verifiedBy: []
+    });
 
     alert("সফলভাবে সেভ হয়েছে!");
     history.back();
