@@ -13,6 +13,7 @@ let currentImages = [];
 let currentImageIndex = 0;
 let partyData = {};
 let userHasSubscription = false;
+let userSalt = ""; // পিন ভেরিফাই করার জন্য
 
 // ✅ টেবিল সোজা করার ফাংশন
 function padSpace(text, length, alignRight = true) {
@@ -31,73 +32,47 @@ function formatWhatsAppNumber(number) {
   return cleanNumber;
 }
 
-// ... (আগের ইমপোর্ট এবং ভেরিয়েবলগুলো একই থাকবে) ...
-let userSalt = "";
-
-// ... (checkSubscription ফাংশনের নিচে userSalt লোড করার ব্যবস্থা করুন) ...
+// ✅ সাবস্ক্রিপশন এবং সল্ট চেক
 async function checkSubscription() {
-  const userSnap = await getDoc(doc(db, "users", mobile));
-  if (userSnap.exists()) {
-    const user = userSnap.data();
-    userSalt = user.salt;
-    if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
-      userHasSubscription = true;
+  try {
+    const userSnap = await getDoc(doc(db, "users", mobile));
+    if (userSnap.exists()) {
+      const user = userSnap.data();
+      userSalt = user.salt;
+      if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
+        userHasSubscription = true;
+      }
     }
-  }
+  } catch (e) { console.error("Sub check error:", e); }
 }
 
-// ... (loadTransactions ফাংশনের ভেতরে WhatsApp বাটনের লজিক পরিবর্তন করুন) ...
-      // ✅ WhatsApp বাটন (প্যানিক পিন চেকসহ)
-      let waBtn = "";
-      if (waNumber) {
-        waBtn = `<button onclick="shareToWhatsApp('${waNumber}', \`${waText}\`)" style="background: #E8F5E9; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Share">🟢</button>`;
-      }
-
-// ... (লেজার ফাইলের শেষে এই ফাংশনটি যোগ করুন) ...
-window.shareToWhatsApp = async function(waNumber, waMessage) {
-  // যদি প্যানিক মোডে থাকে, তবে পিন চাইবে
-  if (isPanicActive) {
-    let pin = prompt("শেয়ার করতে প্যানিক পিন দিন:");
-    if (!pin) return;
-    
-    try {
-      const enc = new TextEncoder();
-      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
-      const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(userSalt), iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
-      const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
-      
-      const userSnap = await getDoc(doc(db, "users", mobile));
-      if (hash !== userSnap.data().panicPinHash) return alert("ভুল প্যানিক পিন!");
-    } catch(e) { return alert(e.message); }
-  }
-  
-  // পিন সঠিক হলে WhatsApp ওপেন হবে
-  window.open(`https://wa.me/${waNumber}?text=${waMessage}`, '_blank');
-};
 // ১. পার্টির ডিটেইলস লোড
 async function loadPartyDetails() {
-  const docSnap = await getDoc(doc(db, "parties", partyId));
-  if (docSnap.exists()) {
-    partyData = docSnap.data();
-    document.getElementById("party-name").innerText = partyData.name;
-    const type = partyData.partyType || "customer";
-    document.getElementById("party-type-label").innerText = type === "customer" ? "Customer (কাস্টমার)" : "Supplier (সাপ্লায়ার)";
-    
-    const initial = partyData.name.charAt(0).toUpperCase();
-    if (partyData.profilePic) {
-      document.getElementById("avatar-text").style.display = "none";
-      document.getElementById("avatar-img").src = partyData.profilePic;
-      document.getElementById("avatar-img").style.display = "block";
-    } else {
-      document.getElementById("avatar-text").innerText = initial;
+  try {
+    const docSnap = await getDoc(doc(db, "parties", partyId));
+    if (docSnap.exists()) {
+      partyData = docSnap.data();
+      document.getElementById("party-name").innerText = partyData.name || "Unknown";
+      const type = partyData.partyType || "customer";
+      document.getElementById("party-type-label").innerText = type === "customer" ? "Customer (কাস্টমার)" : "Supplier (সাপ্লায়ার)";
+      
+      const initial = (partyData.name || "U").charAt(0).toUpperCase();
+      if (partyData.profilePic) {
+        document.getElementById("avatar-text").style.display = "none";
+        document.getElementById("avatar-img").src = partyData.profilePic;
+        document.getElementById("avatar-img").style.display = "block";
+      } else {
+        document.getElementById("avatar-text").innerText = initial;
+      }
     }
-  }
+  } catch (e) { console.log("Party details error:", e); }
 }
 
 // ২. প্রোফাইল মোডাল ওপেন
 window.openProfileModal = function() {
+  if(!partyData.name) return;
   document.getElementById("modal-party-name").innerText = partyData.name + " ✏️";
-  document.getElementById("modal-party-mobile").innerText = partyData.mobile;
+  document.getElementById("modal-party-mobile").innerText = partyData.mobile || "N/A";
   document.getElementById("modal-party-type").innerText = partyData.partyType === "supplier" ? "Supplier" : "Customer";
   
   const initial = partyData.name.charAt(0).toUpperCase();
@@ -115,17 +90,15 @@ window.openProfileModal = function() {
 window.closeProfileModal = function() { document.getElementById("profile-modal").style.display = "none"; };
 window.zoomProfileImage = function() { if (partyData.profilePic) window.viewImages([partyData.profilePic]); };
 
-// ৩. নাম এডিট করার ফাংশন
+// ৩. নাম এডিট
 window.editPartyName = async function() {
   const newName = prompt("পার্টির নতুন নাম লিখুন:", partyData.name);
   if (newName && newName.trim() !== "" && newName !== partyData.name) {
     try {
       await updateDoc(doc(db, "parties", partyId), { name: newName.trim() });
       partyData.name = newName.trim();
-      
       document.getElementById("party-name").innerText = partyData.name;
       document.getElementById("modal-party-name").innerText = partyData.name + " ✏️";
-      
       const initial = partyData.name.charAt(0).toUpperCase();
       if (!partyData.profilePic) {
         document.getElementById("avatar-text").innerText = initial;
@@ -136,7 +109,7 @@ window.editPartyName = async function() {
   }
 };
 
-// ৪. ফোন নম্বর এডিট করার ফাংশন
+// ৪. ফোন নম্বর এডিট
 window.editPartyPhone = async function() {
   const newMobile = prompt("পার্টির নতুন মোবাইল নম্বর লিখুন (১০ ডিজিট):", partyData.mobile);
   if (newMobile && /^[0-9]{10}$/.test(newMobile.trim()) && newMobile !== partyData.mobile) {
@@ -170,7 +143,7 @@ document.getElementById("avatar-upload").addEventListener("change", async (e) =>
   } catch (err) { alert("ছবি আপলোডে সমস্যা: " + err.message); } finally { btn.innerText = "📷 প্রোফাইল ছবি পরিবর্তন করুন"; }
 });
 
-// ৬. রিয়েল-টাইম লেনদেন লোড (সব লজিক ঠিক আছে)
+// ৬. রিয়েল-টাইম লেনদেন লোড (এরর-ফ্রি)
 async function loadTransactions() {
   await checkSubscription();
   
@@ -198,24 +171,32 @@ async function loadTransactions() {
       }
     });
 
-    const sortedAsc = uniqueDocs.sort((a, b) => a.data().date.toDate() - b.data().date.toDate());
+    // ✅ নিরাপদ সর্টিং (যদি date না থাকে তবে আজকের তারিখ ধরবে)
+    const sortedAsc = uniqueDocs.sort((a, b) => {
+      const dateA = a.data().date && a.data().date.toDate ? a.data().date.toDate() : new Date(0);
+      const dateB = b.data().date && b.data().date.toDate ? b.data().date.toDate() : new Date(0);
+      return dateA - dateB;
+    });
 
     let runningBalance = 0;
     let waTable = "";
 
     const processedDocs = sortedAsc.map(tDoc => {
       const tx = tDoc.data();
-      let amt = tx.visibleAmount;
+      let amt = tx.visibleAmount || 0;
       if (tx.accountType === "kacha") amt = amt / 100;
 
       const isG = tx.direction === "given";
+      
+      // ✅ রিজেক্টেড বা ডিলিট করা বাদে বাকি সব যোগ হবে
       if (!tx.isDeleted && tx.status !== "rejected") {
         if (isG) runningBalance -= amt;
         else runningBalance += amt;
       }
 
-      const dObj = tx.date.toDate();
-      const dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
+      // ✅ নিরাপদ ডেট কনভার্সন
+      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date();
+      const dStr = dateObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
       
       let givenStr = isG ? amt.toString() : "0";
       let recvStr = !isG ? amt.toString() : "0";
@@ -236,11 +217,12 @@ async function loadTransactions() {
     const displayDocs = processedDocs.reverse();
     const netBalanceText = runningBalance > 0 ? `₹${runningBalance.toFixed(2)} (You Get)` : `₹${Math.abs(runningBalance).toFixed(2)} (You Give)`;
 
+    // ৭. UI কার্ড তৈরি
     displayDocs.forEach((item) => {
       const txDoc = item.doc;
       const tx = txDoc.data();
       
-      const dateObj = tx.date.toDate();
+      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date();
       const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
       const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
       
@@ -264,7 +246,7 @@ async function loadTransactions() {
       let displayAmount = item.amt;
       let typeLabel = tx.accountType === "kacha" ? `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>` : "";
 
-      const waMessage = `*PayBook Ledger - ${partyData.name}*\n\nDate      | Given   | Recv    | Bal    \n-------------------------------------\n${waTable}-------------------------------------\n*Total Balance: ${netBalanceText}*`;
+      const waMessage = `*PayBook Ledger - ${partyData.name || 'Unknown'}*\n\nDate      | Given   | Recv    | Bal    \n-------------------------------------\n${waTable}-------------------------------------\n*Total Balance: ${netBalanceText}*`;
       const waText = encodeURIComponent(waMessage);
       let waNumber = formatWhatsAppNumber(partyData.mobile);
       
@@ -281,7 +263,7 @@ async function loadTransactions() {
       let actionBtns = "";
       
       if (waNumber) {
-        actionBtns += `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: #E8F5E9; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Share">🟢</button>`;
+        actionBtns += `<button onclick="shareToWhatsApp('${waNumber}', \`${waText}\`)" style="background: #E8F5E9; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Share">🟢</button>`;
       }
 
       if (isCreator) {
@@ -308,26 +290,20 @@ async function loadTransactions() {
       card.innerHTML = `
         <div class="timeline-date"><span>${dateStr}</span></div>
         <div class="tx-card-inner" style="${isDeleted}">
-          
           <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 16px;">
-            
             <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
               <div style="display: flex; align-items: center;">
                 <span class="tx-amount ${colorClass}" style="font-size: 20px; font-weight: 700;">${isGiven ? '↑' : '↓'} ₹${displayAmount}</span>
                 ${typeLabel}
                 <span style="margin-left: 8px;">${statusIcon}</span>
               </div>
-              
               <div style="display: flex; gap: 8px; margin-top: 4px;">
                 ${actionBtns}
               </div>
             </div>
-
             <span class="tx-time" style="font-size: 12px; color: #777;">${timeStr}</span>
           </div>
-
           ${isRejected ? `<div style="width:100%; font-size:12px; color:#d32f2f; padding: 8px 16px; background:#FFEBEE; border-top: 1px solid #ffcdd2;">কারণ: ${tx.rejectReason}</div>` : ''}
-          
           ${imgHtml}
           ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
         </div>
@@ -339,7 +315,26 @@ async function loadTransactions() {
   });
 }
 
-// ✅ ডাইনামিক রিভিউ মোডাল
+// ✅ WhatsApp শেয়ার (প্যানিক পিন চেকসহ)
+window.shareToWhatsApp = async function(waNumber, waMessage) {
+  if (isPanicActive) {
+    let pin = prompt("শেয়ার করতে প্যানিক পিন দিন:");
+    if (!pin) return;
+    
+    try {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(userSalt), iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+      const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
+      
+      const userSnap = await getDoc(doc(db, "users", mobile));
+      if (hash !== userSnap.data().panicPinHash) return alert("ভুল প্যানিক পিন!");
+    } catch(e) { return alert(e.message); }
+  }
+  window.open(`https://wa.me/${waNumber}?text=${waMessage}`, '_blank');
+};
+
+// ✅ রিভিউ মোডাল ও অন্যান্য ফাংশন আগের মতোই থাকবে...
 function createReviewModal() {
   if (document.getElementById('review-modal')) return;
   const modalHtml = `
@@ -385,19 +380,15 @@ window.checkRejectReason = function() {
   const drop = document.getElementById('reject-reason-dropdown').value;
   const customInput = document.getElementById('custom-reason-input');
   const btn = document.getElementById('confirm-reject-btn');
-
   if (drop === "custom") {
     customInput.style.display = 'block';
-    btn.disabled = true;
-    btn.style.background = "#ccc";
+    btn.disabled = true; btn.style.background = "#ccc";
   } else if (drop !== "") {
     customInput.style.display = 'none';
-    btn.disabled = false;
-    btn.style.background = "var(--danger)";
+    btn.disabled = false; btn.style.background = "var(--danger)";
   } else {
     customInput.style.display = 'none';
-    btn.disabled = true;
-    btn.style.background = "#ccc";
+    btn.disabled = true; btn.style.background = "#ccc";
   }
 };
 
@@ -416,7 +407,6 @@ window.rejectTransaction = async function(txId) {
   let reason = document.getElementById('reject-reason-dropdown').value;
   if (reason === "custom") reason = document.getElementById('custom-reason-input').value;
   if (!reason) return alert("কারণ লিখুন");
-
   try {
     await updateDoc(doc(db, "transactions", txId), { status: "rejected", rejectReason: reason });
     const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
@@ -443,9 +433,7 @@ window.editTransaction = async function(txId, currentAmount) {
   if (newAmount && !isNaN(newAmount)) {
     try {
       await updateDoc(doc(db, "transactions", txId), { 
-        visibleAmount: parseFloat(newAmount),
-        status: "pending", 
-        rejectReason: "" 
+        visibleAmount: parseFloat(newAmount), status: "pending", rejectReason: "" 
       });
       alert("এডিট সফল হয়েছে! B আবার রিভিউ করবে।");
     } catch (e) { alert("সমস্যা: " + e.message); }
