@@ -170,25 +170,25 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
     const partyMobile = partySnap.exists() ? partySnap.data().mobile : null;
     const selectedDate = dateInput.value ? new Date(dateInput.value + 'T' + new Date().toTimeString().split(' ')[0]) : new Date();
 
-    // ডেটাবেসে সেভ
-    await addDoc(collection(db, "transactions"), {
-      ownerMobile: mobile,
-      partyId: partyId,
-      counterpartyMobile: partyMobile,
-      accountType: accType,
-      direction: selectedDirection,
-      visibleAmount: visibleAmount,
-      imageUrls: uploadedUrls,
-      isUploadingImages: false,
-      note: note,
-      status: "pending", // ✅ নতুন ট্রানজেকশন পেন্ডিং থাকবে
-      rejectReason: "",
-      date: selectedDate,
-      isDeleted: false,
-      isMirrored: false,
-      deletedBy: [],
-      verifiedBy: []
-    });
+    // ২. ডেটাবেসে সেভ (ছবি ছাড়া)
+const txRef = await addDoc(collection(db, "transactions"), {
+  ownerMobile: mobile,
+  partyId: partyId,
+  counterpartyMobile: partyMobile,
+  accountType: accType,
+  direction: selectedDirection,
+  visibleAmount: visibleAmount,
+  imageUrls: [], 
+  isUploadingImages: selectedFiles.length > 0, 
+  note: note,
+  date: selectedDate, 
+  isDeleted: false,
+  isMirrored: false, // 🛑 এখানে false দিতে হবে
+  status: "pending", // 🛑 নতুন লেনদেন পেন্ডিং থাকবে
+  rejectReason: "",
+  deletedBy: [],
+  verifiedBy: []
+});
 
     alert("সফলভাবে সেভ হয়েছে!");
     history.back();
