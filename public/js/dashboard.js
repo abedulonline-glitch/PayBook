@@ -62,22 +62,70 @@ for (const txDoc of txSnap.docs) {
       ownerMobile: mobile,
       partyId: myPartyId,
       counterpartyMobile: otherParty.ownerMobile,
-      accountType: tx.accountType,
-      direction: tx.direction === "given" ? "received" : "given", 
-      visibleAmount: tx.visibleAmount,
-      imageUrls: tx.imageUrls || [],
-      note: tx.note,
-      date: tx.date,
-      isDeleted: false,
-      isMirrored: true,
-      isPending: true, // 👁️ মিরর ট্রানজেকশনে পেন্ডিং সেট করা হলো
-      originalTxId: txDoc.id, 
-      deletedBy: [],
-      verifiedBy: []
-    });
-  }
-}
-   
+// ১. মিররিং ও সিঙ্ক (লুপ ও ডাবল এন্ট্রি ফিক্স)
+async function syncCrossPartyData() {
+  try {
+    const q = query(collection(db, "parties"), where("mobile", "==", mobile));
+    const snap = await getDocs(q);
+    
+    for (const d of snap.docs) {
+      const otherParty = d.data();
+      if (otherParty.ownerMobile === mobile) continue; 
+
+      const myPartiesQuery = query(collection(db, "parties"), where("ownerMobile", "==", mobile), where("mobile", "==", otherParty.ownerMobile));
+      let myPartiesSnap = await getDocs(myPartiesQuery);
+      let myPartyId = null;
+
+      if (myPartiesSnap.empty) {
+        const newType = otherParty.partyType === "customer" ? "supplier" : "customer";
+        const newDocRef = doc(collection(db, "parties")); 
+        await setDoc(newDocRef, {
+          ownerMobile: mobile,
+          name: otherParty.ownerMobile, 
+          mobile: otherParty.ownerMobile,
+          partyType: newType,
+          isAutoSynced: true,
+          createdAt: new Date()
+        });
+        myPartyId = newDocRef.id;
+      } else {
+        myPartyId = myPartiesSnap.docs[0].id;
+      }
+
+      // 🛑 শুধুমাত্র অরিজিনাল ট্রানজেকশন খুঁজব (যেগুলো মিরর নয়)
+      const txQuery = query(
+        collection(db, "transactions"), 
+        where("ownerMobile", "==", otherParty.ownerMobile), 
+        where("counterpartyMobile", "==", mobile),
+        where("isMirrored", "==", false) // অরিজিনাল ট্রানজেকশন
+      );
+      const txSnap = await getDocs(txQuery);
+
+      for (const txDoc of txSnap.docs) {
+        const tx = txDoc.data();
+        
+        // ✅ ফিক্সড আইডি ব্যবহার (যাতে ডাবল এন্ট্রি না হয়)
+        const mirrorDocId = `mirror_${txDoc.id}_${mobile}`;
+        const mirrorDocRef = doc(db, "transactions", mirrorDocId);
+
+        await setDoc(mirrorDocRef, {
+          ownerMobile: mobile,
+          partyId: myPartyId,
+          counterpartyMobile: otherParty.ownerMobile,
+          accountType: tx.accountType,
+          direction: tx.direction === "given" ? "received" : "given", 
+          visibleAmount: tx.visibleAmount,
+          imageUrls: tx.imageUrls || [],
+          note: tx.note,
+          date: tx.date,
+          isDeleted: false,
+          isMirrored: true, // 🛑 এটি মিরর, একে আর মিরর করা যাবে না
+          status: "pending", 
+          originalTxId: txDoc.id, 
+          deletedBy: [],
+          verifiedBy: []
+        }, { merge: true }); 
+      }
     }
   } catch (err) { 
     console.error("Sync error", err); 
