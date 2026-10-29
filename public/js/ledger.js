@@ -12,6 +12,7 @@ let isPanicActive = sessionStorage.getItem("panic_unlock_until") && Date.now() <
 let currentImages = [];
 let currentImageIndex = 0;
 let partyData = {};
+let userHasSubscription = false; // B-এর সাবস্ক্রিপশন স্ট্যাটাস
 
 // ✅ টেবিল সোজা করার ফাংশন
 function padSpace(text, length, alignRight = true) {
@@ -30,6 +31,17 @@ function formatWhatsAppNumber(number) {
     cleanNumber = '91' + cleanNumber;
   }
   return cleanNumber;
+}
+
+// ✅ সাবস্ক্রিপশন চেক করা
+async function checkSubscription() {
+  const userSnap = await getDoc(doc(db, "users", mobile));
+  if (userSnap.exists()) {
+    const user = userSnap.data();
+    if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
+      userHasSubscription = true;
+    }
+  }
 }
 
 // ১. পার্টির ডিটেইলস
@@ -53,7 +65,9 @@ async function loadPartyDetails() {
 }
 
 // ২. রিয়েল-টাইম লেনদেন লোড
-function loadTransactions() {
+async function loadTransactions() {
+  await checkSubscription(); // সাবস্ক্রিপশন চেক
+  
   const txRef = collection(db, "transactions");
   const q = query(txRef, where("ownerMobile", "==", mobile), where("partyId", "==", partyId));
   
@@ -67,7 +81,7 @@ function loadTransactions() {
     
     timeline.innerHTML = "";
 
-    // ১. ডুপ্লিকেট মিরর ফিল্টার (অরিজিনাল এবং মিরর করা ট্রানজেকশন একবারই দেখাবে)
+    // ১. ডুপ্লিকেট মিরর ফিল্টার
     const uniqueDocs = [];
     const seenIds = new Set();
     snapshot.docs.forEach(d => {
@@ -79,13 +93,11 @@ function loadTransactions() {
       }
     });
 
-    // ২. পুরনো থেকে নতুন ক্রমে সাজানো (Running Balance ক্যালকুলেশনের জন্য)
+    // ২. পুরনো থেকে নতুন ক্রমে সাজানো (Running Balance)
     const sortedAsc = uniqueDocs.sort((a, b) => a.data().date.toDate() - b.data().date.toDate());
 
     // ৩. Running Balance এবং Total ক্যালকুলেশন
     let runningBalance = 0;
-    let totalReceived = 0;
-    let totalGiven = 0;
     let waTable = "";
 
     const processedDocs = sortedAsc.map(tDoc => {
@@ -94,17 +106,15 @@ function loadTransactions() {
       if (tx.accountType === "kacha") amt = amt / 100;
 
       const isG = tx.direction === "given";
+      // যদি ডিলিট না হয়ে থাকে এবং এপ্রুভড থাকে (বা পেন্ডিং থাকে) তবেই হিসাবে যোগ হবে
       if (!tx.isDeleted) {
         if (isG) {
-          totalGiven += amt;
           runningBalance -= amt;
         } else {
-          totalReceived += amt;
           runningBalance += amt;
         }
       }
 
-      // হোয়াটসঅ্যাপ টেবিলে দেখানোর জন্য ডেটা ফরম্যাট
       const dObj = tx.date.toDate();
       const dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
       
@@ -117,7 +127,6 @@ function loadTransactions() {
         recvStr = !isG ? "X" : "0";
       }
 
-      // টেবিলে রো (Row) তৈরি
       if (isPanicActive || tx.accountType === "paka") {
         waTable += `${padSpace(dStr, 9)} | ${padSpace(givenStr, 7)} | ${padSpace(recvStr, 7)} | ${padSpace(balStr, 7)}\n`;
       }
@@ -127,7 +136,6 @@ function loadTransactions() {
 
     // ৪. স্ক্রিনে নতুন থেকে পুরনো দেখানোর জন্য রিভার্স করা
     const displayDocs = processedDocs.reverse();
-    
     const netBalanceText = runningBalance > 0 ? `₹${runningBalance.toFixed(2)} (You Get)` : `₹${Math.abs(runningBalance).toFixed(2)} (You Give)`;
 
     // ৫. UI কার্ড তৈরি
@@ -163,7 +171,7 @@ function loadTransactions() {
         typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
       }
 
-      // WhatsApp মেসেজ তৈরি (যেকোনো কার্ড থেকে ক্লিক করলে পুরো টেবিল যাবে)
+      // WhatsApp মেসেজ তৈরি
       const waMessage = `*PayBook Ledger - ${partyData.name}*\n\n` +
                         `Date      | Given   | Recv    | Bal    \n` +
                         `-------------------------------------\n` +
@@ -172,37 +180,50 @@ function loadTransactions() {
                         `*Total Balance: ${netBalanceText}*`;
       
       const waText = encodeURIComponent(waMessage);
-      
       let waNumber = formatWhatsAppNumber(partyData.mobile);
       let waBtn = "";
       if (waNumber) {
         waBtn = `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; margin-left: 8px;" title="Share">🟢</button>`;
       }
 
-      // ২৪ ঘণ্টার এডিট বাটন
-      const hoursDiff = (new Date() - dateObj) / (1000 * 60 * 60);
-      let editBtn = "";
-      if (hoursDiff <= 24) {
-        editBtn = `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}', '${tx.accountType}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Edit">✏️</button>`;
-      } else {
-        editBtn = `<button onclick="checkSubscriptionToEdit('${txDoc.id}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px; opacity: 0.5;" title="Locked">🔒</button>`;
+      // ✅ স্ট্যাটাস চেক (রিভিউ সিস্টেম)
+      const isPending = tx.status === "pending";
+      const isApproved = tx.status === "approved";
+      const isRejected = tx.status === "rejected";
+      const isCreator = !tx.originalTxId; // যদি অরিজিনাল আইডি না থাকে, তবে আমি A (যিনি এন্ট্রি দিয়েছেন)
+      
+      // স্ট্যাটাস আইকন
+      let statusIcon = "";
+      if (isApproved) statusIcon = `<span style="color: green; font-weight: bold; margin-left: 5px;" title="Approved">✓✓</span>`;
+      else if (isRejected) statusIcon = `<span style="color: red; font-weight: bold; margin-left: 5px;" title="Rejected: ${tx.rejectReason}">❌</span>`;
+      else if (isPending) statusIcon = `<span style="color: orange; font-weight: bold; margin-left: 5px;" title="Pending">⏳</span>`;
+
+      // ✅ অ্যাকশন বাটন লজিক
+      let actionBtns = "";
+      
+      // ডিলিট বাটন (সবসময় থাকবে)
+      if (!tx.isDeleted && !isPending) {
+        actionBtns += `<button onclick="deleteTransaction('${txDoc.id}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Delete">🗑️</button>`;
       }
 
-      // 🗑️ ডিলিট বাটন
-      let deleteBtn = "";
-      if (!tx.isDeleted) {
-        deleteBtn = `<button onclick="deleteTransaction('${txDoc.id}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Delete">🗑️</button>`;
+      // A (Creator) এর জন্য এডিট বাটন
+      if (isCreator) {
+        if (isRejected) {
+          actionBtns += `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}', '${tx.accountType}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Edit">✏️</button>`;
+        } else if (isApproved) {
+          // এপ্রুভড হলে এডিট নেই
+        } else if (isPending) {
+          // পেন্ডিং থাকলে A এডিট দেখবে না, শুধু অপেক্ষা করবে
+        }
       }
 
-      // 👁️ এপ্রুভাল বাটন
-      let approvalHtml = "";
-      if (tx.isPending) {
-        approvalHtml = `
-          <div style="margin-top: 8px; display: flex; gap: 5px; width: 100%;">
-            <button onclick="approveTransaction('${txDoc.id}')" style="flex: 1; background: var(--success); color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold;">👁️ Approve</button>
-            <button onclick="rejectTransaction('${txDoc.id}')" style="flex: 1; background: var(--danger); color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; font-weight: bold;">❌ Reject</button>
-          </div>
-        `;
+      // B (Receiver) এর জন্য রিভিউ বাটন
+      if (!isCreator && isPending) {
+        if (userHasSubscription) {
+          actionBtns += `<button onclick="openReviewModal('${txDoc.id}')" style="background: transparent; border: none; font-size: 20px; cursor: pointer; margin-left: 5px;" title="Review">👁️</button>`;
+        } else {
+          actionBtns += `<span style="font-size: 11px; color: #d32f2f; margin-left: 5px; display: inline-block; max-width: 80px; line-height: 1.1;">রিভিউ করতে সাবস্ক্রিপশন নিন</span>`;
+        }
       }
 
       const card = document.createElement("div");
@@ -215,15 +236,15 @@ function loadTransactions() {
           <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="flex-wrap: wrap;">
             
             <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
-              <div>
+              <div style="display: flex; align-items: center; flex-wrap: wrap;">
                 <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
+                ${statusIcon}
                 ${waBtn}
-                ${editBtn}
-                ${deleteBtn}
+                ${actionBtns}
               </div>
               <span class="tx-time">${timeStr}</span>
             </div>
-            ${approvalHtml}
+            ${isRejected ? `<div style="width:100%; font-size:12px; color:red; margin-top:5px; background:#ffeeee; padding:4px; border-radius:4px;">কারণ: ${tx.rejectReason}</div>` : ''}
           </div>
           ${imgHtml}
           ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
@@ -236,6 +257,99 @@ function loadTransactions() {
   });
 }
 
+// ✅ ডাইনামিক রিভিউ মোডাল তৈরি (ledger.html এ কিছু যোগ করতে হবে না)
+function createReviewModal() {
+  if (document.getElementById('review-modal')) return;
+  const modalHtml = `
+    <div id="review-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
+      <div style="background: #fff; width: 90%; max-width: 350px; border-radius: 16px; padding: 24px; text-align: center;">
+        <h3 style="margin-bottom: 16px; color: #333;">লেনদেন রিভিউ</h3>
+        <p style="margin-bottom: 20px; font-size: 14px; color: #666;">আপনি কি এই লেনদেনটি সঠিক মনে করছেন?</p>
+        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+          <button onclick="approveTransaction(window.currentReviewTxId)" style="flex: 1; background: var(--success); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">✓ Approve</button>
+          <button onclick="document.getElementById('reject-section').style.display='block'" style="flex: 1; background: var(--danger); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">✕ Reject</button>
+        </div>
+        <div id="reject-section" style="display: none; text-align: left;">
+          <label style="font-size: 12px; font-weight: bold;">রিজেক্টের কারণ:</label>
+          <select id="reject-reason-dropdown" onchange="checkRejectReason()" style="width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px;">
+            <option value="">কারণ সিলেক্ট করুন</option>
+            <option value="টাকার পরিমাণ ভুল">টাকার পরিমাণ ভুল</option>
+            <option value="তারিখ ভুল">তারিখ ভুল</option>
+            <option value="আমি এই লেনদেন করিনি">আমি এই লেনদেন করিনি</option>
+            <option value="custom">অন্যান্য (নিজে লিখুন)</option>
+          </select>
+          <input type="text" id="custom-reason-input" placeholder="কারণ লিখুন..." style="display: none; width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px;">
+          <button id="confirm-reject-btn" onclick="rejectTransaction(window.currentReviewTxId)" disabled style="width: 100%; background: #ccc; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">রিজেক্ট নিশ্চিত করুন</button>
+        </div>
+        <button onclick="document.getElementById('review-modal').style.display='none'" style="background: transparent; border: none; color: #666; margin-top: 16px;">বাতিল</button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// ✅ রিভিউ মোডাল ওপেন
+window.openReviewModal = function(txId) {
+  window.currentReviewTxId = txId;
+  document.getElementById('reject-section').style.display = 'none';
+  document.getElementById('reject-reason-dropdown').value = "";
+  document.getElementById('custom-reason-input').value = "";
+  document.getElementById('custom-reason-input').style.display = 'none';
+  document.getElementById('confirm-reject-btn').disabled = true;
+  document.getElementById('confirm-reject-btn').style.background = "#ccc";
+  document.getElementById('review-modal').style.display = 'flex';
+};
+
+window.checkRejectReason = function() {
+  const drop = document.getElementById('reject-reason-dropdown').value;
+  const customInput = document.getElementById('custom-reason-input');
+  const btn = document.getElementById('confirm-reject-btn');
+
+  if (drop === "custom") {
+    customInput.style.display = 'block';
+    btn.disabled = true;
+    btn.style.background = "#ccc";
+  } else if (drop !== "") {
+    customInput.style.display = 'none';
+    btn.disabled = false;
+    btn.style.background = "var(--danger)";
+  } else {
+    customInput.style.display = 'none';
+    btn.disabled = true;
+    btn.style.background = "#ccc";
+  }
+};
+
+// ✅ এপ্রুভ লজিক
+window.approveTransaction = async function(txId) {
+  try {
+    await updateDoc(doc(db, "transactions", txId), { status: "approved" });
+    const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
+    const snap = await getDocs(q);
+    snap.forEach(async (d) => { await updateDoc(doc(db, "transactions", d.id), { status: "approved" }); });
+    
+    document.getElementById('review-modal').style.display = 'none';
+    alert("লেনদেন এপ্রুভ করা হয়েছে!");
+  } catch (e) { alert("সমস্যা: " + e.message); }
+};
+
+// ✅ রিজেক্ট লজিক
+window.rejectTransaction = async function(txId) {
+  let reason = document.getElementById('reject-reason-dropdown').value;
+  if (reason === "custom") reason = document.getElementById('custom-reason-input').value;
+  if (!reason) return alert("কারণ লিখুন");
+
+  try {
+    await updateDoc(doc(db, "transactions", txId), { status: "rejected", rejectReason: reason });
+    const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
+    const snap = await getDocs(q);
+    snap.forEach(async (d) => { await updateDoc(doc(db, "transactions", d.id), { status: "rejected", rejectReason: reason }); });
+    
+    document.getElementById('review-modal').style.display = 'none';
+    alert("লেনদেন রিজেক্ট করা হয়েছে।");
+  } catch (e) { alert("সমস্যা: " + e.message); }
+};
+
 // ৪. ডিলিট ফাংশন
 window.deleteTransaction = async function(txId) {
   if (!confirm("আপনি কি এই লেনদেনটি ডিলিট করতে চান? এটি হিসাব থেকে বাদ যাবে।")) return;
@@ -243,50 +357,24 @@ window.deleteTransaction = async function(txId) {
     await updateDoc(doc(db, "transactions", txId), { isDeleted: true });
     const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
     const snap = await getDocs(q);
-    snap.forEach(async (d) => {
-      await updateDoc(doc(db, "transactions", d.id), { isDeleted: true });
-    });
+    snap.forEach(async (d) => { await updateDoc(doc(db, "transactions", d.id), { isDeleted: true }); });
     alert("লেনদেন ডিলিট করা হয়েছে।");
   } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ৫. এপ্রুভ/রিজেক্ট
-window.approveTransaction = async function(txId) {
-  if(!confirm("এপ্রুভ করবেন?")) return;
-  await updateDoc(doc(db, "transactions", txId), { isPending: false });
-  const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
-  const snap = await getDocs(q);
-  snap.forEach(async (d) => { await updateDoc(doc(db, "transactions", d.id), { isPending: false }); });
-  alert("এপ্রুভ হয়েছে!");
-};
-
-window.rejectTransaction = async function(txId) {
-  if(!confirm("রিজেক্ট করবেন?")) return;
-  await updateDoc(doc(db, "transactions", txId), { isDeleted: true, isPending: false });
-  const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
-  const snap = await getDocs(q);
-  snap.forEach(async (d) => { await updateDoc(doc(db, "transactions", d.id), { isDeleted: true, isPending: false }); });
-  alert("রিজেক্ট হয়েছে!");
-};
-
-// ৬. এডিট
+// ৬. এডিট (A-এর জন্য)
 window.editTransaction = async function(txId, currentAmount, accType) {
   const newAmount = prompt("নতুন অ্যামাউন্ট লিখুন (₹):", currentAmount);
   if (newAmount && !isNaN(newAmount)) {
     try {
-      await updateDoc(doc(db, "transactions", txId), { visibleAmount: parseFloat(newAmount) });
-      alert("এডিট সফল হয়েছে!");
+      // এডিট করলে স্ট্যাটাস আবার pending হয়ে যাবে, যাতে B আবার রিভিউ করতে পারে
+      await updateDoc(doc(db, "transactions", txId), { 
+        visibleAmount: parseFloat(newAmount),
+        status: "pending", 
+        rejectReason: "" 
+      });
+      alert("এডিট সফল হয়েছে! B আবার রিভিউ করবে।");
     } catch (e) { alert("সমস্যা: " + e.message); }
-  }
-};
-
-window.checkSubscriptionToEdit = async function(txId) {
-  const userSnap = await getDoc(doc(db, "users", mobile));
-  const user = userSnap.data();
-  if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
-    window.editTransaction(txId);
-  } else {
-    alert("২৪ ঘণ্টা পার হয়ে গেছে। এডিট করতে সাবস্ক্রিপশন নিতে হবে।");
   }
 };
 
@@ -317,5 +405,7 @@ function handleSwipe() {
   document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
 }
 
+// ইনিশিয়ালাইজ
+createReviewModal();
 loadPartyDetails();
 loadTransactions();
