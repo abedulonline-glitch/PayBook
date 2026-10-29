@@ -225,61 +225,115 @@ window.switchAccountType = function(type) {
 };
 
 // ✅ ৫. রিপোর্ট ডাউনলোড (Excel/PDF)
+// ✅ ৫. রিপোর্ট ডাউনলোড (প্যানিক পিন ছাড়াই, WhatsApp ফরম্যাটে)
 window.downloadReport = async function(format) {
-  if (allParties.length === 0) return alert("ডেটা নেই!");
-  let pin = prompt("রিপোর্ট ডাউনলোড করতে ৬-ডিজিটের প্যানিক পিন দিন:");
-  if (!pin) return;
+  if (allParties.length === 0) return alert("ডাউনলোড করার মতো কোনো ডেটা নেই!");
 
   try {
-    const userSnap = await getDoc(doc(db, "users", mobile));
-    const user = userSnap.data();
-    const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
-    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(user.salt), iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
-    if (btoa(String.fromCharCode(...new Uint8Array(bits))) !== user.panicPinHash) return alert("ভুল প্যানিক পিন!");
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    let reportTitle = (isPanicActive && currentAccountType === 'both') ? "Both" : currentAccountType;
+    let rows = [];
     
-    if (format === 'excel') {
-      csvContent += `Report Type: ${reportTitle}\nParty Name,Type,Paka Given,Paka Received,Kacha Given,Kacha Received\n`;
-      allParties.forEach(p => {
-        let pg=0, pr=0, kg=0, kr=0;
-        allTransactions.forEach(tx => {
-          if (tx.partyId === p.id && !tx.isDeleted && tx.status !== "rejected") {
-            if (tx.accountType === "paka") { if (tx.direction === "given") pg += tx.visibleAmount; else pr += tx.visibleAmount; }
-            else { if (tx.direction === "given") kg += tx.visibleAmount; else kr += tx.visibleAmount; }
-          }
-        });
-        csvContent += `${p.name},${p.partyType},${pg},${pr},${kg},${kr}\n`;
+    // টেবিলের হেডার (হোয়াটসঅ্যাপের মতো)
+    rows.push(["Date", "Party Name", "Type", "Given", "Received", "Balance", "Note"]);
+
+    // প্রতিটি পার্টির লেনদেন প্রসেস করা
+    allParties.forEach(p => {
+      let partyTx = allTransactions.filter(tx => tx.partyId === p.id && !tx.isDeleted && tx.status !== "rejected");
+      
+      // পুরনো থেকে নতুন সাজানো
+      partyTx.sort((a, b) => a.date.toDate() - b.date.toDate());
+      
+      let runningBalance = 0;
+      
+      partyTx.forEach(tx => {
+        // প্যানিক মোড না থাকলে কাঁচা বাদ যাবে
+        if (!isPanicActive && tx.accountType === "kacha") return;
+        // যদি প্যানিক মোডে 'both' সিলেক্ট থাকে, তবে সবই আসবে
+        if (isPanicActive && currentAccountType !== 'both' && tx.accountType !== currentAccountType) return;
+
+        let amt = tx.visibleAmount;
+        if (tx.accountType === "kacha") amt = amt / 100;
+        
+        let givenStr = tx.direction === "given" ? amt : 0;
+        let recvStr = tx.direction === "received" ? amt : 0;
+        
+        runningBalance += (recvStr - givenStr);
+        
+        let dObj = tx.date.toDate();
+        let dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
+        
+        rows.push([
+          dStr, 
+          p.name, 
+          tx.accountType === 'kacha' ? 'Kacha' : 'Paka', 
+          givenStr, 
+          recvStr, 
+          runningBalance, 
+          tx.note || "-"
+        ]);
       });
+    });
+
+    if (rows.length === 1) return alert("এই ট্যাবে ডাউনলোড করার মতো কোনো লেনদেন নেই!");
+
+    // ✅ Excel (CSV) ডাউনলোড
+    if (format === 'excel') {
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // বাংলা লেখার জন্য BOM
+      rows.forEach(row => {
+        csvContent += row.map(cell => `"${cell}"`).join(",") + "\n";
+      });
+      
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `paybook_report_${Date.now()}.csv`);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      link.setAttribute("download", `PayBook_Report_${Date.now()}.csv`);
+      document.body.appendChild(link); 
+      link.click(); 
+      document.body.removeChild(link);
     } 
+    
+    // ✅ PDF ডাউনলোড
     else if (format === 'pdf') {
       let printWindow = window.open('', '_blank');
-      let html = `<html><head><title>PayBook Report</title><style>body{font-family: sans-serif;} table{width:100%; border-collapse: collapse; margin-top:20px;} th,td{border:1px solid #ddd; padding:8px; text-align:left;} th{background:#f2f2f2;}</style></head><body>`;
-      html += `<h2>PayBook Report - ${reportTitle}</h2>`;
-      html += `<table><tr><th>Party Name</th><th>Type</th><th>Paka Given</th><th>Paka Received</th><th>Kacha Given</th><th>Kacha Received</th></tr>`;
-      allParties.forEach(p => {
-        let pg=0, pr=0, kg=0, kr=0;
-        allTransactions.forEach(tx => {
-          if (tx.partyId === p.id && !tx.isDeleted && tx.status !== "rejected") {
-            if (tx.accountType === "paka") { if (tx.direction === "given") pg += tx.visibleAmount; else pr += tx.visibleAmount; }
-            else { if (tx.direction === "given") kg += tx.visibleAmount; else kr += tx.visibleAmount; }
-          }
-        });
-        html += `<tr><td>${p.name}</td><td>${p.partyType}</td><td>₹${pg}</td><td>₹${pr}</td><td>₹${kg}</td><td>₹${kr}</td></tr>`;
-      });
+      let html = `
+        <html><head><title>PayBook Report</title>
+        <style>
+          body{font-family: sans-serif; padding: 20px;}
+          h2 { color: #97144D; text-align: center; }
+          table{width:100%; border-collapse: collapse; margin-top:20px; font-size: 12px;}
+          th,td{border:1px solid #ddd; padding:8px; text-align:left;}
+          th{background:#f2f2f2; color: #333;}
+          .given { color: #D32F2F; font-weight: bold; }
+          .received { color: #2E7D32; font-weight: bold; }
+        </style></head><body>
+      `;
+      
+      html += `<h2>PayBook Ledger Report</h2>`;
+      html += `<p style="text-align:center; font-size:12px; color:#555;">Generated on: ${new Date().toLocaleString()}</p>`;
+      
+      html += `<table><tr>`;
+      rows[0].forEach(h => html += `<th>${h}</th>`);
+      html += `</tr>`;
+      
+      for (let i = 1; i < rows.length; i++) {
+        html += `<tr>`;
+        html += `<td>${rows[i][0]}</td>`; // Date
+        html += `<td>${rows[i][1]}</td>`; // Party Name
+        html += `<td>${rows[i][2]}</td>`; // Type
+        html += `<td class="given">${rows[i][3] != 0 ? rows[i][3] : '-'}</td>`; // Given
+        html += `<td class="received">${rows[i][4] != 0 ? rows[i][4] : '-'}</td>`; // Received
+        html += `<td><b>${rows[i][5]}</b></td>`; // Balance
+        html += `<td>${rows[i][6]}</td>`; // Note
+        html += `</tr>`;
+      }
       html += `</table></body></html>`;
+      
       printWindow.document.write(html);
       printWindow.document.close();
-      printWindow.print();
+      printWindow.print(); // ডিভাইসের প্রিন্ট ডায়ালগ ওপেন হবে, সেখান থেকে "Save as PDF" করতে হবে
     }
-  } catch (e) { alert("সমস্যা: " + e.message); }
+  } catch (e) { 
+    alert("রিপোর্ট তৈরিতে সমস্যা: " + e.message); 
+  }
 };
 
 // ✅ ৬. পার্টি সেভ
