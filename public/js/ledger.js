@@ -91,7 +91,7 @@ async function loadTransactions() {
       }
     });
 
-    // পুরনো থেকে নতুন ক্রমে সাজানো (Running Balance)
+    // পুরনো থেকে নতুন (Running Balance)
     const sortedAsc = uniqueDocs.sort((a, b) => a.data().date.toDate() - b.data().date.toDate());
 
     // ৩. Running Balance এবং Total ক্যালকুলেশন
@@ -105,13 +105,9 @@ async function loadTransactions() {
 
       const isG = tx.direction === "given";
       
-      // 🛑 শুধুমাত্র অ্যাপ্রুভড বা পেন্ডিং লেনদেন হিসাবে যোগ হবে (রিজেক্টেড বাদ যাবে)
       if (!tx.isDeleted && tx.status !== "rejected") {
-        if (isG) {
-          runningBalance -= amt;
-        } else {
-          runningBalance += amt;
-        }
+        if (isG) runningBalance -= amt;
+        else runningBalance += amt;
       }
 
       const dObj = tx.date.toDate();
@@ -136,7 +132,7 @@ async function loadTransactions() {
     const displayDocs = processedDocs.reverse();
     const netBalanceText = runningBalance > 0 ? `₹${runningBalance.toFixed(2)} (You Get)` : `₹${Math.abs(runningBalance).toFixed(2)} (You Give)`;
 
-    // ৫. UI কার্ড তৈরি
+    // ৫. UI কার্ড তৈরি (নতুন প্রফেশনাল ডিজাইন)
     displayDocs.forEach((item) => {
       const txDoc = item.doc;
       const tx = txDoc.data();
@@ -176,43 +172,42 @@ async function loadTransactions() {
       
       const waText = encodeURIComponent(waMessage);
       let waNumber = formatWhatsAppNumber(partyData.mobile);
-      let waBtn = "";
-      if (waNumber) {
-        waBtn = `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; margin-left: 8px;" title="Share">🟢</button>`;
-      }
-
-      // ✅ স্ট্যাটাস চেক (পুরনো isPending এবং নতুন status দুটোই সাপোর্ট করবে)
+      
+      // ✅ স্ট্যাটাস লজিক
       const isPending = tx.status === "pending" || tx.isPending === true;
       const isApproved = tx.status === "approved";
       const isRejected = tx.status === "rejected";
       const isCreator = !tx.originalTxId; 
       
       let statusIcon = "";
-      if (isApproved) statusIcon = `<span style="color: green; font-weight: bold; margin-left: 5px;" title="Approved">✓✓</span>`;
-      else if (isRejected) statusIcon = `<span style="color: red; font-weight: bold; margin-left: 5px;" title="Rejected: ${tx.rejectReason}">❌</span>`;
-      else if (isPending) statusIcon = `<span style="color: orange; font-weight: bold; margin-left: 5px;" title="Pending">⏳</span>`;
+      if (isApproved) statusIcon = `<span style="color: green; font-weight: bold; font-size: 16px;" title="Approved">✓✓</span>`;
+      else if (isRejected) statusIcon = `<span style="color: red; font-weight: bold; font-size: 16px;" title="${tx.rejectReason}">❌</span>`;
+      else if (isPending) statusIcon = `<span style="color: orange; font-weight: bold; font-size: 16px;" title="Pending">⏳</span>`;
 
-      // ✅ অ্যাকশন বাটন লজিক
+      // ✅ অ্যাকশন বাটন তৈরি (সব একসাথে)
       let actionBtns = "";
       
-      // ডিলিট বাটন
-      if (!tx.isDeleted && !isPending) {
-        actionBtns += `<button onclick="deleteTransaction('${txDoc.id}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Delete">🗑️</button>`;
+      // হোয়াটসঅ্যাপ বাটন
+      if (waNumber) {
+        actionBtns += `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: #E8F5E9; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Share">🟢</button>`;
       }
 
-      // A (Creator) এর এডিট বাটন
+      // A (Creator) এর এডিট/ডিলিট বাটন
       if (isCreator) {
         if (isRejected) {
-          actionBtns += `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}', '${tx.accountType}')" style="background: transparent; border: none; font-size: 16px; cursor: pointer; margin-left: 5px;" title="Edit">✏️</button>`;
+          actionBtns += `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}')" style="background: #FFF3E0; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Edit">✏️</button>`;
+        }
+        if (!tx.isDeleted && !isPending) {
+          actionBtns += `<button onclick="deleteTransaction('${txDoc.id}')" style="background: #FFEBEE; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Delete">🗑️</button>`;
         }
       }
 
       // B (Receiver) এর রিভিউ বাটন
       if (!isCreator && isPending) {
         if (userHasSubscription) {
-          actionBtns += `<button onclick="openReviewModal('${txDoc.id}')" style="background: transparent; border: none; font-size: 20px; cursor: pointer; margin-left: 5px;" title="Review">👁️</button>`;
+          actionBtns += `<button onclick="openReviewModal('${txDoc.id}')" style="background: #E3F2FD; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Review">👁️</button>`;
         } else {
-          actionBtns += `<span style="font-size: 11px; color: #d32f2f; margin-left: 5px; display: inline-block; max-width: 80px; line-height: 1.1;">রিভিউ করতে সাবস্ক্রিপশন নিন</span>`;
+          actionBtns += `<span style="font-size: 11px; color: #d32f2f; font-weight: bold;">রিভিউ (সাবস্ক্রিপশন)</span>`;
         }
       }
 
@@ -220,22 +215,33 @@ async function loadTransactions() {
       card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
       const isDeleted = tx.isDeleted ? "opacity: 0.5; text-decoration: line-through;" : "";
 
+      // ✅ নতুন কার্ড ডিজাইন
       card.innerHTML = `
         <div class="timeline-date"><span>${dateStr}</span></div>
         <div class="tx-card-inner" style="${isDeleted}">
-          <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="flex-wrap: wrap;">
+          
+          <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 16px;">
             
-            <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
-              <div style="display: flex; align-items: center; flex-wrap: wrap;">
-                <span class="tx-amount ${colorClass}">${isGiven ? '↑' : '↓'} ₹${displayAmount} ${typeLabel}</span>
-                ${statusIcon}
-                ${waBtn}
+            <!-- বাম দিক: টাকা, কাঁচা-পাকা লেবেল এবং স্ট্যাটাস -->
+            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+              <div style="display: flex; align-items: center;">
+                <span class="tx-amount ${colorClass}" style="font-size: 20px; font-weight: 700;">${isGiven ? '↑' : '↓'} ₹${displayAmount}</span>
+                ${typeLabel}
+                <span style="margin-left: 8px;">${statusIcon}</span>
+              </div>
+              
+              <!-- অ্যাকশন বাটনগুলো পাশাপাশি -->
+              <div style="display: flex; gap: 8px; margin-top: 4px;">
                 ${actionBtns}
               </div>
-              <span class="tx-time">${timeStr}</span>
             </div>
-            ${isRejected ? `<div style="width:100%; font-size:12px; color:red; margin-top:5px; background:#ffeeee; padding:4px; border-radius:4px;">কারণ: ${tx.rejectReason}</div>` : ''}
+
+            <!-- ডান দিক: সময় -->
+            <span class="tx-time" style="font-size: 12px; color: #777;">${timeStr}</span>
           </div>
+
+          ${isRejected ? `<div style="width:100%; font-size:12px; color:#d32f2f; padding: 8px 16px; background:#FFEBEE; border-top: 1px solid #ffcdd2;">কারণ: ${tx.rejectReason}</div>` : ''}
+          
           ${imgHtml}
           ${tx.note ? `<div class="tx-note">${tx.note}</div>` : ''}
         </div>
@@ -278,7 +284,6 @@ function createReviewModal() {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-// ✅ রিভিউ মোডাল ওপেন
 window.openReviewModal = function(txId) {
   window.currentReviewTxId = txId;
   document.getElementById('reject-section').style.display = 'none';
@@ -310,7 +315,6 @@ window.checkRejectReason = function() {
   }
 };
 
-// ✅ এপ্রুভ লজিক
 window.approveTransaction = async function(txId) {
   try {
     await updateDoc(doc(db, "transactions", txId), { status: "approved" });
@@ -322,7 +326,6 @@ window.approveTransaction = async function(txId) {
   } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ✅ রিজেক্ট লজিক
 window.rejectTransaction = async function(txId) {
   let reason = document.getElementById('reject-reason-dropdown').value;
   if (reason === "custom") reason = document.getElementById('custom-reason-input').value;
@@ -338,7 +341,6 @@ window.rejectTransaction = async function(txId) {
   } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ৪. ডিলিট ফাংশন
 window.deleteTransaction = async function(txId) {
   if (!confirm("আপনি কি এই লেনদেনটি ডিলিট করতে চান? এটি হিসাব থেকে বাদ যাবে।")) return;
   try {
@@ -350,8 +352,7 @@ window.deleteTransaction = async function(txId) {
   } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ৬. এডিট (A-এর জন্য)
-window.editTransaction = async function(txId, currentAmount, accType) {
+window.editTransaction = async function(txId, currentAmount) {
   const newAmount = prompt("নতুন অ্যামাউন্ট লিখুন (₹):", currentAmount);
   if (newAmount && !isNaN(newAmount)) {
     try {
@@ -365,7 +366,6 @@ window.editTransaction = async function(txId, currentAmount, accType) {
   }
 };
 
-// ৭. ইমেজ ভিউয়ার
 window.viewImages = function(imagesArray) {
   currentImages = imagesArray; 
   currentImageIndex = 0;
@@ -383,16 +383,13 @@ imgElement.addEventListener('mouseup', e => { touchEndX = e.screenX; handleSwipe
 
 function handleSwipe() {
   if (currentImages.length <= 1) return;
-  if (touchEndX < touchStartX - 50) {
-    currentImageIndex = (currentImageIndex + 1) % currentImages.length;
-  } else if (touchEndX > touchStartX + 50) {
-    currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
-  } else return;
+  if (touchEndX < touchStartX - 50) currentImageIndex = (currentImageIndex + 1) % currentImages.length;
+  else if (touchEndX > touchStartX + 50) currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
+  else return;
   document.getElementById('full-image').src = currentImages[currentImageIndex];
   document.getElementById('image-counter').innerText = `${currentImageIndex + 1} / ${currentImages.length}`;
 }
 
-// ইনিশিয়ালাইজ
 createReviewModal();
 loadPartyDetails();
 loadTransactions();
