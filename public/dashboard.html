@@ -4,34 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - ড্যাশবোর্ড</title>
-  <link rel="stylesheet" href="css/style.css?v=42">
+  <link rel="stylesheet" href="css/style.css?v=110">
+  <style>
+    /* ব্লিংকিং অ্যানিমেশন */
+    @keyframes blinkPanic {
+      0% { opacity: 1; background: #D32F2F; }
+      50% { opacity: 0.5; background: #B71C1C; }
+      100% { opacity: 1; background: #D32F2F; }
+    }
+    .panic-indicator {
+      display: none;
+      background: #D32F2F;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      animation: blinkPanic 1.5s infinite;
+    }
+    .hidden-tabs { display: none !important; }
+  </style>
 </head>
 <body style="display: block; background: var(--bg-color);">
 
-  <!-- হেডার (ওয়ালেট, রিপোর্ট আইকন, প্রোফাইল ও লগআউট) -->
+  <!-- প্যানিক ইন্ডিকেটর (ব্লিংকিং) -->
+  <div id="panic-indicator" class="panic-indicator" onclick="exitPanicMode()">
+    🔴 কাঁচা মোড (ফেক) - পাকা মোডে ফিরতে এখানে চাপুন
+  </div>
+
   <div class="header" style="padding: 10px 12px;">
     <h1 id="app-logo" style="cursor: pointer; color: var(--primary); margin: 0; font-size: 22px;">PayBook</h1>
-    
     <div style="display: flex; align-items: center; gap: 8px;">
-      
-      <!-- ওয়ালেট ব্যালেন্স বাটন -->
       <div onclick="window.location.href='wallet.html'" style="background: #E8F5E9; color: #2E7D32; padding: 6px 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; display: flex; align-items: center;">
         💰 <span id="header-balance">₹0</span>
       </div>
-
-      <!-- রিপোর্ট ডাউনলোড আইকন (Excel এবং PDF) -->
-      <button onclick="downloadReport('excel')" style="background: #f0f0f0; border: none; border-radius: 8px; padding: 6px; font-size: 16px; cursor: pointer; color: #2E7D32;" title="Excel ডাউনলোড">
-        📊
-      </button>
-      <button onclick="downloadReport('pdf')" style="background: #f0f0f0; border: none; border-radius: 8px; padding: 6px; font-size: 16px; cursor: pointer; color: #D32F2F;" title="PDF ডাউনলোড">
-        📄
-      </button>
-
-      <!-- প্রোফাইল ছবি (ক্লিক করলে আপলোড হবে) -->
+      <button onclick="downloadReport('excel')" style="background: #f0f0f0; border: none; border-radius: 8px; padding: 6px; font-size: 16px; cursor: pointer; color: #2E7D32;" title="Excel ডাউনলোড">📊</button>
+      <button onclick="downloadReport('pdf')" style="background: #f0f0f0; border: none; border-radius: 8px; padding: 6px; font-size: 16px; cursor: pointer; color: #D32F2F;" title="PDF ডাউনলোড">📄</button>
       <img id="profile-pic" src="https://via.placeholder.com/40" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: pointer;">
       <input type="file" id="profile-upload" accept="image/*" style="display: none;">
-      
-      <!-- লগআউট বাটন -->
       <button class="logout-btn" id="logout-btn" style="padding: 6px 10px; font-size: 13px;">লগআউট</button>
     </div>
   </div>
@@ -44,7 +55,7 @@
       <button class="tab-btn" id="tab-supplier" onclick="switchTab('supplier')">Supplier</button>
     </div>
 
-    <!-- প্যানিক মোড ট্যাব (শুধু প্যানিক আনলক থাকলে দেখাবে) -->
+    <!-- পাকা/কাঁচা ট্যাব (শুধুমাত্র নরমাল মোডে দেখাবে) -->
     <div class="tab-container" id="account-type-tabs" style="display: none; margin-top: -10px;">
       <button class="tab-btn active" id="acc-paka" onclick="switchAccountType('paka')">পাকা</button>
       <button class="tab-btn" id="acc-kacha" onclick="switchAccountType('kacha')">কাঁচা</button>
@@ -54,11 +65,11 @@
     <!-- সামারি কার্ড -->
     <div class="summary">
       <div class="card received">
-        <h3>মোট প্রাপ্য (পাকা)</h3>
+        <h3 id="summary-received-title">মোট প্রাপ্য (পাকা)</h3>
         <p id="total-received">₹0</p>
       </div>
       <div class="card given">
-        <h3>মোট প্রদেয় (পাকা)</h3>
+        <h3 id="summary-given-title">মোট প্রদেয় (পাকা)</h3>
         <p id="total-given">₹0</p>
       </div>
     </div>
@@ -80,9 +91,18 @@
     </div>
   </div>
 
-  <!-- নতুন পার্টি যোগ করার ফ্লোটিং বাটন -->
   <button class="add-btn" id="show-add-party">+</button>
 
-  <script type="module" src="js/dashboard.js?v=42"></script>
+  <!-- রিপোর্ট ডাউনলোড মোডাল (কাঁচা/উভয় সিলেক্ট করার জন্য) -->
+  <div id="report-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #fff; padding: 24px; border-radius: 16px; text-align: center; width: 90%; max-width: 350px;">
+      <h3 style="margin-bottom: 16px;">কোন রিপোর্ট ডাউনলোড করবেন?</h3>
+      <button onclick="processDownload('kacha')" style="width: 100%; padding: 12px; margin-bottom: 10px; background: #FFF3E0; color: #E65100; border: 1px solid #E65100; border-radius: 8px; font-weight: bold;">শুধুমাত্র কাঁচা</button>
+      <button onclick="processDownload('both')" style="width: 100%; padding: 12px; margin-bottom: 10px; background: #E8F5E9; color: #2E7D32; border: 1px solid #2E7D32; border-radius: 8px; font-weight: bold;">উভয় (কাঁচা + পাকা)</button>
+      <button onclick="document.getElementById('report-modal').style.display='none'" style="background: transparent; border: none; color: #777;">বাতিল</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/dashboard.js?v=110"></script>
 </body>
 </html>
