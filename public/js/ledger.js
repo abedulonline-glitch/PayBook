@@ -13,6 +13,15 @@ let currentImages = [];
 let currentImageIndex = 0;
 let partyData = {};
 
+// ✅ টেবিল সোজা করার ফাংশন (স্পেস ক্যালকুলেটর)
+function padSpace(text, length, alignRight = true) {
+  text = String(text);
+  let spaces = length - text.length;
+  if (spaces < 0) spaces = 0;
+  let pad = " ".repeat(spaces);
+  return alignRight ? pad + text : text + pad;
+}
+
 // ১. পার্টির ডিটেইলস
 async function loadPartyDetails() {
   const docSnap = await getDoc(doc(db, "parties", partyId));
@@ -95,8 +104,31 @@ function loadTransactions() {
         typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
       }
 
-      // WhatsApp মেসেজ ফরম্যাট
-      const waMessage = `*PayBook Ledger - ${partyData.name}*\n\nতারিখ: ${dateStr} (${timeStr})\nটাইপ: ${isGiven ? '↑ Given (প্রদেয়)' : '↓ Received (প্রাপ্য)'}\nপরিমাণ: ₹${displayAmount}\n${tx.note ? `নোট: ${tx.note}\n` : ''}\n_এই মেসেজটি PayBook অ্যাপ থেকে পাঠানো হয়েছে।_`;
+      // ✅ হোয়াটসঅ্যাপে পাঠানোর জন্য এক্সেল টেবিল ফরম্যাট তৈরি
+      let waTable = "";
+      uniqueDocs.forEach(t => {
+        const dObj = t.data().date && t.data().date.toDate ? t.data().date.toDate() : new Date(t.data().date);
+        const dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
+        
+        const isG = t.data().direction === "given";
+        let amt = t.data().visibleAmount;
+        if (t.data().accountType === "kacha") amt = (t.data().visibleAmount / 100).toFixed(2);
+        if (t.data().isDeleted) amt = "X"; // ডিলিট হলে X দেখাবে
+
+        const givenAmt = isG ? amt : "0";
+        const recvAmt = !isG ? amt : "0";
+        
+        // কলামের সাইজ ফিক্স করা হলো (তারিখ=৯, টাকা=৭)
+        waTable += `${padSpace(dStr, 9)} | ${padSpace(givenAmt, 7)} | ${padSpace(recvAmt, 7)} | ${padSpace(amt, 7)}\n`;
+      });
+
+      const waMessage = `*PayBook Ledger - ${partyData.name}*\n\n` +
+                        `Date      | Given   | Recv    | Bal    \n` +
+                        `-------------------------------------\n` +
+                        waTable +
+                        `-------------------------------------\n` +
+                        `*Total Balance: ₹${displayAmount}*`;
+      
       const waText = encodeURIComponent(waMessage);
       
       let waNumber = partyData.mobile;
@@ -165,10 +197,7 @@ function loadTransactions() {
 window.deleteTransaction = async function(txId) {
   if (!confirm("আপনি কি এই লেনদেনটি ডিলিট করতে চান? এটি হিসাব থেকে বাদ যাবে।")) return;
   try {
-    // মূল ট্রানজেকশন আপডেট
     await updateDoc(doc(db, "transactions", txId), { isDeleted: true });
-    
-    // মিরর ট্রানজেকশন আপডেট
     const q = query(collection(db, "transactions"), where("originalTxId", "==", txId));
     const snap = await getDocs(q);
     snap.forEach(async (d) => {
@@ -218,7 +247,7 @@ window.checkSubscriptionToEdit = async function(txId) {
   }
 };
 
-// ৭. ইমেজ ভিউয়ার (আগের মতোই)
+// ৭. ইমেজ ভিউয়ার
 window.viewImages = function(imagesArray) {
   currentImages = imagesArray; 
   currentImageIndex = 0;
