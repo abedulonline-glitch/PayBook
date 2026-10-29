@@ -181,6 +181,8 @@ document.getElementById("save-tx-btn").addEventListener("click", async () => {
       imageUrls: uploadedUrls,
       isUploadingImages: false,
       note: note,
+      status: "pending", // ✅ নতুন ট্রানজেকশন পেন্ডিং থাকবে
+      rejectReason: "",
       date: selectedDate,
       isDeleted: false,
       isMirrored: false,
