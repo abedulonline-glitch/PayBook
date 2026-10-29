@@ -66,12 +66,11 @@ function loadTransactions() {
     }
     
     timeline.innerHTML = "";
-    const docs = snapshot.docs.sort((a, b) => b.data().date.toDate() - a.data().date.toDate());
 
-    // ডুপ্লিকেট ফিল্টার
+    // ১. ডুপ্লিকেট মিরর ফিল্টার (অরিজিনাল এবং মিরর করা ট্রানজেকশন একবারই দেখাবে)
     const uniqueDocs = [];
     const seenIds = new Set();
-    docs.forEach(d => {
+    snapshot.docs.forEach(d => {
       const data = d.data();
       const uniqueId = data.originalTxId || d.id; 
       if (!seenIds.has(uniqueId)) {
@@ -80,32 +79,63 @@ function loadTransactions() {
       }
     });
 
-    // ৩. নেট ব্যালেন্স ক্যালকুলেশন (হোয়াটসঅ্যাপের জন্য)
+    // ২. পুরনো থেকে নতুন ক্রমে সাজানো (Running Balance ক্যালকুলেশনের জন্য)
+    const sortedAsc = uniqueDocs.sort((a, b) => a.data().date.toDate() - b.data().date.toDate());
+
+    // ৩. Running Balance এবং Total ক্যালকুলেশন
+    let runningBalance = 0;
     let totalReceived = 0;
     let totalGiven = 0;
+    let waTable = "";
 
-    uniqueDocs.forEach(t => {
-      const tx = t.data();
-      // প্যানিক মোড না থাকলে কাঁচা বাদ
-      if (!isPanicActive && tx.accountType === "kacha") return;
-      if (tx.isDeleted) return;
-
+    const processedDocs = sortedAsc.map(tDoc => {
+      const tx = tDoc.data();
       let amt = tx.visibleAmount;
       if (tx.accountType === "kacha") amt = amt / 100;
 
-      if (tx.direction === "given") totalGiven += amt;
-      else totalReceived += amt;
+      const isG = tx.direction === "given";
+      if (!tx.isDeleted) {
+        if (isG) {
+          totalGiven += amt;
+          runningBalance -= amt;
+        } else {
+          totalReceived += amt;
+          runningBalance += amt;
+        }
+      }
+
+      // হোয়াটসঅ্যাপ টেবিলে দেখানোর জন্য ডেটা ফরম্যাট
+      const dObj = tx.date.toDate();
+      const dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
+      
+      let givenStr = isG ? amt.toString() : "0";
+      let recvStr = !isG ? amt.toString() : "0";
+      let balStr = runningBalance.toString();
+
+      if (tx.isDeleted) {
+        givenStr = isG ? "X" : "0";
+        recvStr = !isG ? "X" : "0";
+      }
+
+      // টেবিলে রো (Row) তৈরি
+      if (isPanicActive || tx.accountType === "paka") {
+        waTable += `${padSpace(dStr, 9)} | ${padSpace(givenStr, 7)} | ${padSpace(recvStr, 7)} | ${padSpace(balStr, 7)}\n`;
+      }
+
+      return { doc: tDoc, runningBalance, amt, isDeleted: tx.isDeleted };
     });
 
-    const netBalance = totalReceived - totalGiven;
-    const netBalanceText = netBalance > 0 ? `₹${netBalance.toFixed(2)} (You Get)` : `₹${Math.abs(netBalance).toFixed(2)} (You Give)`;
+    // ৪. স্ক্রিনে নতুন থেকে পুরনো দেখানোর জন্য রিভার্স করা
+    const displayDocs = processedDocs.reverse();
+    
+    const netBalanceText = runningBalance > 0 ? `₹${runningBalance.toFixed(2)} (You Get)` : `₹${Math.abs(runningBalance).toFixed(2)} (You Give)`;
 
-    // ৪. কার্ড তৈরি
-    uniqueDocs.forEach((txDoc) => {
+    // ৫. UI কার্ড তৈরি
+    displayDocs.forEach((item) => {
+      const txDoc = item.doc;
       const tx = txDoc.data();
-      if (!isPanicActive && tx.accountType === "kacha") return;
-
-      const dateObj = tx.date && tx.date.toDate ? tx.date.toDate() : new Date(tx.date || Date.now());
+      
+      const dateObj = tx.date.toDate();
       const dateStr = dateObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
       const timeStr = dateObj.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
       
@@ -127,34 +157,13 @@ function loadTransactions() {
       const isGiven = tx.direction === "given";
       const colorClass = isGiven ? "given" : "received";
       
-      let displayAmount = tx.visibleAmount;
+      let displayAmount = item.amt;
       let typeLabel = "";
       if (tx.accountType === "kacha") {
-        displayAmount = (tx.visibleAmount / 100).toFixed(2);
         typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
       }
 
-      // ✅ হোয়াটসঅ্যাপে পাঠানোর জন্য এক্সেল টেবিল ফরম্যাট
-      let waTable = "";
-      uniqueDocs.forEach(t => {
-        const tData = t.data();
-        if (!isPanicActive && tData.accountType === "kacha") return;
-
-        const dObj = tData.date && tData.date.toDate ? tData.date.toDate() : new Date(tData.date);
-        const dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
-        
-        const isG = tData.direction === "given";
-        let amt = tData.visibleAmount;
-        if (tData.accountType === "kacha") amt = (tData.visibleAmount / 100).toFixed(2);
-        if (tData.isDeleted) amt = "X"; 
-
-        const givenAmt = isG ? amt : "0";
-        const recvAmt = !isG ? amt : "0";
-        
-        waTable += `${padSpace(dStr, 9)} | ${padSpace(givenAmt, 7)} | ${padSpace(recvAmt, 7)} | ${padSpace(amt, 7)}\n`;
-      });
-
-      // ✅ এখানে netBalanceText ব্যবহার করা হলো
+      // WhatsApp মেসেজ তৈরি (যেকোনো কার্ড থেকে ক্লিক করলে পুরো টেবিল যাবে)
       const waMessage = `*PayBook Ledger - ${partyData.name}*\n\n` +
                         `Date      | Given   | Recv    | Bal    \n` +
                         `-------------------------------------\n` +
