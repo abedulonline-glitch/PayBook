@@ -13,7 +13,7 @@ let currentImages = [];
 let currentImageIndex = 0;
 let partyData = {};
 
-// ✅ টেবিল সোজা করার ফাংশন (স্পেস ক্যালকুলেটর)
+// ✅ টেবিল সোজা করার ফাংশন
 function padSpace(text, length, alignRight = true) {
   text = String(text);
   let spaces = length - text.length;
@@ -80,7 +80,27 @@ function loadTransactions() {
       }
     });
 
-    // ৩. কার্ড তৈরি
+    // ৩. নেট ব্যালেন্স ক্যালকুলেশন (হোয়াটসঅ্যাপের জন্য)
+    let totalReceived = 0;
+    let totalGiven = 0;
+
+    uniqueDocs.forEach(t => {
+      const tx = t.data();
+      // প্যানিক মোড না থাকলে কাঁচা বাদ
+      if (!isPanicActive && tx.accountType === "kacha") return;
+      if (tx.isDeleted) return;
+
+      let amt = tx.visibleAmount;
+      if (tx.accountType === "kacha") amt = amt / 100;
+
+      if (tx.direction === "given") totalGiven += amt;
+      else totalReceived += amt;
+    });
+
+    const netBalance = totalReceived - totalGiven;
+    const netBalanceText = netBalance > 0 ? `₹${netBalance.toFixed(2)} (You Get)` : `₹${Math.abs(netBalance).toFixed(2)} (You Give)`;
+
+    // ৪. কার্ড তৈরি
     uniqueDocs.forEach((txDoc) => {
       const tx = txDoc.data();
       if (!isPanicActive && tx.accountType === "kacha") return;
@@ -114,16 +134,19 @@ function loadTransactions() {
         typeLabel = `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>`;
       }
 
-      // ✅ হোয়াটসঅ্যাপে পাঠানোর জন্য এক্সেল টেবিল ফরম্যাট তৈরি
+      // ✅ হোয়াটসঅ্যাপে পাঠানোর জন্য এক্সেল টেবিল ফরম্যাট
       let waTable = "";
       uniqueDocs.forEach(t => {
-        const dObj = t.data().date && t.data().date.toDate ? t.data().date.toDate() : new Date(t.data().date);
+        const tData = t.data();
+        if (!isPanicActive && tData.accountType === "kacha") return;
+
+        const dObj = tData.date && tData.date.toDate ? tData.date.toDate() : new Date(tData.date);
         const dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
         
-        const isG = t.data().direction === "given";
-        let amt = t.data().visibleAmount;
-        if (t.data().accountType === "kacha") amt = (t.data().visibleAmount / 100).toFixed(2);
-        if (t.data().isDeleted) amt = "X"; 
+        const isG = tData.direction === "given";
+        let amt = tData.visibleAmount;
+        if (tData.accountType === "kacha") amt = (tData.visibleAmount / 100).toFixed(2);
+        if (tData.isDeleted) amt = "X"; 
 
         const givenAmt = isG ? amt : "0";
         const recvAmt = !isG ? amt : "0";
@@ -131,16 +154,16 @@ function loadTransactions() {
         waTable += `${padSpace(dStr, 9)} | ${padSpace(givenAmt, 7)} | ${padSpace(recvAmt, 7)} | ${padSpace(amt, 7)}\n`;
       });
 
+      // ✅ এখানে netBalanceText ব্যবহার করা হলো
       const waMessage = `*PayBook Ledger - ${partyData.name}*\n\n` +
                         `Date      | Given   | Recv    | Bal    \n` +
                         `-------------------------------------\n` +
                         waTable +
                         `-------------------------------------\n` +
-                        `*Total Balance: ₹${displayAmount}*`;
+                        `*Total Balance: ${netBalanceText}*`;
       
       const waText = encodeURIComponent(waMessage);
       
-      // ✅ WhatsApp নাম্বার ফরম্যাট ও বাটন হাইড লজিক
       let waNumber = formatWhatsAppNumber(partyData.mobile);
       let waBtn = "";
       if (waNumber) {
