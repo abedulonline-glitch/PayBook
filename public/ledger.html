@@ -71,12 +71,20 @@
 
   <script type="module" src="js/ledger.js?v=106"></script>
   <script>
-    function goToNewTx(type, accType) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const partyId = urlParams.get("partyId");
-      const name = urlParams.get("name");
-      window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}&accountType=${accType}`;
-    }
-  </script>
+  function goToNewTx(type) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const partyId = urlParams.get("partyId");
+    const name = urlParams.get("name");
+    
+    // ✅ চেক করা হচ্ছে ইউজার প্যানিক মোডে আছে কি না
+    const panicUntil = sessionStorage.getItem("panic_unlock_until");
+    const isPanicActive = panicUntil && Date.now() < parseInt(panicUntil);
+    
+    // প্যানিক মোডে থাকলে কাঁচা, নাহলে পাকা
+    const accType = isPanicActive ? "kacha" : "paka";
+    
+    window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}&accountType=${accType}`;
+  }
+</script>
 </body>
 </html>
