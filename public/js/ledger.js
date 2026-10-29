@@ -31,17 +31,49 @@ function formatWhatsAppNumber(number) {
   return cleanNumber;
 }
 
-// ✅ সাবস্ক্রিপশন চেক
+// ... (আগের ইমপোর্ট এবং ভেরিয়েবলগুলো একই থাকবে) ...
+let userSalt = "";
+
+// ... (checkSubscription ফাংশনের নিচে userSalt লোড করার ব্যবস্থা করুন) ...
 async function checkSubscription() {
   const userSnap = await getDoc(doc(db, "users", mobile));
   if (userSnap.exists()) {
     const user = userSnap.data();
+    userSalt = user.salt;
     if (user.editSubValidUntil && new Date() < user.editSubValidUntil.toDate()) {
       userHasSubscription = true;
     }
   }
 }
 
+// ... (loadTransactions ফাংশনের ভেতরে WhatsApp বাটনের লজিক পরিবর্তন করুন) ...
+      // ✅ WhatsApp বাটন (প্যানিক পিন চেকসহ)
+      let waBtn = "";
+      if (waNumber) {
+        waBtn = `<button onclick="shareToWhatsApp('${waNumber}', \`${waText}\`)" style="background: #E8F5E9; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Share">🟢</button>`;
+      }
+
+// ... (লেজার ফাইলের শেষে এই ফাংশনটি যোগ করুন) ...
+window.shareToWhatsApp = async function(waNumber, waMessage) {
+  // যদি প্যানিক মোডে থাকে, তবে পিন চাইবে
+  if (isPanicActive) {
+    let pin = prompt("শেয়ার করতে প্যানিক পিন দিন:");
+    if (!pin) return;
+    
+    try {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(userSalt), iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+      const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
+      
+      const userSnap = await getDoc(doc(db, "users", mobile));
+      if (hash !== userSnap.data().panicPinHash) return alert("ভুল প্যানিক পিন!");
+    } catch(e) { return alert(e.message); }
+  }
+  
+  // পিন সঠিক হলে WhatsApp ওপেন হবে
+  window.open(`https://wa.me/${waNumber}?text=${waMessage}`, '_blank');
+};
 // ১. পার্টির ডিটেইলস লোড
 async function loadPartyDetails() {
   const docSnap = await getDoc(doc(db, "parties", partyId));
