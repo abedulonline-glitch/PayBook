@@ -42,7 +42,7 @@ async function checkSubscription() {
   }
 }
 
-// ১. পার্টির ডিটেইলস
+// ১. পার্টির ডিটেইলস লোড
 async function loadPartyDetails() {
   const docSnap = await getDoc(doc(db, "parties", partyId));
   if (docSnap.exists()) {
@@ -62,7 +62,83 @@ async function loadPartyDetails() {
   }
 }
 
-// ২. রিয়েল-টাইম লেনদেন লোড
+// ২. প্রোফাইল মোডাল ওপেন
+window.openProfileModal = function() {
+  document.getElementById("modal-party-name").innerText = partyData.name + " ✏️";
+  document.getElementById("modal-party-mobile").innerText = partyData.mobile;
+  document.getElementById("modal-party-type").innerText = partyData.partyType === "supplier" ? "Supplier" : "Customer";
+  
+  const initial = partyData.name.charAt(0).toUpperCase();
+  if (partyData.profilePic) {
+    document.getElementById("modal-avatar-text").style.display = "none";
+    document.getElementById("modal-avatar-img").src = partyData.profilePic;
+    document.getElementById("modal-avatar-img").style.display = "block";
+  } else {
+    document.getElementById("modal-avatar-text").innerText = initial;
+    document.getElementById("modal-avatar-img").style.display = "none";
+  }
+  document.getElementById("profile-modal").style.display = "flex";
+};
+
+window.closeProfileModal = function() { document.getElementById("profile-modal").style.display = "none"; };
+window.zoomProfileImage = function() { if (partyData.profilePic) window.viewImages([partyData.profilePic]); };
+
+// ৩. নাম এডিট করার ফাংশন
+window.editPartyName = async function() {
+  const newName = prompt("পার্টির নতুন নাম লিখুন:", partyData.name);
+  if (newName && newName.trim() !== "" && newName !== partyData.name) {
+    try {
+      await updateDoc(doc(db, "parties", partyId), { name: newName.trim() });
+      partyData.name = newName.trim();
+      
+      document.getElementById("party-name").innerText = partyData.name;
+      document.getElementById("modal-party-name").innerText = partyData.name + " ✏️";
+      
+      const initial = partyData.name.charAt(0).toUpperCase();
+      if (!partyData.profilePic) {
+        document.getElementById("avatar-text").innerText = initial;
+        document.getElementById("modal-avatar-text").innerText = initial;
+      }
+      alert("নাম আপডেট হয়েছে!");
+    } catch (e) { alert("সমস্যা: " + e.message); }
+  }
+};
+
+// ৪. ফোন নম্বর এডিট করার ফাংশন
+window.editPartyPhone = async function() {
+  const newMobile = prompt("পার্টির নতুন মোবাইল নম্বর লিখুন (১০ ডিজিট):", partyData.mobile);
+  if (newMobile && /^[0-9]{10}$/.test(newMobile.trim()) && newMobile !== partyData.mobile) {
+    try {
+      await updateDoc(doc(db, "parties", partyId), { mobile: newMobile.trim() });
+      partyData.mobile = newMobile.trim();
+      document.getElementById("modal-party-mobile").innerText = partyData.mobile;
+      alert("মোবাইল নম্বর আপডেট হয়েছে!");
+    } catch (e) { alert("সমস্যা: " + e.message); }
+  } else if (newMobile) {
+    alert("সঠিক ১০ ডিজিটের মোবাইল নম্বর দিন!");
+  }
+};
+
+// ৫. প্রোফাইল ছবি আপলোড
+document.getElementById("avatar-upload").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const btn = e.target.previousElementSibling;
+  btn.innerText = "আপলোড হচ্ছে...";
+  try {
+    const formData = new FormData(); formData.append("image", file);
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
+    const data = await res.json();
+    if (data.success) {
+      await updateDoc(doc(db, "parties", partyId), { profilePic: data.data.url });
+      partyData.profilePic = data.data.url;
+      document.getElementById("avatar-img").src = data.data.url; document.getElementById("avatar-img").style.display = "block"; document.getElementById("avatar-text").style.display = "none";
+      document.getElementById("modal-avatar-img").src = data.data.url; document.getElementById("modal-avatar-img").style.display = "block"; document.getElementById("modal-avatar-text").style.display = "none";
+    }
+  } catch (err) { alert("ছবি আপলোডে সমস্যা: " + err.message); } finally { btn.innerText = "📷 প্রোফাইল ছবি পরিবর্তন করুন"; }
+});
+
+// ৬. রিয়েল-টাইম লেনদেন লোড (সব লজিক ঠিক আছে)
 async function loadTransactions() {
   await checkSubscription();
   
@@ -79,7 +155,6 @@ async function loadTransactions() {
     
     timeline.innerHTML = "";
 
-    // 🛑 ডুপ্লিকেট ফিল্টার
     const uniqueDocs = [];
     const seenIds = new Set();
     snapshot.docs.forEach(d => {
@@ -91,10 +166,8 @@ async function loadTransactions() {
       }
     });
 
-    // পুরনো থেকে নতুন (Running Balance)
     const sortedAsc = uniqueDocs.sort((a, b) => a.data().date.toDate() - b.data().date.toDate());
 
-    // ৩. Running Balance এবং Total ক্যালকুলেশন
     let runningBalance = 0;
     let waTable = "";
 
@@ -104,7 +177,6 @@ async function loadTransactions() {
       if (tx.accountType === "kacha") amt = amt / 100;
 
       const isG = tx.direction === "given";
-      
       if (!tx.isDeleted && tx.status !== "rejected") {
         if (isG) runningBalance -= amt;
         else runningBalance += amt;
@@ -132,7 +204,6 @@ async function loadTransactions() {
     const displayDocs = processedDocs.reverse();
     const netBalanceText = runningBalance > 0 ? `₹${runningBalance.toFixed(2)} (You Get)` : `₹${Math.abs(runningBalance).toFixed(2)} (You Give)`;
 
-    // ৫. UI কার্ড তৈরি (নতুন প্রফেশনাল ডিজাইন)
     displayDocs.forEach((item) => {
       const txDoc = item.doc;
       const tx = txDoc.data();
@@ -158,22 +229,13 @@ async function loadTransactions() {
 
       const isGiven = tx.direction === "given";
       const colorClass = isGiven ? "given" : "received";
-      
       let displayAmount = item.amt;
       let typeLabel = tx.accountType === "kacha" ? `<span style="font-size:12px; background:#f0f0f0; padding:2px 6px; border-radius:8px; margin-left:8px;">কাঁচা</span>` : "";
 
-      // WhatsApp মেসেজ
-      const waMessage = `*PayBook Ledger - ${partyData.name}*\n\n` +
-                        `Date      | Given   | Recv    | Bal    \n` +
-                        `-------------------------------------\n` +
-                        waTable +
-                        `-------------------------------------\n` +
-                        `*Total Balance: ${netBalanceText}*`;
-      
+      const waMessage = `*PayBook Ledger - ${partyData.name}*\n\nDate      | Given   | Recv    | Bal    \n-------------------------------------\n${waTable}-------------------------------------\n*Total Balance: ${netBalanceText}*`;
       const waText = encodeURIComponent(waMessage);
       let waNumber = formatWhatsAppNumber(partyData.mobile);
       
-      // ✅ স্ট্যাটাস লজিক
       const isPending = tx.status === "pending" || tx.isPending === true;
       const isApproved = tx.status === "approved";
       const isRejected = tx.status === "rejected";
@@ -184,15 +246,12 @@ async function loadTransactions() {
       else if (isRejected) statusIcon = `<span style="color: red; font-weight: bold; font-size: 16px;" title="${tx.rejectReason}">❌</span>`;
       else if (isPending) statusIcon = `<span style="color: orange; font-weight: bold; font-size: 16px;" title="Pending">⏳</span>`;
 
-      // ✅ অ্যাকশন বাটন তৈরি (সব একসাথে)
       let actionBtns = "";
       
-      // হোয়াটসঅ্যাপ বাটন
       if (waNumber) {
         actionBtns += `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: #E8F5E9; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Share">🟢</button>`;
       }
 
-      // A (Creator) এর এডিট/ডিলিট বাটন
       if (isCreator) {
         if (isRejected) {
           actionBtns += `<button onclick="editTransaction('${txDoc.id}', '${tx.visibleAmount}')" style="background: #FFF3E0; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Edit">✏️</button>`;
@@ -202,7 +261,6 @@ async function loadTransactions() {
         }
       }
 
-      // B (Receiver) এর রিভিউ বাটন
       if (!isCreator && isPending) {
         if (userHasSubscription) {
           actionBtns += `<button onclick="openReviewModal('${txDoc.id}')" style="background: #E3F2FD; border: none; font-size: 16px; cursor: pointer; padding: 6px 10px; border-radius: 8px;" title="Review">👁️</button>`;
@@ -215,14 +273,12 @@ async function loadTransactions() {
       card.className = `timeline-item ${isGiven ? 'given-item' : 'received-item'}`;
       const isDeleted = tx.isDeleted ? "opacity: 0.5; text-decoration: line-through;" : "";
 
-      // ✅ নতুন কার্ড ডিজাইন
       card.innerHTML = `
         <div class="timeline-date"><span>${dateStr}</span></div>
         <div class="tx-card-inner" style="${isDeleted}">
           
           <div class="tx-card-header ${isGiven ? 'header-given' : 'header-received'}" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 16px;">
             
-            <!-- বাম দিক: টাকা, কাঁচা-পাকা লেবেল এবং স্ট্যাটাস -->
             <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
               <div style="display: flex; align-items: center;">
                 <span class="tx-amount ${colorClass}" style="font-size: 20px; font-weight: 700;">${isGiven ? '↑' : '↓'} ₹${displayAmount}</span>
@@ -230,13 +286,11 @@ async function loadTransactions() {
                 <span style="margin-left: 8px;">${statusIcon}</span>
               </div>
               
-              <!-- অ্যাকশন বাটনগুলো পাশাপাশি -->
               <div style="display: flex; gap: 8px; margin-top: 4px;">
                 ${actionBtns}
               </div>
             </div>
 
-            <!-- ডান দিক: সময় -->
             <span class="tx-time" style="font-size: 12px; color: #777;">${timeStr}</span>
           </div>
 
