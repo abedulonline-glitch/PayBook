@@ -14,7 +14,7 @@ let isPanicActive = sessionStorage.getItem("panic_unlock_until") && Date.now() <
 const partyContainer = document.getElementById("party-container");
 const addPartyForm = document.getElementById("add-party-form");
 
-// ১. মিররিং ও সিঙ্ক (ডুপ্লিকেট ফিক্স সহ)
+// ✅ ১. সিঙ্ক ও মিররিং (ইনডেক্স এরর ছাড়াই)
 async function syncCrossPartyData() {
   try {
     // ১. আমার নম্বরটি কার কার লিস্টে আছে খুঁজি
@@ -46,85 +46,39 @@ async function syncCrossPartyData() {
         myPartyId = myPartiesSnap.docs[0].id;
       }
 
-    // ৩. ট্রানজেকশন মিররিং
-const txQuery = query(collection(db, "transactions"), where("ownerMobile", "==", otherParty.ownerMobile), where("counterpartyMobile", "==", mobile));
-const txSnap = await getDocs(txQuery);
-
-for (const txDoc of txSnap.docs) {
-  const tx = txDoc.data();
-  
-  // 🛑 ডুপ্লিকেট চেক (অরিজিনাল আইডি এবং মিরর আইডি দুটোই চেক)
-  const checkMirrored = query(collection(db, "transactions"), where("ownerMobile", "==", mobile), where("originalTxId", "==", txDoc.id));
-  const mirrorSnap = await getDocs(checkMirrored);
-
-  if (mirrorSnap.empty) {
-    await addDoc(collection(db, "transactions"), {
-      ownerMobile: mobile,
-      partyId: myPartyId,
-      counterpartyMobile: otherParty.ownerMobile,
-// ১. মিররিং ও সিঙ্ক (লুপ ও ডাবল এন্ট্রি ফিক্স)
-async function syncCrossPartyData() {
-  try {
-    const q = query(collection(db, "parties"), where("mobile", "==", mobile));
-    const snap = await getDocs(q);
-    
-    for (const d of snap.docs) {
-      const otherParty = d.data();
-      if (otherParty.ownerMobile === mobile) continue; 
-
-      const myPartiesQuery = query(collection(db, "parties"), where("ownerMobile", "==", mobile), where("mobile", "==", otherParty.ownerMobile));
-      let myPartiesSnap = await getDocs(myPartiesQuery);
-      let myPartyId = null;
-
-      if (myPartiesSnap.empty) {
-        const newType = otherParty.partyType === "customer" ? "supplier" : "customer";
-        const newDocRef = doc(collection(db, "parties")); 
-        await setDoc(newDocRef, {
-          ownerMobile: mobile,
-          name: otherParty.ownerMobile, 
-          mobile: otherParty.ownerMobile,
-          partyType: newType,
-          isAutoSynced: true,
-          createdAt: new Date()
-        });
-        myPartyId = newDocRef.id;
-      } else {
-        myPartyId = myPartiesSnap.docs[0].id;
-      }
-
-      // 🛑 শুধুমাত্র অরিজিনাল ট্রানজেকশন খুঁজব (যেগুলো মিরর নয়)
-      const txQuery = query(
-        collection(db, "transactions"), 
-        where("ownerMobile", "==", otherParty.ownerMobile), 
-        where("counterpartyMobile", "==", mobile),
-        where("isMirrored", "==", false) // অরিজিনাল ট্রানজেকশন
-      );
+      // ৩. তার লেনদেনগুলো খুঁজি (ইনডেক্স এরর এড়াতে শুধু ownerMobile দিয়ে কুয়েরি করে ফিল্টার করব)
+      const txQuery = query(collection(db, "transactions"), where("ownerMobile", "==", otherParty.ownerMobile));
       const txSnap = await getDocs(txQuery);
 
       for (const txDoc of txSnap.docs) {
         const tx = txDoc.data();
         
-        // ✅ ফিক্সড আইডি ব্যবহার (যাতে ডাবল এন্ট্রি না হয়)
-        const mirrorDocId = `mirror_${txDoc.id}_${mobile}`;
-        const mirrorDocRef = doc(db, "transactions", mirrorDocId);
+        // যদি লেনদেনটি আমার সাথে হয় এবং অরিজিনাল হয়
+        if (tx.counterpartyMobile === mobile && !tx.isMirrored) {
+          
+          // 🛑 ডাবল এন্ট্রি বন্ধ করতে ফিক্সড আইডি (mirror_আইডি_নম্বর)
+          const mirrorDocId = `mirror_${txDoc.id}_${mobile}`;
+          const mirrorDocRef = doc(db, "transactions", mirrorDocId);
 
-        await setDoc(mirrorDocRef, {
-          ownerMobile: mobile,
-          partyId: myPartyId,
-          counterpartyMobile: otherParty.ownerMobile,
-          accountType: tx.accountType,
-          direction: tx.direction === "given" ? "received" : "given", 
-          visibleAmount: tx.visibleAmount,
-          imageUrls: tx.imageUrls || [],
-          note: tx.note,
-          date: tx.date,
-          isDeleted: false,
-          isMirrored: true, // 🛑 এটি মিরর, একে আর মিরর করা যাবে না
-          status: "pending", 
-          originalTxId: txDoc.id, 
-          deletedBy: [],
-          verifiedBy: []
-        }, { merge: true }); 
+          // setDoc merge:true দিলে একই ডেটা বারবার চেক করলেও ডুপ্লিকেট হবে না
+          await setDoc(mirrorDocRef, {
+            ownerMobile: mobile,
+            partyId: myPartyId,
+            counterpartyMobile: otherParty.ownerMobile,
+            accountType: tx.accountType,
+            direction: tx.direction === "given" ? "received" : "given", 
+            visibleAmount: tx.visibleAmount,
+            imageUrls: tx.imageUrls || [],
+            note: tx.note,
+            date: tx.date,
+            isDeleted: false,
+            isMirrored: true, 
+            status: tx.status || "pending", 
+            originalTxId: txDoc.id, 
+            deletedBy: [],
+            verifiedBy: []
+          }, { merge: true }); 
+        }
       }
     }
   } catch (err) { 
@@ -132,7 +86,7 @@ async function syncCrossPartyData() {
   }
 }
 
-// ২. ডেটা লোড
+// ✅ ২. ডেটা লোড
 async function loadData() {
   try {
     await syncCrossPartyData();
@@ -154,17 +108,15 @@ async function loadData() {
     loadProfile();
     loadGlobalSettingsAndBalance();
   } catch (err) { 
-    partyContainer.innerHTML = `<p style='color:red; text-align:center;'>লোড সমস্যা: ${err.message}</p>`; 
+    partyContainer.innerHTML = `<p style='color:red; text-align:center; padding: 20px;'>লোড সমস্যা: ${err.message}</p>`; 
   }
 }
 
-// ৩. গ্লোবাল সেটিংস ও ব্যালেন্স লোড
+// ✅ ৩. গ্লোবাল সেটিংস ও ব্যালেন্স
 async function loadGlobalSettingsAndBalance() {
   try {
     const settingsSnap = await getDoc(doc(db, "settings", "global"));
-    if (settingsSnap.exists()) {
-      window.appSettings = settingsSnap.data();
-    }
+    if (settingsSnap.exists()) window.appSettings = settingsSnap.data();
 
     const userSnap = await getDoc(doc(db, "users", mobile));
     if (userSnap.exists()) {
@@ -175,8 +127,10 @@ async function loadGlobalSettingsAndBalance() {
   } catch (e) { console.log("Settings error", e); }
 }
 
-// ৪. রেন্ডার ও ফিল্টার
+// ✅ ৪. রেন্ডার ও ফিল্টার
 function renderDashboard() {
+  if(!partyContainer) return;
+
   const filteredParties = allParties.filter(p => p.partyType === currentTab);
   const filteredPartyIds = new Set(filteredParties.map(p => p.id));
   
@@ -185,7 +139,8 @@ function renderDashboard() {
   const partyBalances = {};
 
   allTransactions.forEach(tx => {
-    if (filteredPartyIds.has(tx.partyId) && !tx.isDeleted) {
+    // শুধু ডিলিট না হওয়া এবং রিজেক্টেড না হওয়া ট্রানজেকশন হিসাবে যোগ হবে
+    if (filteredPartyIds.has(tx.partyId) && !tx.isDeleted && tx.status !== "rejected") {
       if (!isPanicActive && tx.accountType === "kacha") return;
       if (isPanicActive && currentAccountType !== "both" && tx.accountType !== currentAccountType) return;
 
@@ -249,7 +204,7 @@ function renderDashboard() {
   });
 }
 
-// ৫. ট্যাব সুইচ
+// UI ট্যাব সুইচ
 window.switchTab = function(tab) {
   currentTab = tab;
   document.getElementById("tab-customer").classList.remove("active");
@@ -269,10 +224,9 @@ window.switchAccountType = function(type) {
   renderDashboard();
 };
 
-// ৬. রিপোর্ট ডাউনলোড
+// ✅ ৫. রিপোর্ট ডাউনলোড (Excel/PDF)
 window.downloadReport = async function(format) {
   if (allParties.length === 0) return alert("ডেটা নেই!");
-  
   let pin = prompt("রিপোর্ট ডাউনলোড করতে ৬-ডিজিটের প্যানিক পিন দিন:");
   if (!pin) return;
 
@@ -292,7 +246,7 @@ window.downloadReport = async function(format) {
       allParties.forEach(p => {
         let pg=0, pr=0, kg=0, kr=0;
         allTransactions.forEach(tx => {
-          if (tx.partyId === p.id && !tx.isDeleted) {
+          if (tx.partyId === p.id && !tx.isDeleted && tx.status !== "rejected") {
             if (tx.accountType === "paka") { if (tx.direction === "given") pg += tx.visibleAmount; else pr += tx.visibleAmount; }
             else { if (tx.direction === "given") kg += tx.visibleAmount; else kr += tx.visibleAmount; }
           }
@@ -313,7 +267,7 @@ window.downloadReport = async function(format) {
       allParties.forEach(p => {
         let pg=0, pr=0, kg=0, kr=0;
         allTransactions.forEach(tx => {
-          if (tx.partyId === p.id && !tx.isDeleted) {
+          if (tx.partyId === p.id && !tx.isDeleted && tx.status !== "rejected") {
             if (tx.accountType === "paka") { if (tx.direction === "given") pg += tx.visibleAmount; else pr += tx.visibleAmount; }
             else { if (tx.direction === "given") kg += tx.visibleAmount; else kr += tx.visibleAmount; }
           }
@@ -328,7 +282,7 @@ window.downloadReport = async function(format) {
   } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ৭. পার্টি সেভ ও অন্যান্য
+// ✅ ৬. পার্টি সেভ
 document.getElementById("save-party-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-party-name").value.trim();
   const partyMobile = document.getElementById("new-party-mobile").value.trim();
@@ -374,4 +328,5 @@ document.getElementById("profile-upload").addEventListener("change", async (e) =
   } catch(e) { alert("ছবি সমস্যা"); }
 });
 
+// ড্যাশবোর্ড লোড
 loadData();
