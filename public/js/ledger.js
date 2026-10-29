@@ -22,6 +22,16 @@ function padSpace(text, length, alignRight = true) {
   return alignRight ? pad + text : text + pad;
 }
 
+// ✅ WhatsApp নাম্বার ফরম্যাট করার ফাংশন
+function formatWhatsAppNumber(number) {
+  if (!number) return "";
+  let cleanNumber = String(number).replace(/\D/g, '');
+  if (cleanNumber.length === 10) {
+    cleanNumber = '91' + cleanNumber;
+  }
+  return cleanNumber;
+}
+
 // ১. পার্টির ডিটেইলস
 async function loadPartyDetails() {
   const docSnap = await getDoc(doc(db, "parties", partyId));
@@ -113,12 +123,11 @@ function loadTransactions() {
         const isG = t.data().direction === "given";
         let amt = t.data().visibleAmount;
         if (t.data().accountType === "kacha") amt = (t.data().visibleAmount / 100).toFixed(2);
-        if (t.data().isDeleted) amt = "X"; // ডিলিট হলে X দেখাবে
+        if (t.data().isDeleted) amt = "X"; 
 
         const givenAmt = isG ? amt : "0";
         const recvAmt = !isG ? amt : "0";
         
-        // কলামের সাইজ ফিক্স করা হলো (তারিখ=৯, টাকা=৭)
         waTable += `${padSpace(dStr, 9)} | ${padSpace(givenAmt, 7)} | ${padSpace(recvAmt, 7)} | ${padSpace(amt, 7)}\n`;
       });
 
@@ -131,10 +140,12 @@ function loadTransactions() {
       
       const waText = encodeURIComponent(waMessage);
       
-      let waNumber = partyData.mobile;
-      if (waNumber && !waNumber.startsWith('91')) waNumber = '91' + waNumber;
-
-      const waBtn = `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; margin-left: 8px;" title="Share">🟢</button>`;
+      // ✅ WhatsApp নাম্বার ফরম্যাট ও বাটন হাইড লজিক
+      let waNumber = formatWhatsAppNumber(partyData.mobile);
+      let waBtn = "";
+      if (waNumber) {
+        waBtn = `<button onclick="window.open('https://wa.me/${waNumber}?text=${waText}', '_blank')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; margin-left: 8px;" title="Share">🟢</button>`;
+      }
 
       // ২৪ ঘণ্টার এডিট বাটন
       const hoursDiff = (new Date() - dateObj) / (1000 * 60 * 60);
