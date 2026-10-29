@@ -6,18 +6,47 @@ const mobile = localStorage.getItem("paybook_mobile");
 if (!mobile) window.location.href = "index.html";
 
 let currentTab = "customer";
-let currentAccountType = "paka";
 let allParties = [];
 let allTransactions = [];
 let isPanicActive = sessionStorage.getItem("panic_unlock_until") && Date.now() < parseInt(sessionStorage.getItem("panic_unlock_until"));
+let userSalt = ""; // পিন ভেরিফাই করার জন্য
+let pendingDownloadFormat = ""; // কোন ফরম্যাটে ডাউনলোড হবে
 
 const partyContainer = document.getElementById("party-container");
 const addPartyForm = document.getElementById("add-party-form");
 
-// ✅ ১. সিঙ্ক ও মিররিং (ইনডেক্স এরর ছাড়াই)
+// ✅ প্যানিক মোড একটিভ হলে UI আপডেট
+if (isPanicActive) {
+  document.getElementById("panic-indicator").style.display = "block";
+  document.getElementById("account-type-tabs").classList.add("hidden-tabs");
+  document.getElementById("summary-received-title").innerText = "মোট প্রাপ্য (কাঁচা ফেক)";
+  document.getElementById("summary-given-title").innerText = "মোট প্রদেয় (কাঁচা ফেক)";
+}
+
+// ✅ প্যানিক মোড থেকে বের হওয়া
+window.exitPanicMode = function() {
+  sessionStorage.removeItem("panic_unlock_until");
+  window.location.reload();
+};
+
+// ✅ পিন ভেরিফাই ফাংশন
+async function verifyPanicPin(pin) {
+  if (!userSalt) {
+    const userSnap = await getDoc(doc(db, "users", mobile));
+    userSalt = userSnap.data().salt;
+  }
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(userSalt), iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
+  
+  const userSnap = await getDoc(doc(db, "users", mobile));
+  return hash === userSnap.data().panicPinHash;
+}
+
+// ১. সিঙ্ক ও মিররিং
 async function syncCrossPartyData() {
   try {
-    // ১. আমার নম্বরটি কার কার লিস্টে আছে খুঁজি
     const q = query(collection(db, "parties"), where("mobile", "==", mobile));
     const snap = await getDocs(q);
     
@@ -25,7 +54,6 @@ async function syncCrossPartyData() {
       const otherParty = d.data();
       if (otherParty.ownerMobile === mobile) continue; 
 
-      // ২. আমার লিস্টে ওই পার্টি আছে কি?
       const myPartiesQuery = query(collection(db, "parties"), where("ownerMobile", "==", mobile), where("mobile", "==", otherParty.ownerMobile));
       let myPartiesSnap = await getDocs(myPartiesQuery);
       let myPartyId = null;
@@ -46,21 +74,14 @@ async function syncCrossPartyData() {
         myPartyId = myPartiesSnap.docs[0].id;
       }
 
-      // ৩. তার লেনদেনগুলো খুঁজি (ইনডেক্স এরর এড়াতে শুধু ownerMobile দিয়ে কুয়েরি করে ফিল্টার করব)
       const txQuery = query(collection(db, "transactions"), where("ownerMobile", "==", otherParty.ownerMobile));
       const txSnap = await getDocs(txQuery);
 
       for (const txDoc of txSnap.docs) {
         const tx = txDoc.data();
-        
-        // যদি লেনদেনটি আমার সাথে হয় এবং অরিজিনাল হয়
         if (tx.counterpartyMobile === mobile && !tx.isMirrored) {
-          
-          // 🛑 ডাবল এন্ট্রি বন্ধ করতে ফিক্সড আইডি (mirror_আইডি_নম্বর)
           const mirrorDocId = `mirror_${txDoc.id}_${mobile}`;
           const mirrorDocRef = doc(db, "transactions", mirrorDocId);
-
-          // setDoc merge:true দিলে একই ডেটা বারবার চেক করলেও ডুপ্লিকেট হবে না
           await setDoc(mirrorDocRef, {
             ownerMobile: mobile,
             partyId: myPartyId,
@@ -81,16 +102,13 @@ async function syncCrossPartyData() {
         }
       }
     }
-  } catch (err) { 
-    console.error("Sync error", err); 
-  }
+  } catch (err) { console.error("Sync error", err); }
 }
 
-// ✅ ২. ডেটা লোড
+// ২. ডেটা লোড
 async function loadData() {
   try {
     await syncCrossPartyData();
-
     const partiesRef = collection(db, "parties");
     const partyQuery = query(partiesRef, where("ownerMobile", "==", mobile));
     const partySnapshot = await getDocs(partyQuery);
@@ -101,9 +119,6 @@ async function loadData() {
     const txSnapshot = await getDocs(txQuery);
     allTransactions = txSnapshot.docs.map(d => d.data());
 
-    if (isPanicActive) {
-      document.getElementById("account-type-tabs").style.display = "flex";
-    }
     renderDashboard();
     loadProfile();
     loadGlobalSettingsAndBalance();
@@ -112,7 +127,7 @@ async function loadData() {
   }
 }
 
-// ✅ ৩. গ্লোবাল সেটিংস ও ব্যালেন্স
+// ৩. গ্লোবাল সেটিংস ও ব্যালেন্স
 async function loadGlobalSettingsAndBalance() {
   try {
     const settingsSnap = await getDoc(doc(db, "settings", "global"));
@@ -123,14 +138,13 @@ async function loadGlobalSettingsAndBalance() {
       const bal = userSnap.data().walletBalance || 0;
       document.getElementById("header-balance").innerText = `₹${bal}`;
       window.userWalletBalance = bal;
+      userSalt = userSnap.data().salt; // পিন ভেরিফাইয়ের জন্য সল্ট সেভ
     }
   } catch (e) { console.log("Settings error", e); }
 }
 
-// ✅ ৪. রেন্ডার ও ফিল্টার
+// ৪. রেন্ডার ড্যাশবোর্ড (প্যানিক লজিকসহ)
 function renderDashboard() {
-  if(!partyContainer) return;
-
   const filteredParties = allParties.filter(p => p.partyType === currentTab);
   const filteredPartyIds = new Set(filteredParties.map(p => p.id));
   
@@ -139,13 +153,15 @@ function renderDashboard() {
   const partyBalances = {};
 
   allTransactions.forEach(tx => {
-    // শুধু ডিলিট না হওয়া এবং রিজেক্টেড না হওয়া ট্রানজেকশন হিসাবে যোগ হবে
     if (filteredPartyIds.has(tx.partyId) && !tx.isDeleted && tx.status !== "rejected") {
-      if (!isPanicActive && tx.accountType === "kacha") return;
-      if (isPanicActive && currentAccountType !== "both" && tx.accountType !== currentAccountType) return;
+      
+      // ✅ প্যানিক মোডে শুধু কাঁচা হিসাব দেখাবে
+      if (isPanicActive && tx.accountType !== "kacha") return;
+      // ✅ নরমাল মোডে শুধু পাকা হিসাব দেখাবে
+      if (!isPanicActive && tx.accountType !== "paka") return;
 
       let amount = tx.visibleAmount;
-      if (tx.accountType === "kacha") amount = amount / 100;
+      if (tx.accountType === "kacha") amount = amount / 100; // কাঁচা ১০০ দিয়ে ভাগ
 
       if (!partyBalances[tx.partyId]) partyBalances[tx.partyId] = { given: 0, received: 0 };
       if (tx.direction === "given") {
@@ -158,12 +174,6 @@ function renderDashboard() {
     }
   });
 
-  let headerText = "পাকা";
-  if (isPanicActive && currentAccountType === "kacha") headerText = "কাঁচা (ফেক)";
-  if (isPanicActive && currentAccountType === "both") headerText = "উভয়";
-
-  document.querySelector('.summary .received h3').innerText = `মোট প্রাপ্য (${headerText})`;
-  document.querySelector('.summary .given h3').innerText = `মোট প্রদেয় (${headerText})`;
   document.getElementById("total-given").innerText = `₹${totalGiven.toFixed(2)}`;
   document.getElementById("total-received").innerText = `₹${totalReceived.toFixed(2)}`;
 
@@ -204,139 +214,92 @@ function renderDashboard() {
   });
 }
 
-// UI ট্যাব সুইচ
 window.switchTab = function(tab) {
   currentTab = tab;
   document.getElementById("tab-customer").classList.remove("active");
   document.getElementById("tab-supplier").classList.remove("active");
   document.getElementById(`tab-${tab}`).classList.add("active");
-  document.getElementById("list-title").innerText = tab === "customer" ? "কাস্টমার লিস্ট" : "সাপ্লায়ার লিস্ট";
-  document.getElementById("add-party-heading").innerText = tab === "customer" ? "নতুন কাস্টমার যোগ করুন" : "নতুন সাপ্লায়ার যোগ করুন";
+  document.getElementById("list-title").innerText = tab === "customer" ? "কাস্টমার লিস্ট" : "সাপ্লায়ার লিস্ট";
+  document.getElementById("add-party-heading").innerText = tab === "customer" ? "নতুন কাস্টমার যোগ করুন" : "নতুন সাপ্লায়ার যোগ করুন";
   renderDashboard();
 };
 
 window.switchAccountType = function(type) {
-  currentAccountType = type;
-  document.getElementById("acc-paka").classList.remove("active");
-  document.getElementById("acc-kacha").classList.remove("active");
-  document.getElementById("acc-both").classList.remove("active");
-  document.getElementById(`acc-${type}`).classList.add("active");
-  renderDashboard();
+  // ড্যাশবোর্ডে কাঁচা/পাকা ট্যাব শুধু নরমাল মোডে কাজ করবে
+  if (isPanicActive) return; 
+  // এই ফাংশনটি এখন ড্যাশবোর্ডে ব্যবহার হচ্ছে না, তবে ভবিষ্যতের জন্য রাখা হলো
 };
 
-// ✅ ৫. রিপোর্ট ডাউনলোড (Excel/PDF)
-// ✅ ৫. রিপোর্ট ডাউনলোড (প্যানিক পিন ছাড়াই, WhatsApp ফরম্যাটে)
+// ✅ রিপোর্ট ডাউনলোড শুরু (প্যানিক পিন চেক)
 window.downloadReport = async function(format) {
-  if (allParties.length === 0) return alert("ডাউনলোড করার মতো কোনো ডেটা নেই!");
+  pendingDownloadFormat = format;
+  
+  if (isPanicActive) {
+    let pin = prompt("রিপোর্ট ডাউনলোড করতে প্যানিক পিন দিন:");
+    if (!pin) return;
+    const isValid = await verifyPanicPin(pin);
+    if (!isValid) return alert("ভুল প্যানিক পিন!");
+    
+    // পিন সঠিক হলে অপশন মোডাল দেখাও
+    document.getElementById('report-modal').style.display = 'flex';
+  } else {
+    // নরমাল মোডে সরাসরি পাকা রিপোর্ট
+    processDownload('paka');
+  }
+};
+
+// ✅ রিপোর্ট জেনারেট করা
+window.processDownload = async function(reportType) {
+  document.getElementById('report-modal').style.display = 'none';
 
   try {
-    let rows = [];
-    
-    // টেবিলের হেডার (হোয়াটসঅ্যাপের মতো)
-    rows.push(["Date", "Party Name", "Type", "Given", "Received", "Balance", "Note"]);
+    let rows = [["Date", "Party Name", "Type", "Given", "Received", "Balance", "Note"]];
 
-    // প্রতিটি পার্টির লেনদেন প্রসেস করা
     allParties.forEach(p => {
       let partyTx = allTransactions.filter(tx => tx.partyId === p.id && !tx.isDeleted && tx.status !== "rejected");
-      
-      // পুরনো থেকে নতুন সাজানো
       partyTx.sort((a, b) => a.date.toDate() - b.date.toDate());
-      
       let runningBalance = 0;
       
       partyTx.forEach(tx => {
-        // প্যানিক মোড না থাকলে কাঁচা বাদ যাবে
-        if (!isPanicActive && tx.accountType === "kacha") return;
-        // যদি প্যানিক মোডে 'both' সিলেক্ট থাকে, তবে সবই আসবে
-        if (isPanicActive && currentAccountType !== 'both' && tx.accountType !== currentAccountType) return;
+        // রিপোর্ট ফিল্টার
+        if (reportType === 'kacha' && tx.accountType !== 'kacha') return;
+        if (reportType === 'paka' && tx.accountType !== 'paka') return;
 
-        let amt = tx.visibleAmount;
-        if (tx.accountType === "kacha") amt = amt / 100;
-        
+        let amt = tx.visibleAmount; // রিপোর্টে অরিজিনাল এমাউন্ট
         let givenStr = tx.direction === "given" ? amt : 0;
         let recvStr = tx.direction === "received" ? amt : 0;
-        
         runningBalance += (recvStr - givenStr);
         
-        let dObj = tx.date.toDate();
-        let dStr = dObj.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
-        
-        rows.push([
-          dStr, 
-          p.name, 
-          tx.accountType === 'kacha' ? 'Kacha' : 'Paka', 
-          givenStr, 
-          recvStr, 
-          runningBalance, 
-          tx.note || "-"
-        ]);
+        let dStr = tx.date.toDate().toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit' });
+        rows.push([dStr, p.name, tx.accountType, givenStr, recvStr, runningBalance, tx.note || "-"]);
       });
     });
 
     if (rows.length === 1) return alert("এই ট্যাবে ডাউনলোড করার মতো কোনো লেনদেন নেই!");
 
-    // ✅ Excel (CSV) ডাউনলোড
-    if (format === 'excel') {
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // বাংলা লেখার জন্য BOM
-      rows.forEach(row => {
-        csvContent += row.map(cell => `"${cell}"`).join(",") + "\n";
-      });
-      
-      const encodedUri = encodeURI(csvContent);
+    if (pendingDownloadFormat === 'excel') {
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      rows.forEach(row => { csvContent += row.map(c => `"${c}"`).join(",") + "\n"; });
       const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `PayBook_Report_${Date.now()}.csv`);
-      document.body.appendChild(link); 
-      link.click(); 
-      document.body.removeChild(link);
-    } 
-    
-    // ✅ PDF ডাউনলোড
-    else if (format === 'pdf') {
+      link.href = encodeURI(csvContent);
+      link.download = `PayBook_Report_${reportType}_${Date.now()}.csv`;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    } else if (pendingDownloadFormat === 'pdf') {
       let printWindow = window.open('', '_blank');
-      let html = `
-        <html><head><title>PayBook Report</title>
-        <style>
-          body{font-family: sans-serif; padding: 20px;}
-          h2 { color: #97144D; text-align: center; }
-          table{width:100%; border-collapse: collapse; margin-top:20px; font-size: 12px;}
-          th,td{border:1px solid #ddd; padding:8px; text-align:left;}
-          th{background:#f2f2f2; color: #333;}
-          .given { color: #D32F2F; font-weight: bold; }
-          .received { color: #2E7D32; font-weight: bold; }
-        </style></head><body>
-      `;
-      
-      html += `<h2>PayBook Ledger Report</h2>`;
-      html += `<p style="text-align:center; font-size:12px; color:#555;">Generated on: ${new Date().toLocaleString()}</p>`;
-      
-      html += `<table><tr>`;
+      let html = `<html><head><title>PayBook Report</title><style>body{font-family: sans-serif; padding:20px;} table{width:100%; border-collapse:collapse; font-size:12px;} th,td{border:1px solid #ddd; padding:8px;} th{background:#f2f2f2;}</style></head><body>`;
+      html += `<h2>PayBook Report (${reportType})</h2><table><tr>`;
       rows[0].forEach(h => html += `<th>${h}</th>`);
       html += `</tr>`;
-      
-      for (let i = 1; i < rows.length; i++) {
-        html += `<tr>`;
-        html += `<td>${rows[i][0]}</td>`; // Date
-        html += `<td>${rows[i][1]}</td>`; // Party Name
-        html += `<td>${rows[i][2]}</td>`; // Type
-        html += `<td class="given">${rows[i][3] != 0 ? rows[i][3] : '-'}</td>`; // Given
-        html += `<td class="received">${rows[i][4] != 0 ? rows[i][4] : '-'}</td>`; // Received
-        html += `<td><b>${rows[i][5]}</b></td>`; // Balance
-        html += `<td>${rows[i][6]}</td>`; // Note
-        html += `</tr>`;
+      for(let i=1; i<rows.length; i++) {
+        html += `<tr>${rows[i].map(c => `<td>${c}</td>`).join('')}</tr>`;
       }
       html += `</table></body></html>`;
-      
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.print(); // ডিভাইসের প্রিন্ট ডায়ালগ ওপেন হবে, সেখান থেকে "Save as PDF" করতে হবে
+      printWindow.document.write(html); printWindow.document.close(); printWindow.print();
     }
-  } catch (e) { 
-    alert("রিপোর্ট তৈরিতে সমস্যা: " + e.message); 
-  }
+  } catch (e) { alert("সমস্যা: " + e.message); }
 };
 
-// ✅ ৬. পার্টি সেভ
+// পার্টি সেভ, প্রোফাইল, লগআউট (আগের মতো)
 document.getElementById("save-party-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-party-name").value.trim();
   const partyMobile = document.getElementById("new-party-mobile").value.trim();
@@ -348,7 +311,6 @@ document.getElementById("save-party-btn").addEventListener("click", async () => 
     const q = query(collection(db, "parties"), where("ownerMobile", "==", mobile));
     const snap = await getDocs(q);
     if (snap.docs.some(d => d.data().mobile === partyMobile)) return alert("নম্বরটি আগে থেকেই সেভ করা আছে!");
-
     await addDoc(collection(db, "parties"), { 
       ownerMobile: mobile, name: name, mobile: partyMobile, partyType: currentTab, createdAt: new Date() 
     });
@@ -366,7 +328,6 @@ document.getElementById("logout-btn").addEventListener("click", () => { localSto
 let lastTap = 0;
 document.getElementById("app-logo").addEventListener("click", () => { if (new Date().getTime() - lastTap < 500) window.location.href = "panic.html"; lastTap = new Date().getTime(); });
 
-// প্রোফাইল
 async function loadProfile() {
   const userSnap = await getDoc(doc(db, "users", mobile));
   if (userSnap.exists() && userSnap.data().profilePic) document.getElementById("profile-pic").src = userSnap.data().profilePic;
@@ -382,5 +343,4 @@ document.getElementById("profile-upload").addEventListener("change", async (e) =
   } catch(e) { alert("ছবি সমস্যা"); }
 });
 
-// ড্যাশবোর্ড লোড
 loadData();
