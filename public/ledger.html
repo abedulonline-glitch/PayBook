@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PayBook - লেজার</title>
-  <link rel="stylesheet" href="css/style.css?v=101">
+  <link rel="stylesheet" href="css/style.css?v=106">
 </head>
 <body style="display: block; background: var(--bg-color); padding-bottom: 90px;">
   
   <div class="header" style="padding: 12px 16px;">
     <button onclick="window.location.href='dashboard.html'" style="background:none; border:none; color:var(--primary); font-size:24px; width: auto; padding: 0;">←</button>
     <div style="display: flex; align-items: center; gap: 12px; flex-grow: 1; padding-left: 10px;">
+      <!-- প্রোফাইল ছবি (ক্লিক করলে মোডাল ওপেন হবে) -->
       <div id="avatar-box" onclick="openProfileModal()" style="width: 48px; height: 48px; border-radius: 50%; background: #E8F5E9; color: #2E7D32; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; overflow: hidden; border: 2px solid var(--primary); cursor: pointer; flex-shrink: 0;">
         <span id="avatar-text">M</span>
         <img id="avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
@@ -27,9 +28,33 @@
     <p style="text-align:center; color:#666;">লোড হচ্ছে...</p>
   </div>
 
-  <!-- প্রোফাইল মোডাল (আগের মতোই) -->
+  <!-- প্রোফাইল ডিটেইলস ও এডিট মোডাল -->
   <div id="profile-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; justify-content: center; align-items: center;">
-    <!-- ... আগের প্রোফাইল মোডালের কোড ... -->
+    <div style="background: #fff; width: 90%; max-width: 350px; border-radius: 16px; padding: 24px; text-align: center; position: relative;">
+      <button onclick="closeProfileModal()" style="position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; color: #999; width: auto;">✕</button>
+      
+      <!-- মোডালের ভেতরের বড় ছবি -->
+      <div id="modal-avatar-box" style="width: 100px; height: 100px; border-radius: 50%; background: #E8F5E9; color: #2E7D32; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; margin: 0 auto 16px auto; border: 3px solid var(--primary); overflow: hidden; cursor: pointer;">
+        <span id="modal-avatar-text">M</span>
+        <img id="modal-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;" onclick="zoomProfileImage()">
+      </div>
+
+      <!-- পার্টির নাম (এডিট করার জন্য ক্লিকেবল) -->
+      <h3 id="modal-party-name" onclick="editPartyName()" style="margin-bottom: 8px; font-size: 22px; color: #333; cursor: pointer; display: inline-block;">
+        Name ✏️
+      </h3>
+      
+      <!-- মোবাইল নম্বর (এডিট করার জন্য ক্লিকেবল) -->
+      <p style="margin-bottom: 8px; color: #666; font-size: 16px;">
+        📞 মোবাইল: <strong id="modal-party-mobile" onclick="editPartyPhone()" style="color: var(--primary); cursor: pointer; text-decoration: underline;">01700000000</strong>
+      </p>
+      
+      <p style="margin-bottom: 20px; color: #666; font-size: 14px; background: #f0f0f0; display: inline-block; padding: 4px 12px; border-radius: 12px;" id="modal-party-type">Customer</p>
+
+      <!-- ছবি পরিবর্তন করার ইনপুট -->
+      <button onclick="document.getElementById('avatar-upload').click()" style="background: #f0f0f0; color: #333; border: 1px solid #ddd; padding: 10px; border-radius: 8px; width: 100%; margin-top: 10px;">📷 প্রোফাইল ছবি পরিবর্তন করুন</button>
+      <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+    </div>
   </div>
 
   <!-- ফুল স্ক্রিন ইমেজ ভিউয়ার -->
@@ -44,7 +69,7 @@
     <button class="btn-given" onclick="goToNewTx('given', 'paka')">↑ Given (পাকা)</button>
   </div>
 
-  <script type="module" src="js/ledger.js?v=101"></script>
+  <script type="module" src="js/ledger.js?v=106"></script>
   <script>
     function goToNewTx(type, accType) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -52,8 +77,6 @@
       const name = urlParams.get("name");
       window.location.href = `transaction.html?partyId=${partyId}&name=${encodeURIComponent(name)}&type=${type}&accountType=${accType}`;
     }
-    
   </script>
-
 </body>
 </html>
